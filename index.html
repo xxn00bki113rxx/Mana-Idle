@@ -1,10 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#1a1a2e">
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <meta name="theme-color" content="#1a1a2e">
     <title>Fantasy Idle: Tiered Magic</title>
     <style>
         body { font-family: sans-serif; background: #1a1a2e; color: #fff; text-align: center; margin: 0; padding-bottom: 50px; overflow-x: hidden; }
@@ -195,7 +200,7 @@ window.addEventListener('keydown', (e) => {
         { id: 'well', name: 'Mana Well', cost: 100, mps: 8, count: 0 },
         { id: 'library', name: 'Arcane Library', cost: 1000, mps: 45, count: 0 },
         { id: 'tower', name: 'Wizard Tower', cost: 5000, mps: 200, count: 0 },
-	{ id: 'ball', name: 'Palantir', cost: 7500, mps: 400, count: 0 }
+		{ id: 'ball', name: 'Palantir', cost: 7500, mps: 400, count: 0 }
     ];
 
     // 2. Tab Logic
@@ -489,29 +494,46 @@ gameLoop();
 
 function buyUpgrade(index) {
     const upg = upgrades[index];
-    const robeDiscount = artifactPool.find(a => a.id === 'robe').owned ? 0.9 : 1;
+    
+    
+    const robe = artifactPool.find(a => a.id === 'robe');
+    const robeDiscount = (robe && robe.owned) ? 0.9 : 1;
     const finalCost = Math.floor(upg.cost * robeDiscount);
 
+    
     if (mana >= finalCost) {
         mana -= finalCost;
         upg.count++;
-        upg.cost = Math.floor(upg.cost * 1.15); // Increase price for next level
+        
+        upg.cost = Math.floor(upg.cost * 1.15); 
+        
         calculateMPS();
         updateUI();
+        saveGame(); 
+    } else {
+        console.log("Not enough mana! Need: " + finalCost);
     }
 }
 
 function buyMax(index) {
     const upg = upgrades[index];
-    const robeDiscount = artifactPool.find(a => a.id === 'robe').owned ? 0.9 : 1;
+    const robe = artifactPool.find(a => a.id === 'robe');
+    const robeDiscount = (robe && robe.owned) ? 0.9 : 1;
+    
+    let count = 0;
     
     while (mana >= Math.floor(upg.cost * robeDiscount)) {
         mana -= Math.floor(upg.cost * robeDiscount);
         upg.count++;
         upg.cost = Math.floor(upg.cost * 1.15);
+        count++;
     }
-    calculateMPS();
-    updateUI();
+
+    if (count > 0) {
+        calculateMPS();
+        updateUI();
+        saveGame();
+    }
 }
 
 function calculateMPS() {
