@@ -102,8 +102,8 @@
     <div id="sanctum-tab" class="tab-content">
         <div id="mana-display">Mana: 0</div>
         <button onclick="clickMana(event)" style="width: 200px; height: 60px; margin-bottom: 20px;">Gather Mana</button>
-        <div class="shop-container" id="shop"></div>
-    </div> <div id="battle-tab" class="tab-content" style="display: none;">
+        <div class="shop-container" id="shop"></div></div>
+     <div id="battle-tab" class="tab-content" style="display: none;">
         <div id="combat-section">
             <h2 style="color: #e94560; margin: 0;">Arcane Rift</h2>
             <div id="monster-container" style="height: 120px; display: flex; align-items: center; justify-content: center; position: relative;">
@@ -468,34 +468,40 @@ window.addEventListener('keydown', (e) => {
 }
 
     function renderShop() {
-    const shop = document.getElementById('shop');
+    console.log("Attempting to render shop...");
+	const shop = document.getElementById('shop');
     if (!shop) return;
     
     shop.innerHTML = ""; 
+    
+    // Check if upgrades array exists
+    if (!upgrades || !Array.isArray(upgrades)) return;
+
     upgrades.forEach((upg, index) => {
         const affordable = getAffordableAmount(upg, mana);
         
-        
-        const robe = artifactPool.find(a => a.id === 'robe');
+        // SAFE CHECK for robe
+        const robe = artifactPool ? artifactPool.find(a => a.id === 'robe') : null;
         const robeDiscount = (robe && robe.owned) ? 0.9 : 1;
         const currentCost = Math.floor(upg.cost * robeDiscount);
 
-        shop.innerHTML += `
-            <div class="upgrade-card">
-                <div class="info">
-                    <strong>${upg.name}</strong> 
-                    <span class="level-badge">Lv. ${upg.count}</span><br>
-                    <small>+${upg.mps} Mana/sec</small>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 5px;">
-                    <button id="btn-${index}" onclick="buyUpgrade(${index})" ${mana < currentCost ? 'disabled' : ''}>
-                        Buy: ${currentCost.toLocaleString()}
-                    </button>
-                    <button onclick="buyMax(${index})" style="background: #0f3460; font-size: 0.7em;" ${affordable === 0 ? 'disabled' : ''}>
-                        Max (+${affordable})
-                    </button>
-                </div>
+        const card = document.createElement('div');
+        card.className = 'upgrade-card';
+        card.innerHTML = `
+            <div class="info">
+                <strong>${upg.name}</strong> 
+                <span class="level-badge">Lv. ${upg.count}</span><br>
+                <small>+${upg.mps} Mana/sec</small>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+                <button id="btn-${index}" onclick="buyUpgrade(${index})" ${mana < currentCost ? 'disabled' : ''}>
+                    Buy: ${currentCost.toLocaleString()}
+                </button>
+                <button onclick="buyMax(${index})" style="background: #0f3460; font-size: 0.7em;" ${affordable === 0 ? 'disabled' : ''}>
+                    Max (+${affordable})
+                </button>
             </div>`;
+        shop.appendChild(card);
     });
 }
 
@@ -549,21 +555,23 @@ function calculateMPS() {
 }
 
 function getAffordableAmount(upg, currentMana) {
+    if (!upg || currentMana <= 0) return 0;
+    
     let count = 0;
     let tempCost = upg.cost;
     let tempMana = currentMana;
     
-    
-    const robe = artifactPool.find(a => a.id === 'robe');
+    // SAFE CHECK: If robe isn't found, discount is 1 (no discount)
+    const robe = artifactPool ? artifactPool.find(a => a.id === 'robe') : null;
     const robeDiscount = (robe && robe.owned) ? 0.9 : 1;
 
-    
-    let safetyIterator = 0; 
-    while (tempMana >= Math.floor(tempCost * robeDiscount) && safetyIterator < 1000) {
+    // Safety iterator prevents browser freezing
+    let i = 0;
+    while (tempMana >= Math.floor(tempCost * robeDiscount) && i < 100) {
         tempMana -= Math.floor(tempCost * robeDiscount);
         tempCost = Math.floor(tempCost * 1.15);
         count++;
-        safetyIterator++;
+        i++;
     }
     return count;
 }
