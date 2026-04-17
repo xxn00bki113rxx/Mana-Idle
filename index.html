@@ -410,14 +410,7 @@ window.addEventListener('keydown', (e) => {
     // 3. Schedule the next tick
     setTimeout(gameLoop, currentTickSpeed);
 }
-
-// Start the loop for the first time
-gameLoop();
-
-    
-    
-    
-
+       
     // 5. Saving 
     function saveGame() {
     try {
@@ -674,22 +667,24 @@ function unlockAllArtifacts() {
 }
 
 function deleteSave() {
-    // 1. Ask for confirmation so players don't lose progress by accident
     if (confirm("Are you sure? This will permanently delete all mana, essence, and artifacts!")) {
-        
-        // 2. Clear the browser storage
         localStorage.removeItem("wizardIdleSave");
-        
-        // 3. Reload the page to reset all variables to zero
         location.reload(); 
     }
 }
 
-	loadGame();
-	renderShop();
-	renderArtifacts();
-    updateUI();
-	   
+// --- INITIALIZATION (This makes the game start) ---
+// This part must be at the very end to ensure all functions are loaded first
+try {
+    loadGame();      
+    calculateMPS();  
+    renderShop();    
+    updateUI();      
+    gameLoop();      
+} catch (err) {
+    console.error("Initialization failed:", err);
+}
+
 </script>
 </body>
 </html>
