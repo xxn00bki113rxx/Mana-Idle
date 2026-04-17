@@ -213,16 +213,20 @@ window.addEventListener('keydown', (e) => {
 
     // 2. Tab Logic
     function showTab(tabName) {
-    // Hide all
     document.getElementById('sanctum-tab').style.display = 'none';
     document.getElementById('battle-tab').style.display = 'none';
     document.getElementById('compendium-tab').style.display = 'none';
 
-    // Show selected
     const activeTab = document.getElementById(tabName + '-tab');
     if (activeTab) activeTab.style.display = 'block';
 
-    // Refresh contents
+    // RE-RENDER LOGIC
+    if (tabName === 'sanctum') {
+        renderShop(); // Draw shop when entering Sanctum
+    }
+    if (tabName === 'battle') {
+        renderArtifacts(); // Draw upgrades when entering Battle
+    }
     if (tabName === 'compendium') {
         renderCompendium();
     }
@@ -411,8 +415,10 @@ window.addEventListener('keydown', (e) => {
 gameLoop();
 
     // Initial Load
-    renderShop();
+    
     loadGame();
+	renderShop();
+	renderArtifacts();
     updateUI();
 
     // 5. Saving (Placeholder - use your existing save/load functions here)
@@ -517,6 +523,7 @@ function buyUpgrade(index) {
         
         calculateMPS();
         updateUI();
+		renderShop();
         saveGame(); 
     } else {
         console.log("Not enough mana! Need: " + finalCost);
