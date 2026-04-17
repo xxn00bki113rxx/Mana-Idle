@@ -96,7 +96,7 @@
     <div class="nav-bar" style="margin-top: 20px;">
         <button id="sanctum-btn" onclick="showTab('sanctum')" class="nav-btn active">Sanctum</button>
         <button id="battle-btn" onclick="showTab('battle')" class="nav-btn">Battle Rift</button>
-	<button onclick="showTab('compendium')" class="nav-btn">Compendium</button>
+		<button id="compendium-btn" onclick="showTab('compendium')" class="nav-btn">Compendium</button>
     </div>
 
     <div id="sanctum-tab" class="tab-content">
@@ -170,6 +170,27 @@ window.addEventListener('keydown', (e) => {
     let passiveTimer = 0;
     let baseTickSpeed = 100;
 
+	window.showTab = function(tabName) {
+    console.log("Switching to tab: " + tabName);
+    const tabs = ['sanctum', 'battle', 'compendium'];
+    tabs.forEach(t => {
+        const el = document.getElementById(t + '-tab');
+        if (el) el.style.display = 'none';
+        
+        const btn = document.getElementById(t + '-btn');
+        if (btn) btn.classList.remove('active');
+    });
+
+    const activeTab = document.getElementById(tabName + '-tab');
+    if (activeTab) activeTab.style.display = 'block';
+    
+    const activeBtn = document.getElementById(tabName + '-btn');
+    if (activeBtn) activeBtn.classList.add('active');
+
+    if (tabName === 'sanctum') renderShop();
+    if (tabName === 'compendium') renderCompendium();
+};
+	   
     const artifactPool = [
     { 
         id: "wand", name: "Ancient Wand", icon: "🪄", owned: false, level: 1, 
@@ -211,26 +232,7 @@ window.addEventListener('keydown', (e) => {
 		{ id: 'ball', name: 'Palantir', cost: 7500, mps: 400, count: 0 }
     ];
 
-    // 2. Tab Logic
-    function showTab(tabName) {
-    document.getElementById('sanctum-tab').style.display = 'none';
-    document.getElementById('battle-tab').style.display = 'none';
-    document.getElementById('compendium-tab').style.display = 'none';
-
-    const activeTab = document.getElementById(tabName + '-tab');
-    if (activeTab) activeTab.style.display = 'block';
-
-    // RE-RENDER LOGIC
-    if (tabName === 'sanctum') {
-        renderShop(); // Draw shop when entering Sanctum
-    }
-    if (tabName === 'battle') {
-        renderArtifacts(); // Draw upgrades when entering Battle
-    }
-    if (tabName === 'compendium') {
-        renderCompendium();
-    }
-}
+    
 
     // 3. Combat Logic
     function attackMonster() {
@@ -468,41 +470,37 @@ window.addEventListener('keydown', (e) => {
 }
 
     function renderShop() {
-    console.log("Attempting to render shop...");
-	const shop = document.getElementById('shop');
+    const shop = document.getElementById('shop');
     if (!shop) return;
     
-    shop.innerHTML = ""; 
-    
-    // Check if upgrades array exists
-    if (!upgrades || !Array.isArray(upgrades)) return;
-
+    let html = "";
     upgrades.forEach((upg, index) => {
-        const affordable = getAffordableAmount(upg, mana);
-        
-        // SAFE CHECK for robe
-        const robe = artifactPool ? artifactPool.find(a => a.id === 'robe') : null;
-        const robeDiscount = (robe && robe.owned) ? 0.9 : 1;
-        const currentCost = Math.floor(upg.cost * robeDiscount);
+        try {
+            const robe = artifactPool.find(a => a.id === 'robe');
+            const discount = (robe && robe.owned) ? 0.9 : 1;
+            const cost = Math.floor(upg.cost * discount);
+            const affordable = getAffordableAmount(upg, mana);
 
-        const card = document.createElement('div');
-        card.className = 'upgrade-card';
-        card.innerHTML = `
-            <div class="info">
-                <strong>${upg.name}</strong> 
-                <span class="level-badge">Lv. ${upg.count}</span><br>
-                <small>+${upg.mps} Mana/sec</small>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 5px;">
-                <button id="btn-${index}" onclick="buyUpgrade(${index})" ${mana < currentCost ? 'disabled' : ''}>
-                    Buy: ${currentCost.toLocaleString()}
-                </button>
-                <button onclick="buyMax(${index})" style="background: #0f3460; font-size: 0.7em;" ${affordable === 0 ? 'disabled' : ''}>
-                    Max (+${affordable})
-                </button>
-            </div>`;
-        shop.appendChild(card);
+            html += `
+                <div class="upgrade-card">
+                    <div class="info">
+                        <strong>${upg.name}</strong> <span class="level-badge">Lv. ${upg.count}</span><br>
+                        <small>+${upg.mps} Mana/sec</small>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 5px;">
+                        <button id="btn-${index}" onclick="buyUpgrade(${index})" ${mana < cost ? 'disabled' : ''}>
+                            Buy: ${cost.toLocaleString()}
+                        </button>
+                        <button onclick="buyMax(${index})" style="background: #0f3460; font-size: 0.7em;" ${affordable === 0 ? 'disabled' : ''}>
+                            Max (+${affordable})
+                        </button>
+                    </div>
+                </div>`;
+        } catch (err) {
+            console.error("Error rendering upgrade " + index, err);
+        }
     });
+    shop.innerHTML = html;
 }
 
 function buyUpgrade(index) {
@@ -692,6 +690,13 @@ try {
 } catch (err) {
     console.error("Initialization failed:", err);
 }
+
+// Force initialization
+console.log("Game script fully loaded. Initializing...");
+loadGame();
+calculateMPS();
+showTab('sanctum'); // This will trigger renderShop()
+updateUI();
 
 </script>
 </body>
