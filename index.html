@@ -195,12 +195,16 @@
             <h3 style="color: #4ecca3;">Arcane Upgrades</h3>
             <div id="artifact-list" style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;"></div>
         </div>
-    </div> <div id="compendium-tab" class="tab-content" style="display: none; padding: 20px;">
-        <h2 style="color: #4ecca3;">Mystic Compendium</h2>
-        <p style="font-size: 0.9em; color: #888; margin-bottom: 20px;">A record of all known Arcane relics.</p>
-        <div id="compendium-list" class="shop-container"></div>
-    </div>
-
+    </div> 
+		
+		 Fren<div id="compendium-tab" class="tab-content" style="display: none; padding: 20px; min-height: 500px;">
+    		<h2 style="color: #4ecca3; text-align: center;">Mystic Compendium</h2>
+    		<p style="font-size: 0.9em; color: #888; margin-bottom: 20px; text-align: center;">
+        		A record of all known Arcane relics.
+    		</p>
+    	<div id="compendium-list" style="display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 500px; margin: 0 auto;">
+        	</div>
+	</div>
 <div id="admin-menu" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #222; border: 2px solid #ff0055; padding: 20px; border-radius: 10px; z-index: 9999; text-align: left; box-shadow: 0 0 20px #000;">
     <h3 style="color: #ff0055; margin-top: 0;">Arcane Debugger</h3>
     <div style="display: flex; flex-direction: column; gap: 10px;">
@@ -552,31 +556,42 @@ function upgradeArtifact(id) {
 
 function renderCompendium() {
     const list = document.getElementById('compendium-list');
+    
+    // Safety: If the tab isn't open or the list doesn't exist yet, stop.
     if (!list) return;
-    
-    list.innerHTML = ""; // Clear the list
-    
-    artifactPool.forEach(art => {
-        const card = document.createElement('div');
-        card.className = "upgrade-card";
-        
-        card.style.opacity = art.owned ? "1" : "0.4";
-        card.style.filter = art.owned ? "none" : "grayscale(1)";
 
-        card.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <div style="font-size: 2.5em;">${art.owned ? art.icon : '❓'}</div>
-                <div>
-                    <strong style="color: ${art.owned ? '#4ecca3' : '#888'};">
-                        ${art.owned ? art.name : 'Unknown Relic'}
-                    </strong><br>
-                    <small>${art.owned ? art.desc : 'Continue exploring the Rift to discover this item.'}</small>
-                    ${art.owned ? `<br><span style="color: #4ecca3; font-size: 0.8em;">Current Lv: ${art.level}</span>` : ''}
+    let htmlString = "";
+
+    
+    for (let i = 0; i < artifactPool.length; i++) {
+        const art = artifactPool[i];
+        
+        
+        const icon = art.owned ? art.icon : "❓";
+        const name = art.owned ? art.name : "Locked Relic";
+        const desc = art.owned ? art.desc : "Defeat more monsters to discover this item.";
+        const bgColor = art.owned ? "#16213e" : "#0a0a1a";
+        const borderColor = art.owned ? "#4ecca3" : "#333";
+        const textOpacity = art.owned ? "1" : "0.5";
+
+        htmlString += `
+            <div style="background: ${bgColor}; border: 1px solid ${borderColor}; padding: 15px; border-radius: 10px; display: flex; align-items: center; gap: 15px; transition: 0.3s;">
+                <div style="font-size: 2.5em; opacity: ${textOpacity}; width: 60px; text-align: center;">
+                    ${icon}
                 </div>
-            </div>
-        `;
-        list.appendChild(card);
-    });
+                <div style="flex: 1; opacity: ${textOpacity};">
+                    <div style="font-weight: bold; color: ${art.owned ? '#4ecca3' : '#666'}; margin-bottom: 3px;">
+                        ${name}
+                    </div>
+                    <div style="font-size: 0.8em; color: #ccc; line-height: 1.2;">
+                        ${desc}
+                    </div>
+                    ${art.owned ? `<div style="font-size: 0.7em; color: #4ecca3; margin-top: 5px; font-weight: bold;">Level ${art.level}</div>` : ''}
+                </div>
+            </div>`;
+    }
+
+    list.innerHTML = htmlString;
 }
 
 // --- 5. VISUALS ---
