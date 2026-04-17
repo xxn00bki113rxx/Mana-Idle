@@ -260,14 +260,23 @@ window.showTab = function(tabName) {
     });
 
     const activeTab = document.getElementById(tabName + '-tab');
-    if (activeTab) activeTab.style.display = 'block';
+    if (activeTab) {
+        activeTab.style.display = 'block';
+        console.log("Showing tab: " + tabName); // Debug log
+    }
     
     const activeBtn = document.getElementById(tabName + '-btn');
     if (activeBtn) activeBtn.classList.add('active');
 
+    // Trigger specific renders
     if (tabName === 'sanctum') renderShop();
-    if (tabName === 'battle') renderArtifacts(); updateUI();
-    if (tabName === 'compendium') renderCompendium();
+    if (tabName === 'battle') {
+        renderArtifacts();
+        updateUI();
+    }
+    if (tabName === 'compendium') {
+        renderCompendium();
+    }
 };
 
 // --- 3. SHOP & ECONOMY ---
@@ -559,24 +568,36 @@ function upgradeArtifact(id) {
 
 function renderCompendium() {
     const list = document.getElementById('compendium-list');
-    if (!list) return;
+    if (!list) {
+        console.error("CRITICAL: compendium-list element not found!");
+        return;
+    }
 
-    let html = "";
+    let htmlString = "";
+    
+    // Fallback if artifactPool is empty
+    if (!artifactPool || artifactPool.length === 0) {
+        list.innerHTML = "<p>No artifacts found in data.</p>";
+        return;
+    }
+
     artifactPool.forEach(art => {
-        const isOwned = art.owned;
-        html += `
-            <div class="upgrade-card" style="opacity: ${isOwned ? 1 : 0.4}; filter: ${isOwned ? 'none' : 'grayscale(1)'};">
-                <div style="display: flex; align-items: center; gap: 15px; width: 100%;">
-                    <div style="font-size: 2em;">${isOwned ? art.icon : '❓'}</div>
-                    <div style="text-align: left;">
-                        <strong style="color: #4ecca3">${isOwned ? art.name : 'Unknown Relic'}</strong><br>
-                        <small>${isOwned ? art.desc : 'Discover this in the Battle Rift.'}</small>
-                        ${isOwned ? `<br><span style="color: #4ecca3; font-size: 0.8em;">Level: ${art.level}</span>` : ''}
-                    </div>
+        const icon = art.owned ? art.icon : "❓";
+        const name = art.owned ? art.name : "Locked Relic";
+        const desc = art.owned ? art.desc : "Defeat more monsters to discover this item.";
+        
+        htmlString += `
+            <div class="upgrade-card" style="opacity: ${art.owned ? '1' : '0.4'}; display: flex !important; flex-direction: row !important; align-items: center; gap: 15px; width: 100%; box-sizing: border-box;">
+                <div style="font-size: 2.5em; min-width: 60px; text-align: center;">${icon}</div>
+                <div style="flex-grow: 1; text-align: left;">
+                    <div style="font-weight: bold; color: #4ecca3;">${name}</div>
+                    <div style="font-size: 0.8em; color: #ccc;">${desc}</div>
+                    ${art.owned ? `<div style="font-size: 0.7em; color: #4ecca3; margin-top: 5px;">Level ${art.level}</div>` : ''}
                 </div>
             </div>`;
     });
-    list.innerHTML = html;
+
+    list.innerHTML = htmlString;
 }
 
 // --- 5. VISUALS ---
@@ -793,10 +814,17 @@ function deleteSave() {
         location.reload(); 
     } 
 }
+
 window.addEventListener('keydown', (e) => {
-    if (e.key === '`' || e.key === '~') {
+    // Check for backtick (`) or Tilde (~)
+    if (e.key === '`' || e.key === '~' || e.keyCode === 192) {
+        e.preventDefault(); // Stop the character from being typed
         const menu = document.getElementById('admin-menu');
-        menu.style.display = (menu.style.display === 'none' ? 'block' : 'none');
+        if (menu) {
+            const isHidden = menu.style.display === 'none';
+            menu.style.display = isHidden ? 'block' : 'none';
+            console.log("Admin menu toggled: " + menu.style.display);
+        }
     }
 });
 
