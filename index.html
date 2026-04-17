@@ -40,8 +40,16 @@
         /* Shop Layout */
         .shop-container { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
         .upgrade-card { 
-            background: #16213e; border: 1px solid #4ecca3; padding: 15px; width: 90%; max-width: 400px; 
-            border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+            background: #16213e; 
+   			border: 1px solid #4ecca3; 
+    		padding: 15px; 
+    		width: 90%; 
+    		max-width: 400px; 
+    		border-radius: 12px; 
+    		display: flex; 
+    		justify-content: space-between; 
+    		align-items: center; 
+    		margin-bottom: 10px;
         }
 
         /* Buttons */
@@ -281,7 +289,6 @@ window.addEventListener('keydown', (e) => {
 
     // 4. UI & Core Loop
    function updateUI() {
-    // 1. Update Mana and MPS
     const mpsDisplay = document.getElementById('total-mps-display');
     const manaDisplay = document.getElementById('mana-display');
     const essenceDisplay = document.getElementById('essence-display');
@@ -290,16 +297,17 @@ window.addEventListener('keydown', (e) => {
     if (manaDisplay) manaDisplay.innerText = `Mana: ${Math.floor(mana).toLocaleString()}`;
     if (essenceDisplay) essenceDisplay.innerText = essence;
 
-    // 2. Disable/Enable Attack Button
     const attackBtn = document.getElementById('attack-btn');
     if (attackBtn) {
         attackBtn.disabled = (mana < 10 || monsterHP <= 0);
-    }
-
-    // 3. Refresh the Shop and Artifacts
-    if (typeof renderShop === "function") renderShop();
-    
-        renderArtifacts(); 
+    upgrades.forEach((upg, index) => {
+        const btn = document.getElementById(`btn-${index}`);
+        if (btn) {
+            const robe = artifactPool.find(a => a.id === 'robe');
+            const discount = (robe && robe.owned) ? 0.9 : 1;
+            btn.disabled = (mana < Math.floor(upg.cost * discount));
+        }
+    });
 }
 
     function renderArtifacts() {
