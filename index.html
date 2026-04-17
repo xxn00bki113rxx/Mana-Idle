@@ -90,10 +90,12 @@
         .shop-container {
     		display: flex;
     		flex-direction: column;
+    		align-items: center; /* This centers the cards horizontally */
     		gap: 10px;
     		max-height: 70vh; 
     		overflow-y: auto; 
     		padding: 10px;
+    		width: 100%;
 		}
         .upgrade-card { 
             background: #16213e; 
@@ -197,26 +199,27 @@
         </div>
     </div> 
 		
-		 Fren<div id="compendium-tab" class="tab-content" style="display: none; padding: 20px; min-height: 500px;">
+		 <div id="compendium-tab" class="tab-content" style="display: none; padding: 20px; min-height: 500px;">
     		<h2 style="color: #4ecca3; text-align: center;">Mystic Compendium</h2>
     		<p style="font-size: 0.9em; color: #888; margin-bottom: 20px; text-align: center;">
         		A record of all known Arcane relics.
     		</p>
-    	<div id="compendium-list" style="display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 500px; margin: 0 auto;">
-        	</div>
-	</div>
-<div id="admin-menu" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #222; border: 2px solid #ff0055; padding: 20px; border-radius: 10px; z-index: 9999; text-align: left; box-shadow: 0 0 20px #000;">
-    <h3 style="color: #ff0055; margin-top: 0;">Arcane Debugger</h3>
-    <div style="display: flex; flex-direction: column; gap: 10px;">
-        <button onclick="cheatMana()">+1 Million Mana</button>
-        <button onclick="cheatEssence()">+100 Essence</button>
-        <button onclick="instaKill()">Insta-Kill Monster</button>
-        <button onclick="unlockAllArtifacts()">Unlock All Artifacts</button>
-        <button onclick="saveGame()" style="background: #4ecca3;">Manual Save</button>
-        <button onclick="deleteSave()" style="background: #e94560;">Wipe Progress</button>
-    </div>
-    <p style="font-size: 0.7em; color: #888; margin-top: 10px;">Press ~ to toggle</p>
-</div>
+    		<div id="compendium-list" class="shop-container">
+        		</div>
+		</div>
+
+		<div id="admin-menu" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #222; border: 2px solid #ff0055; padding: 20px; border-radius: 10px; z-index: 10000; text-align: left; box-shadow: 0 0 20px #000;">
+    		<h3 style="color: #ff0055; margin-top: 0;">Arcane Debugger</h3>
+    		<div style="display: flex; flex-direction: column; gap: 10px;">
+        		<button onclick="cheatMana()">+1 Million Mana</button>
+        		<button onclick="cheatEssence()">+100 Essence</button>
+        		<button onclick="instaKill()">Insta-Kill Monster</button>
+        		<button onclick="unlockAllArtifacts()">Unlock All Artifacts</button>
+        		<button onclick="saveGame()" style="background: #4ecca3;">Manual Save</button>
+        		<button onclick="deleteSave()" style="background: #e94560; color: white;">Wipe Progress</button>
+    		</div>
+    		<p style="font-size: 0.7em; color: #888; margin-top: 10px;">Press ~ to toggle</p>
+		</div>
 
   <script>
 // --- 1. CORE VARIABLES ---
@@ -556,42 +559,24 @@ function upgradeArtifact(id) {
 
 function renderCompendium() {
     const list = document.getElementById('compendium-list');
-    
-    // Safety: If the tab isn't open or the list doesn't exist yet, stop.
     if (!list) return;
 
-    let htmlString = "";
-
-    
-    for (let i = 0; i < artifactPool.length; i++) {
-        const art = artifactPool[i];
-        
-        
-        const icon = art.owned ? art.icon : "❓";
-        const name = art.owned ? art.name : "Locked Relic";
-        const desc = art.owned ? art.desc : "Defeat more monsters to discover this item.";
-        const bgColor = art.owned ? "#16213e" : "#0a0a1a";
-        const borderColor = art.owned ? "#4ecca3" : "#333";
-        const textOpacity = art.owned ? "1" : "0.5";
-
-        htmlString += `
-            <div style="background: ${bgColor}; border: 1px solid ${borderColor}; padding: 15px; border-radius: 10px; display: flex; align-items: center; gap: 15px; transition: 0.3s;">
-                <div style="font-size: 2.5em; opacity: ${textOpacity}; width: 60px; text-align: center;">
-                    ${icon}
-                </div>
-                <div style="flex: 1; opacity: ${textOpacity};">
-                    <div style="font-weight: bold; color: ${art.owned ? '#4ecca3' : '#666'}; margin-bottom: 3px;">
-                        ${name}
+    let html = "";
+    artifactPool.forEach(art => {
+        const isOwned = art.owned;
+        html += `
+            <div class="upgrade-card" style="opacity: ${isOwned ? 1 : 0.4}; filter: ${isOwned ? 'none' : 'grayscale(1)'};">
+                <div style="display: flex; align-items: center; gap: 15px; width: 100%;">
+                    <div style="font-size: 2em;">${isOwned ? art.icon : '❓'}</div>
+                    <div style="text-align: left;">
+                        <strong style="color: #4ecca3">${isOwned ? art.name : 'Unknown Relic'}</strong><br>
+                        <small>${isOwned ? art.desc : 'Discover this in the Battle Rift.'}</small>
+                        ${isOwned ? `<br><span style="color: #4ecca3; font-size: 0.8em;">Level: ${art.level}</span>` : ''}
                     </div>
-                    <div style="font-size: 0.8em; color: #ccc; line-height: 1.2;">
-                        ${desc}
-                    </div>
-                    ${art.owned ? `<div style="font-size: 0.7em; color: #4ecca3; margin-top: 5px; font-weight: bold;">Level ${art.level}</div>` : ''}
                 </div>
             </div>`;
-    }
-
-    list.innerHTML = htmlString;
+    });
+    list.innerHTML = html;
 }
 
 // --- 5. VISUALS ---
@@ -802,8 +787,12 @@ function cheatMana() { mana += 1000000; renderShop(); updateUI(); }
 function cheatEssence() { essence += 100; updateUI(); }
 function instaKill() { monsterHP = 0; defeatMonster(); }
 function unlockAllArtifacts() { artifactPool.forEach(a => a.owned = true); renderArtifacts(); renderCompendium(); }
-function deleteSave() { if (confirm("Wipe everything?")) { localStorage.removeItem("wizardIdleSave"); location.reload(); } }
-
+function deleteSave() { 
+    if (confirm("Are you sure? This will wipe ALL progress and restart the game.")) { 
+        localStorage.removeItem("wizardIdle_v1"); // Must match the key in saveGame()
+        location.reload(); 
+    } 
+}
 window.addEventListener('keydown', (e) => {
     if (e.key === '`' || e.key === '~') {
         const menu = document.getElementById('admin-menu');
