@@ -441,9 +441,32 @@ function gameLoop() {
 }
 
 function updateUI() {
-    document.getElementById('total-mps-display').innerText = `${Math.floor(globalMPS).toLocaleString()} Mana/sec`;
-    document.getElementById('mana-display').innerText = `Mana: ${Math.floor(mana).toLocaleString()}`;
-    document.getElementById('essence-display').innerText = essence;
+    // Update text displays
+    const mpsEl = document.getElementById('total-mps-display');
+    const manaEl = document.getElementById('mana-display');
+    const essenceEl = document.getElementById('essence-display');
+
+    if (mpsEl) mpsEl.innerText = `${Math.floor(globalMPS).toLocaleString()} Mana/sec`;
+    if (manaEl) manaEl.innerText = `Mana: ${Math.floor(mana).toLocaleString()}`;
+    if (essenceEl) essenceEl.innerText = essence;
+
+    // Sync Button States
+    upgrades.forEach((upg, i) => {
+        const btn = document.getElementById(`btn-${i}`);
+        if (btn) {
+            // Re-calculate the EXACT cost used in the shop
+            const robe = artifactPool.find(a => a.id === 'robe');
+            const discount = (robe && robe.owned) ? 0.9 : 1;
+            const currentCost = Math.floor(upg.cost * discount);
+
+            // Enable if mana >= cost, disable if not
+            btn.disabled = (mana < currentCost);
+            
+            // Optional: Visual feedback
+            btn.style.opacity = (mana < currentCost) ? "0.5" : "1";
+        }
+    });
+
     updateCombatUI();
 }
 
