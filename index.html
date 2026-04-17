@@ -470,6 +470,11 @@ function gameLoop() {
         passiveDamageBuffer += pDmg;
         if (monsterHP <= 0) defeatMonster();
     }
+
+	if (Math.random() < 0.01) { // Roughly every 10 seconds at 100ms ticks
+    saveGame();
+	}
+	
     passiveTimer++;
     if (passiveTimer >= 10) {
         if (passiveDamageBuffer >= 1) createDamagePopup(Math.ceil(passiveDamageBuffer), true);
@@ -558,28 +563,62 @@ function updateCombatUI() {
 // --- 7. SAVE SYSTEM ---
 function saveGame() {
     try {
-        const state = { 
-            mana, essence, globalMPS, monsterMaxHP, monstersDefeated,
-            upgrades: upgrades.map(u => ({count: u.count, cost: u.cost})),
-            artifacts: artifactPool.map(a => ({id: a.id, owned: a.owned, level: a.level})) 
+        const state = {
+            mana: Number(mana),
+            essence: Number(essence),
+            monstersDefeated: Number(monstersDefeated),
+            monsterMaxHP: Number(monsterMaxHP),
+            // Map upgrades to a simple array of counts/costs
+            upgrades: upgrades.map(u => ({ count: u.count, cost: u.cost })),
+            // Map artifacts to their owned status and levels
+            artifacts: artifactPool.map(a => ({ id: a.id, owned: a.owned, level: a.level }))
         };
-        localStorage.setItem("wizardIdleSave", JSON.stringify(state));
-    } catch (e) { console.error("Save Failed", e); }
+        localStorage.setItem("wizardIdle_v1", JSON.stringify(state));
+        console.log("Game Saved Successfully");
+    } catch (e) {
+        console.error("Save Error:", e);
+    }
 }
 
 function loadGame() {
     try {
-        const saved = localStorage.getItem("wizardIdleSave");
+        const saved = localStorage.getItem("wizardIdle_v1");
         if (!saved) return;
+
         const data = JSON.parse(saved);
-        mana = data.mana || 0;
-        essence = data.essence || 0;
-        monsterMaxHP = data.monsterMaxHP || 50;
-        monstersDefeated = data.monstersDefeated || 0;
-        monsterHP = monsterMaxHP;
-        if (data.upgrades) data.upgrades.forEach((u, i) => { if (upgrades[i]) { upgrades[i].count = u.count; upgrades[i].cost = u.cost; } });
-        if (data.artifacts) data.artifacts.forEach(a => { const art = artifactPool.find(ar => ar.id === a.id); if (art) { art.owned = a.owned; art.level = a.level; } });
-    } catch (e) { console.error("Load Failed", e); }
+        
+        // Load basic resources
+        mana = Number(data.mana) || 0;
+        essence = Number(data.essence) || 0;
+        monstersDefeated = Number(data.monstersDefeated) || 0;
+        monsterMaxHP = Number(data.monsterMaxHP) || 50;
+        monsterHP = monsterMaxHP; // Reset HP to full on load
+
+        // Load Upgrades
+        if (data.upgrades) {
+            data.upgrades.forEach((savedUpg, i) => {
+                if (upgrades[i]) {
+                    upgrades[i].count = savedUpg.count || 0;
+                    upgrades[i].cost = savedUpg.cost || upgrades[i].cost;
+                }
+            });
+        }
+
+        // Load Artifacts
+        if (data.artifacts) {
+            data.artifacts.forEach(savedArt => {
+                const art = artifactPool.find(a => a.id === savedArt.id);
+                if (art) {
+                    art.owned = savedArt.owned;
+                    art.level = savedArt.level || 1;
+                }
+            });
+        }
+        
+        console.log("Game Loaded Successfully");
+    } catch (e) {
+        console.error("Load Error:", e);
+    }
 }
 
 // --- 8. ADMIN FUNCTIONS ---
@@ -600,6 +639,7 @@ window.addEventListener('keydown', (e) => {
 window.onload = function() {
     loadGame();
     calculateMPS();
+	renderShop();
     showTab('sanctum');
     gameLoop();
 };
