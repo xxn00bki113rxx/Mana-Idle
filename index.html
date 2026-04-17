@@ -414,14 +414,11 @@ window.addEventListener('keydown', (e) => {
 // Start the loop for the first time
 gameLoop();
 
-    // Initial Load
     
-    loadGame();
-	renderShop();
-	renderArtifacts();
-    updateUI();
+    
+    
 
-    // 5. Saving (Placeholder - use your existing save/load functions here)
+    // 5. Saving 
     function saveGame() {
     try {
         const state = { 
@@ -442,7 +439,7 @@ gameLoop();
 
     const data = JSON.parse(savedData);
 
-    // 1. Restore variables (with defaults in case they are missing)
+    
     mana = data.mana || 0;
     essence = data.essence || 0;
     globalMPS = data.globalMPS || 0;
@@ -450,7 +447,7 @@ gameLoop();
     monsterHP = monsterMaxHP; 
     monstersDefeated = data.monstersDefeated || 0;
 
-    // 2. Restore upgrades (The SAFETY CHECK)
+    
     if (data.upgrades && Array.isArray(data.upgrades)) {
         data.upgrades.forEach((savedUpg, i) => {
             if (upgrades[i]) {
@@ -460,7 +457,7 @@ gameLoop();
         });
     }
 
-    // 3. Restore artifacts (The SAFETY CHECK)
+    
     if (data.artifacts && Array.isArray(data.artifacts)) {
         data.artifacts.forEach(savedArt => {
             const art = artifactPool.find(a => a.id === savedArt.id);
@@ -484,7 +481,10 @@ gameLoop();
     shop.innerHTML = ""; 
     upgrades.forEach((upg, index) => {
         const affordable = getAffordableAmount(upg, mana);
-        const robeDiscount = artifactPool.find(a => a.id === 'robe').owned ? 0.9 : 1;
+        
+        
+        const robe = artifactPool.find(a => a.id === 'robe');
+        const robeDiscount = (robe && robe.owned) ? 0.9 : 1;
         const currentCost = Math.floor(upg.cost * robeDiscount);
 
         shop.innerHTML += `
@@ -559,12 +559,18 @@ function getAffordableAmount(upg, currentMana) {
     let count = 0;
     let tempCost = upg.cost;
     let tempMana = currentMana;
-    const robeDiscount = artifactPool.find(a => a.id === 'robe').owned ? 0.9 : 1;
+    
+    
+    const robe = artifactPool.find(a => a.id === 'robe');
+    const robeDiscount = (robe && robe.owned) ? 0.9 : 1;
 
-    while (tempMana >= Math.floor(tempCost * robeDiscount)) {
+    
+    let safetyIterator = 0; 
+    while (tempMana >= Math.floor(tempCost * robeDiscount) && safetyIterator < 1000) {
         tempMana -= Math.floor(tempCost * robeDiscount);
         tempCost = Math.floor(tempCost * 1.15);
         count++;
+        safetyIterator++;
     }
     return count;
 }
@@ -679,6 +685,11 @@ function deleteSave() {
     }
 }
 
+	loadGame();
+	renderShop();
+	renderArtifacts();
+    updateUI();
+	   
 </script>
 </body>
 </html>
