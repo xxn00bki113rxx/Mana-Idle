@@ -161,65 +161,55 @@
     <div id="sanctum-tab" class="tab-content">
         <div id="mana-display">Mana: 0</div>
         <button onclick="clickMana(event)" style="width: 200px; height: 60px; margin-bottom: 20px;">Gather Mana</button>
-        <div class="shop-container" id="shop"></div></div>
-     <div id="battle-tab" class="tab-content" style="display: none;">
+        <div class="shop-container" id="shop"></div>
+    </div>
+
+    <div id="battle-tab" class="tab-content" style="display: none;">
         <div id="combat-section">
             <h2 style="color: #e94560; margin: 0;">Arcane Rift</h2>
             <div id="monster-container" style="height: 120px; display: flex; align-items: center; justify-content: center; position: relative;">
-    			<div id="monster-sprite" class="monster-pulse" onclick="attackMonster()">👿</div>
-			</div>
+                <div id="monster-sprite" class="monster-pulse" onclick="attackMonster()">👿</div>
+            </div>
+            <div id="monster-name" style="font-weight: bold;">Shadow Imp</div>
+            <div style="color: #4ecca3;">Essence: <span id="essence-display">0</span></div>
+            
+            <div style="width: 100%; background: #0f3460; height: 20px; border-radius: 10px; margin: 10px 0; border: 1px solid #e94560; overflow: hidden; position: relative;">
+                <div id="hp-bar" style="width: 100%; background: #e94560; height: 100%; transition: width 0.1s;"></div>
+                <div id="hp-text" style="position: absolute; width: 100%; text-align: center; font-size: 0.8em; line-height: 20px; color: white; font-weight: bold;">HP: 50 / 50</div>
+            </div>
 
-	<div id="monster-name" style="font-weight: bold;">Shadow Imp</div>
-	<div style="color: #4ecca3;">Essence: <span id="essence-display">0</span></div>
+            <button onclick="attackMonster()" id="attack-btn" style="background: #e94560; color: white; width: 100%; margin-top: 10px; font-weight: bold;">
+                Standard Strike (10 Mana)
+            </button>
 
-	<div style="width: 100%; background: #0f3460; height: 20px; border-radius: 10px; margin: 10px 0; border: 1px solid #e94560; overflow: hidden; position: relative;">
-    	<div id="hp-bar" style="width: 100%; background: #e94560; height: 100%; transition: width 0.1s;"></div>
-    	<div id="hp-text" style="position: absolute; width: 100%; text-align: center; font-size: 0.8em; line-height: 20px; color: white; font-weight: bold;">HP: 50 / 50</div>
-	</div>
-
-		<button onclick="attackMonster()" id="attack-btn" style="background: #e94560; color: white; width: 100%; margin-top: 10px; font-weight: bold;">
-    		Standard Strike (10 Mana)
-		</button>
-
-	<div class="ability-bar" style="display: flex; gap: 8px; justify-content: center; margin-top: 15px;">
-    	<button id="skill-blast" class="skill-btn" onclick="castBlast()">
-        	Arcane Blast<br><small>50 Mana</small>
-    	</button>
-    	<button id="skill-siphon" class="skill-btn" onclick="castSiphon()">
-        	Siphon<br><small>200 Mana</small>
-    	</button>
-    	<button id="skill-storm" class="skill-btn" onclick="castStorm()">
-        	Mana Storm<br><small>1k Mana</small>
-    	</button>
-	</div>
+            <div class="ability-bar">
+                <button id="skill-blast" class="skill-btn" onclick="castBlast()">Arcane Blast<br><small>50 Mana</small></button>
+                <button id="skill-siphon" class="skill-btn" onclick="castSiphon()">Siphon<br><small>200 Mana</small></button>
+                <button id="skill-storm" class="skill-btn" onclick="castStorm()">Mana Storm<br><small>1k Mana</small></button>
+            </div>
+        </div>
 
         <div id="artifact-vault">
             <h3 style="color: #4ecca3;">Arcane Upgrades</h3>
             <div id="artifact-list" style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;"></div>
         </div>
     </div> 
-		
-		 <div id="compendium-tab" class="tab-content" style="display: none; padding: 20px; min-height: 500px;">
-    		<h2 style="color: #4ecca3; text-align: center;">Mystic Compendium</h2>
-    		<p style="font-size: 0.9em; color: #888; margin-bottom: 20px; text-align: center;">
-        		A record of all known Arcane relics.
-    		</p>
-    		<div id="compendium-list" class="shop-container">
-        		</div>
-		</div>
 
-		<div id="admin-menu" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #222; border: 2px solid #ff0055; padding: 20px; border-radius: 10px; z-index: 10000; text-align: left; box-shadow: 0 0 20px #000;">
-    		<h3 style="color: #ff0055; margin-top: 0;">Arcane Debugger</h3>
-    		<div style="display: flex; flex-direction: column; gap: 10px;">
-        		<button onclick="cheatMana()">+1 Million Mana</button>
-        		<button onclick="cheatEssence()">+100 Essence</button>
-        		<button onclick="instaKill()">Insta-Kill Monster</button>
-        		<button onclick="unlockAllArtifacts()">Unlock All Artifacts</button>
-        		<button onclick="saveGame()" style="background: #4ecca3;">Manual Save</button>
-        		<button onclick="deleteSave()" style="background: #e94560; color: white;">Wipe Progress</button>
-    		</div>
-    		<p style="font-size: 0.7em; color: #888; margin-top: 10px;">Press ~ to toggle</p>
-		</div>
+    <div id="compendium-tab" class="tab-content" style="display: none; padding: 20px;">
+        <h2 style="color: #4ecca3;">Mystic Compendium</h2>
+        <div id="compendium-list" class="shop-container"></div>
+    </div>
+
+    <div id="admin-menu" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #222; border: 2px solid #ff0055; padding: 20px; border-radius: 10px; z-index: 99999; text-align: left; box-shadow: 0 0 20px #000;">
+        <h3 style="color: #ff0055; margin: 0 0 10px 0;">Arcane Debugger</h3>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button onclick="cheatMana()">+1 Million Mana</button>
+            <button onclick="cheatEssence()">+100 Essence</button>
+            <button onclick="instaKill()">Insta-Kill</button>
+            <button onclick="unlockAllArtifacts()">Unlock All</button>
+            <button onclick="deleteSave()" style="background: #e94560;">Wipe Progress</button>
+        </div>
+    </div>
 
   <script>
 // --- 1. CORE VARIABLES ---
@@ -830,11 +820,28 @@ window.addEventListener('keydown', (e) => {
 
 // --- INITIALIZE ---
 window.onload = function() {
-    loadGame();
+    console.log("Game Initializing...");
+    
+    // 1. Force Load
+    try {
+        loadGame();
+    } catch(e) {
+        console.error("Failed to load save:", e);
+    }
+
+    // 2. Force UI Render
     calculateMPS();
-	renderShop();
+    renderShop();
+    renderArtifacts();
+    renderCompendium(); // Draw it once at start
+    
+    // 3. Set default tab
     showTab('sanctum');
+    
+    // 4. Start Loop
     gameLoop();
+    
+    console.log("Initialization Complete.");
 };
 </script>
 </body>
