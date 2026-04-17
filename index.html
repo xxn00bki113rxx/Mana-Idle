@@ -145,39 +145,41 @@
     <p style="font-size: 0.7em; color: #888; margin-top: 10px;">Press ~ to toggle</p>
 </div>
 
-   <script>
+  <script>
+// --- 1. CORE VARIABLES ---
+let mana = 0;
+let essence = 0;
+let globalMPS = 0;
+let monsterHP = 50;
+let monsterMaxHP = 50;
+let monstersDefeated = 0;
+let passiveDamageBuffer = 0;
+let passiveTimer = 0;
+let baseTickSpeed = 100;
 
-// Toggle menu with the ` key (usually top left of keyboard)
-window.addEventListener('keydown', (e) => {
-    if (e.key === '`' || e.key === '~') {
-        const menu = document.getElementById('admin-menu');
-        if (menu.style.display === 'none') {
-            menu.style.display = 'block';
-        } else {
-            menu.style.display = 'none';
-        }
-    }
-});
+const artifactPool = [
+    { id: "wand", name: "Ancient Wand", icon: "🪄", owned: false, level: 1, bonus: 2, desc: "Increases Click & Blast damage." },
+    { id: "robe", name: "Scholar's Robe", icon: "🥋", owned: false, level: 1, bonus: 0.1, desc: "10% discount on upgrades." },
+    { id: "orb", name: "Crystal Ball", icon: "🔮", owned: false, level: 1, bonus: 0.25, desc: "Increases Global MPS by 25%." },
+    { id: "hourglass", name: "Temporal Hourglass", icon: "⏳", owned: false, level: 1, bonus: 0.05, desc: "Makes the game tick 5% faster." },
+    { id: "pouch", name: "Bottomless Pouch", icon: "💰", owned: false, level: 1, bonus: 1.2, desc: "Monsters drop 20% more Essence." }
+];
 
-    // 1. Core Variables
-    let mana = 0;
-    let essence = 0;
-    let globalMPS = 0;
-    let monsterHP = 50;
-    let monsterMaxHP = 50;
-    let monstersDefeated = 0;
-    let passiveDamageBuffer = 0;
-    let passiveTimer = 0;
-    let baseTickSpeed = 100;
+const upgrades = [
+    { id: 'scribe', name: 'Apprentice Scribe', cost: 10, mps: 1, count: 0 },
+    { id: 'well', name: 'Mana Well', cost: 100, mps: 8, count: 0 },
+    { id: 'library', name: 'Arcane Library', cost: 1000, mps: 45, count: 0 },
+    { id: 'tower', name: 'Wizard Tower', cost: 5000, mps: 200, count: 0 },
+    { id: 'ball', name: 'Palantir', cost: 7500, mps: 400, count: 0 }
+];
 
-	window.showTab = function(tabName) {
-    console.log("Switching to tab: " + tabName);
+// --- 2. NAVIGATION LOGIC ---
+window.showTab = function(tabName) {
     const tabs = ['sanctum', 'battle', 'compendium'];
     tabs.forEach(t => {
-        const el = document.getElementById(t + '-tab');
-        if (el) el.style.display = 'none';
-        
+        const content = document.getElementById(t + '-tab');
         const btn = document.getElementById(t + '-btn');
+        if (content) content.style.display = 'none';
         if (btn) btn.classList.remove('active');
     });
 
@@ -188,408 +190,184 @@ window.addEventListener('keydown', (e) => {
     if (activeBtn) activeBtn.classList.add('active');
 
     if (tabName === 'sanctum') renderShop();
+    if (tabName === 'battle') renderArtifacts();
     if (tabName === 'compendium') renderCompendium();
 };
-	   
-    const artifactPool = [
-    { 
-        id: "wand", name: "Ancient Wand", icon: "🪄", owned: false, level: 1, 
-        bonus: 2, desc: "A splintered branch from the World Tree. Increases Click & Blast damage." 
-    },
-    { 
-        id: "robe", name: "Scholar's Robe", icon: "🥋", owned: false, level: 1, 
-        bonus: 0.1, desc: "Woven with silver thread. Grants a 10% discount on all Sanctum upgrades." 
-    },
-    { 
-        id: "orb", name: "Crystal Ball", icon: "🔮", owned: false, level: 1, 
-        bonus: 0.25, desc: "Allows you to see the flow of mana. Increases Global MPS by 25%." 
-    },
-    { 
-    id: "hourglass", 
-    name: "Temporal Hourglass", 
-    icon: "⏳", 
-    owned: false, 
-    level: 1, 
-    bonus: 0.05, 
-    desc: "Warps the flow of time. Each level makes the game tick 5% faster." 
-},
-    { 
-    id: "pouch", 
-    name: "Bottomless Pouch", 
-    icon: "💰", 
-    owned: false, 
-    level: 1, 
-    bonus: 1.2, 
-    desc: "A pouch that smells of old copper. Monsters drop 20% more Essence." 
+
+// --- 3. SHOP & ECONOMY ---
+function getAffordableAmount(upg, currentMana) {
+    let count = 0;
+    let tempCost = upg.cost;
+    let tempMana = currentMana;
+    const robe = artifactPool.find(a => a.id === 'robe');
+    const discount = (robe && robe.owned) ? 0.9 : 1;
+
+    while (tempMana >= Math.floor(tempCost * discount) && count < 100) {
+        tempMana -= Math.floor(tempCost * discount);
+        tempCost = Math.floor(tempCost * 1.15);
+        count++;
     }
-];
-
-    const upgrades = [
-        { id: 'scribe', name: 'Apprentice Scribe', cost: 10, mps: 1, count: 0 },
-        { id: 'well', name: 'Mana Well', cost: 100, mps: 8, count: 0 },
-        { id: 'library', name: 'Arcane Library', cost: 1000, mps: 45, count: 0 },
-        { id: 'tower', name: 'Wizard Tower', cost: 5000, mps: 200, count: 0 },
-		{ id: 'ball', name: 'Palantir', cost: 7500, mps: 400, count: 0 }
-    ];
-
-    
-
-    // 3. Combat Logic
-    function attackMonster() {
-        if (monsterHP <= 0 || mana < 10) return;
-
-        mana -= 10;
-        let dmg = 5 + (globalMPS * 0.1);
-        const wand = artifactPool.find(a => a.id === 'wand');
-        if (wand && wand.owned) dmg *= wand.bonus;
-
-        monsterHP -= dmg;
-        
-        // Visuals
-        const sprite = document.getElementById('monster-sprite');
-        sprite.classList.remove('shake');
-        void sprite.offsetWidth; 
-        sprite.classList.add('shake');
-        createDamagePopup(Math.ceil(dmg), false);
-
-        if (monsterHP <= 0) defeatMonster();
-        
-        updateCombatUI();
-        updateUI();
-    }
-
-    function createDamagePopup(amount, isPassive) {
-        const container = document.getElementById('monster-container');
-        const p = document.createElement('div');
-        p.className = 'damage-popup';
-        p.innerText = isPassive ? amount : `-${amount}`;
-        p.style.color = isPassive ? "#4ecca3" : "#ff0055";
-        p.style.left = `calc(50% + ${Math.random() * 40 - 20}px)`;
-        container.appendChild(p);
-        setTimeout(() => p.remove(), 800);
-    }
-
-    function defeatMonster() {
-        monstersDefeated++;
-        essence += Math.ceil((monstersDefeated / 2) * (artifactPool.find(a => a.id === 'pouch').owned ? 1.2 : 1));
-        mana += (monsterMaxHP * 2);
-        
-        document.getElementById('monster-name').innerText = "Rift Opening...";
-        monsterHP = 0; 
-
-        setTimeout(() => {
-            monsterMaxHP = Math.floor(monsterMaxHP * 1.4);
-            monsterHP = monsterMaxHP;
-            const monsters = [
-                { name: "Shadow Imp", icon: "👿" },
-                { name: "Void Wraith", icon: "👻" },
-                { name: "Chaos Golem", icon: "🗿" },
-                { name: "Abyssal Drake", icon: "🐲" }
-            ];
-            const idx = Math.min(Math.floor(monstersDefeated / 5), monsters.length - 1);
-            document.getElementById('monster-name').innerText = monsters[idx].name;
-            document.getElementById('monster-sprite').innerText = monsters[idx].icon;
-            updateCombatUI();
-        }, 1000);
-    }
-
-    // 4. UI & Core Loop
-   function updateUI() {
-    const mpsDisplay = document.getElementById('total-mps-display');
-    const manaDisplay = document.getElementById('mana-display');
-    const essenceDisplay = document.getElementById('essence-display');
-
-    if (mpsDisplay) mpsDisplay.innerText = `${globalMPS.toLocaleString()} Mana/sec`;
-    if (manaDisplay) manaDisplay.innerText = `Mana: ${Math.floor(mana).toLocaleString()}`;
-    if (essenceDisplay) essenceDisplay.innerText = essence;
-
-    const attackBtn = document.getElementById('attack-btn');
-    if (attackBtn) {
-        attackBtn.disabled = (mana < 10 || monsterHP <= 0);
-    upgrades.forEach((upg, index) => {
-        const btn = document.getElementById(`btn-${index}`);
-        if (btn) {
-            const robe = artifactPool.find(a => a.id === 'robe');
-            const discount = (robe && robe.owned) ? 0.9 : 1;
-            btn.disabled = (mana < Math.floor(upg.cost * discount));
-        }
-    });
+    return count;
 }
 
-    function renderArtifacts() {
-    const list = document.getElementById('artifact-list');
-    if (!list) return;
-
-    const owned = artifactPool.filter(art => art.owned);
-    if (owned.length === 0) {
-        list.innerHTML = `<p style="color: #666; font-style: italic;">Defeat monsters to discover rare artifacts...</p>`;
-        return;
-    }
-
-    list.innerHTML = "";
-    owned.forEach(art => {
-        const upgCost = art.level * 5;
-        list.innerHTML += `
-            <div style="background: #0f3460; border: 1px solid #4ecca3; padding: 15px; border-radius: 10px; width: 120px; text-align: center;">
-                <div style="font-size: 2em; margin-bottom: 5px;">${art.icon}</div>
-                <div style="font-weight: bold; color: white; font-size: 0.9em;">${art.name}</div>
-                <div style="font-size: 0.8em; color: #4ecca3; margin-bottom: 5px;">Lv. ${art.level}</div>
-                <button onclick="upgradeArtifact('${art.id}')" 
-                        style="font-size: 0.7em; width: 100%; padding: 5px; cursor: pointer;"
-                        ${essence < upgCost ? 'disabled' : ''}>
-                    Upgrade (${upgCost})
-                </button>
-            </div>
-        `;
-    });
-}
-
-    function updateCombatUI() {
-        const pct = Math.max(0, (monsterHP / monsterMaxHP) * 100);
-        document.getElementById('hp-bar').style.width = pct + "%";
-        document.getElementById('hp-text').innerText = `HP: ${Math.ceil(monsterHP)} / ${monsterMaxHP}`;
-    }
-
-    function clickMana(event) {
-    // 1. Calculate how much mana to give
-    const wandBonus = artifactPool.find(a => a.id === 'wand').owned ? 2 : 1;
-    mana += (1 * wandBonus);
-
-    // 2. Create the floating "+1" text at mouse position
-    const particle = document.createElement('div');
-    particle.className = 'floating-text';
-    particle.innerText = `+${1 * wandBonus}`;
-
-    // Position it where the user clicked
-    particle.style.left = event.clientX + 'px';
-    particle.style.top = event.clientY + 'px';
-
-    document.body.appendChild(particle);
-
-    // Cleanup the particle after animation
-    setTimeout(() => {
-        particle.remove();
-    }, 800);
-
-    // 3. UI "Bump" effect
-    const display = document.getElementById('mana-display');
-    if (display) {
-        display.style.transform = 'scale(1.1)';
-        setTimeout(() => display.style.transform = 'scale(1)', 50);
-    }
-
-    updateUI();
-}
-
-    function gameLoop() {
-    // 1. Calculate Tick Speed based on Hourglass
-    const hourglass = artifactPool.find(a => a.id === 'hourglass');
-    let speedMultiplier = (hourglass && hourglass.owned) ? (1 - hourglass.bonus) : 1;
-    
-    // Safety cap: don't let the game run faster than 20ms per tick
-    let currentTickSpeed = Math.max(20, baseTickSpeed * speedMultiplier);
-
-    // 2. The standard game logic
-    mana += (globalMPS / 10);
-    
-    if (monsterHP > 0) {
-        let pDmg = (globalMPS * 0.01);
-        monsterHP -= pDmg;
-        passiveDamageBuffer += pDmg;
-        if (monsterHP <= 0) defeatMonster();
-    }
-    
-    passiveTimer++;
-    if (passiveTimer >= 10) {
-        if (passiveDamageBuffer >= 1) createDamagePopup(Math.ceil(passiveDamageBuffer), true);
-        passiveDamageBuffer = 0;
-        passiveTimer = 0;
-    }
-
-    updateUI();
-    updateCombatUI();
-
-    // 3. Schedule the next tick
-    setTimeout(gameLoop, currentTickSpeed);
-}
-       
-    // 5. Saving 
-    function saveGame() {
-    try {
-        const state = { 
-            mana, essence, globalMPS, monsterMaxHP, monstersDefeated,
-            upgrades: upgrades.map(u => ({count: u.count, cost: u.cost})),
-            artifacts: artifactPool.map(a => ({id: a.id, owned: a.owned, level: a.level})) 
-        };
-        localStorage.setItem("wizardIdleSave", JSON.stringify(state));
-        console.log("Game Saved successfully!");
-    } catch (e) {
-        console.warn("Save failed: Local storage is restricted on file:// URLs. Try using a Live Server or a different browser.");
-    }
-}
-    
-    function loadGame() {
-    const savedData = localStorage.getItem("wizardIdleSave");
-    if (!savedData) return; // No save found, start fresh
-
-    const data = JSON.parse(savedData);
-
-    
-    mana = data.mana || 0;
-    essence = data.essence || 0;
-    globalMPS = data.globalMPS || 0;
-    monsterMaxHP = data.monsterMaxHP || 50;
-    monsterHP = monsterMaxHP; 
-    monstersDefeated = data.monstersDefeated || 0;
-
-    
-    if (data.upgrades && Array.isArray(data.upgrades)) {
-        data.upgrades.forEach((savedUpg, i) => {
-            if (upgrades[i]) {
-                upgrades[i].count = savedUpg.count || 0;
-                upgrades[i].cost = savedUpg.cost || upgrades[i].cost;
-            }
-        });
-    }
-
-    
-    if (data.artifacts && Array.isArray(data.artifacts)) {
-        data.artifacts.forEach(savedArt => {
-            const art = artifactPool.find(a => a.id === savedArt.id);
-            if (art) {
-                art.owned = savedArt.owned || false;
-                art.level = savedArt.level || 1;
-            }
-        });
-    }
-
-    // 4. Recalculate and Refresh
-    calculateMPS();
-    updateUI();
-    updateCombatUI();
-}
-
-    function renderShop() {
+function renderShop() {
     const shop = document.getElementById('shop');
     if (!shop) return;
-    
-    let html = "";
-    upgrades.forEach((upg, index) => {
-        try {
-            const robe = artifactPool.find(a => a.id === 'robe');
-            const discount = (robe && robe.owned) ? 0.9 : 1;
-            const cost = Math.floor(upg.cost * discount);
-            const affordable = getAffordableAmount(upg, mana);
+    shop.innerHTML = "";
 
-            html += `
-                <div class="upgrade-card">
-                    <div class="info">
-                        <strong>${upg.name}</strong> <span class="level-badge">Lv. ${upg.count}</span><br>
-                        <small>+${upg.mps} Mana/sec</small>
-                    </div>
-                    <div style="display: flex; flex-direction: column; gap: 5px;">
-                        <button id="btn-${index}" onclick="buyUpgrade(${index})" ${mana < cost ? 'disabled' : ''}>
-                            Buy: ${cost.toLocaleString()}
-                        </button>
-                        <button onclick="buyMax(${index})" style="background: #0f3460; font-size: 0.7em;" ${affordable === 0 ? 'disabled' : ''}>
-                            Max (+${affordable})
-                        </button>
-                    </div>
-                </div>`;
-        } catch (err) {
-            console.error("Error rendering upgrade " + index, err);
-        }
+    upgrades.forEach((upg, index) => {
+        const robe = artifactPool.find(a => a.id === 'robe');
+        const discount = (robe && robe.owned) ? 0.9 : 1;
+        const cost = Math.floor(upg.cost * discount);
+        const affordable = getAffordableAmount(upg, mana);
+
+        shop.innerHTML += `
+            <div class="upgrade-card">
+                <div class="info">
+                    <strong>${upg.name}</strong> <span class="level-badge">Lv. ${upg.count}</span><br>
+                    <small>+${upg.mps} Mana/sec</small>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <button id="btn-${index}" onclick="buyUpgrade(${index})" ${mana < cost ? 'disabled' : ''}>
+                        Buy: ${cost.toLocaleString()}
+                    </button>
+                    <button onclick="buyMax(${index})" style="background: #0f3460; font-size: 0.7em;" ${affordable === 0 ? 'disabled' : ''}>
+                        Max (+${affordable})
+                    </button>
+                </div>
+            </div>`;
     });
-    shop.innerHTML = html;
 }
 
 function buyUpgrade(index) {
     const upg = upgrades[index];
-    
-    
     const robe = artifactPool.find(a => a.id === 'robe');
-    const robeDiscount = (robe && robe.owned) ? 0.9 : 1;
-    const finalCost = Math.floor(upg.cost * robeDiscount);
+    const discount = (robe && robe.owned) ? 0.9 : 1;
+    const finalCost = Math.floor(upg.cost * discount);
 
-    
     if (mana >= finalCost) {
         mana -= finalCost;
         upg.count++;
-        
-        upg.cost = Math.floor(upg.cost * 1.15); 
-        
+        upg.cost = Math.floor(upg.cost * 1.15);
         calculateMPS();
         updateUI();
-		renderShop();
-        saveGame(); 
-    } else {
-        console.log("Not enough mana! Need: " + finalCost);
+        renderShop();
+        saveGame();
     }
 }
 
 function buyMax(index) {
     const upg = upgrades[index];
     const robe = artifactPool.find(a => a.id === 'robe');
-    const robeDiscount = (robe && robe.owned) ? 0.9 : 1;
-    
+    const discount = (robe && robe.owned) ? 0.9 : 1;
     let count = 0;
-    
-    while (mana >= Math.floor(upg.cost * robeDiscount)) {
-        mana -= Math.floor(upg.cost * robeDiscount);
+    while (mana >= Math.floor(upg.cost * discount)) {
+        mana -= Math.floor(upg.cost * discount);
         upg.count++;
         upg.cost = Math.floor(upg.cost * 1.15);
         count++;
     }
-
     if (count > 0) {
         calculateMPS();
         updateUI();
+        renderShop();
         saveGame();
     }
 }
 
 function calculateMPS() {
-    globalMPS = upgrades.reduce((total, upg) => total + (upg.count * upg.mps), 0);
+    let baseMPS = upgrades.reduce((total, upg) => total + (upg.count * upg.mps), 0);
+    const orb = artifactPool.find(a => a.id === 'orb');
+    let orbMult = (orb && orb.owned) ? (1 + (orb.level * 0.25)) : 1;
+    globalMPS = baseMPS * orbMult;
 }
 
-function getAffordableAmount(upg, currentMana) {
-    if (!upg || currentMana <= 0) return 0;
-    
-    let count = 0;
-    let tempCost = upg.cost;
-    let tempMana = currentMana;
-    
-    // SAFE CHECK: If robe isn't found, discount is 1 (no discount)
-    const robe = artifactPool ? artifactPool.find(a => a.id === 'robe') : null;
-    const robeDiscount = (robe && robe.owned) ? 0.9 : 1;
+// --- 4. COMBAT & ARTIFACTS ---
+function attackMonster() {
+    if (monsterHP <= 0 || mana < 10) return;
+    mana -= 10;
+    let dmg = 5 + (globalMPS * 0.1);
+    const wand = artifactPool.find(a => a.id === 'wand');
+    if (wand && wand.owned) dmg *= (wand.level + 1);
 
-    // Safety iterator prevents browser freezing
-    let i = 0;
-    while (tempMana >= Math.floor(tempCost * robeDiscount) && i < 100) {
-        tempMana -= Math.floor(tempCost * robeDiscount);
-        tempCost = Math.floor(tempCost * 1.15);
-        count++;
-        i++;
+    monsterHP -= dmg;
+    const sprite = document.getElementById('monster-sprite');
+    if (sprite) {
+        sprite.classList.remove('shake');
+        void sprite.offsetWidth; 
+        sprite.classList.add('shake');
     }
-    return count;
+    createDamagePopup(Math.ceil(dmg), false);
+    if (monsterHP <= 0) defeatMonster();
+    updateCombatUI();
+    updateUI();
+}
+
+function defeatMonster() {
+    monstersDefeated++;
+    
+    // Logic to unlock a random artifact every 5 kills
+    if (monstersDefeated % 5 === 0) {
+        const locked = artifactPool.filter(a => !a.owned);
+        if (locked.length > 0) {
+            const randomArt = locked[Math.floor(Math.random() * locked.length)];
+            randomArt.owned = true;
+            alert("New Artifact Discovered: " + randomArt.name);
+        }
+    }
+
+    const pouch = artifactPool.find(a => a.id === 'pouch');
+    const pouchMult = (pouch && pouch.owned) ? (1 + (pouch.level * 0.2)) : 1;
+    essence += Math.ceil((monstersDefeated / 2) * pouchMult);
+    mana += (monsterMaxHP * 2);
+    
+    monsterHP = 0;
+    document.getElementById('monster-name').innerText = "Rift Opening...";
+    setTimeout(() => {
+        monsterMaxHP = Math.floor(monsterMaxHP * 1.4);
+        monsterHP = monsterMaxHP;
+        const monsters = [
+            { name: "Shadow Imp", icon: "👿" },
+            { name: "Void Wraith", icon: "👻" },
+            { name: "Chaos Golem", icon: "🗿" },
+            { name: "Abyssal Drake", icon: "🐲" }
+        ];
+        const idx = Math.min(Math.floor(monstersDefeated / 5), monsters.length - 1);
+        document.getElementById('monster-name').innerText = monsters[idx].name;
+        document.getElementById('monster-sprite').innerText = monsters[idx].icon;
+        updateCombatUI();
+    }, 1000);
+}
+
+function renderArtifacts() {
+    const list = document.getElementById('artifact-list');
+    if (!list) return;
+    const owned = artifactPool.filter(art => art.owned);
+    if (owned.length === 0) {
+        list.innerHTML = `<p style="color: #666;">Defeat 5 monsters to find your first relic...</p>`;
+        return;
+    }
+    list.innerHTML = "";
+    owned.forEach(art => {
+        const upgCost = art.level * 5;
+        list.innerHTML += `
+            <div style="background: #0f3460; border: 1px solid #4ecca3; padding: 10px; border-radius: 10px; width: 110px; text-align: center;">
+                <div style="font-size: 1.5em;">${art.icon}</div>
+                <div style="font-size: 0.8em; font-weight: bold;">${art.name}</div>
+                <div style="font-size: 0.7em; color: #4ecca3;">Lv. ${art.level}</div>
+                <button onclick="upgradeArtifact('${art.id}')" style="font-size: 0.6em; width: 100%;" ${essence < upgCost ? 'disabled' : ''}>
+                    Up (${upgCost} Ess)
+                </button>
+            </div>`;
+    });
 }
 
 function upgradeArtifact(id) {
     const art = artifactPool.find(a => a.id === id);
     if (!art || essence < (art.level * 5)) return;
-
     essence -= (art.level * 5);
     art.level++;
-    
-    // Improved logic to handle ALL current artifacts
-    if (id === 'wand') {
-        art.bonus += 1; 
-    } else if (id === 'pouch') {
-        art.bonus += 0.1; // Increases essence drop by 10% per level
-    } else {
-        art.bonus += 0.05; // Standard 5% bump for the others
-    }
-
+    calculateMPS();
     updateUI();
     renderArtifacts();
     saveGame();
@@ -598,106 +376,133 @@ function upgradeArtifact(id) {
 function renderCompendium() {
     const list = document.getElementById('compendium-list');
     if (!list) return;
-
     list.innerHTML = "";
     artifactPool.forEach(art => {
-        const card = document.createElement('div');
-        card.className = 'upgrade-card';
-        
-        // --- STYLING FIXES FOR CENTERING ---
-        card.style.flexDirection = "column"; // Stack icon on top of text
-        card.style.alignItems = "center";    // Center items horizontally
-        card.style.textAlign = "center";     // Center the text lines
-        card.style.padding = "20px";
-        card.style.minHeight = "150px";
-
-        if (art.owned) {
-            card.innerHTML = `
-                <div style="font-size: 3em; margin-bottom: 10px;">
-                    ${art.icon}
+        list.innerHTML += `
+            <div class="upgrade-card" style="opacity: ${art.owned ? '1' : '0.3'}">
+                <div>
+                    <span style="font-size: 2em;">${art.owned ? art.icon : '❓'}</span><br>
+                    <strong>${art.owned ? art.name : 'Unknown Artifact'}</strong><br>
+                    <small>${art.owned ? art.desc : 'Explore the Rift to discover this.'}</small>
                 </div>
-                <div style="width: 100%;">
-                    <strong style="color: #4ecca3; font-size: 1.2em; display: block; margin-bottom: 5px;">
-                        ${art.name}
-                    </strong>
-                    <p style="margin: 5px 0; font-size: 0.9em; color: #ccc; line-height: 1.4;">
-                        ${art.desc}
-                    </p>
-                    <div style="margin-top: 10px; color: #4ecca3; font-weight: bold; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">
-                        Power: x${art.bonus}
-                    </div>
-                </div>
-            `;
-        } else {
-            card.style.opacity = "0.3";
-            card.style.filter = "grayscale(1)";
-            card.style.border = "1px dashed #444";
-            card.innerHTML = `
-                <div style="font-size: 3em; margin-bottom: 10px; color: #444;">❓</div>
-                <div style="width: 100%;">
-                    <strong style="color: #666; font-size: 1.1em; display: block;">??? Locked ???</strong>
-                    <p style="margin: 5px 0; font-size: 0.85em; color: #444; font-style: italic;">
-                        Defeat more monsters to reveal this artifact.
-                    </p>
-                </div>
-            `;
-        }
-        list.appendChild(card);
+            </div>`;
     });
 }
 
-function cheatMana() {
-    mana += 1000000;
+// --- 5. VISUALS ---
+function clickMana(event) {
+    const wand = artifactPool.find(a => a.id === 'wand');
+    const power = wand.owned ? (wand.level + 1) : 1;
+    mana += power;
+
+    const p = document.createElement('div');
+    p.className = 'floating-text';
+    p.innerText = `+${power}`;
+    p.style.left = event.clientX + 'px';
+    p.style.top = event.clientY + 'px';
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 800);
     updateUI();
 }
 
-function cheatEssence() {
-    essence += 100;
-    updateUI();
-    renderArtifacts();
+function createDamagePopup(amount, isPassive) {
+    const container = document.getElementById('monster-container');
+    const p = document.createElement('div');
+    p.className = 'damage-popup';
+    p.innerText = isPassive ? amount : `-${amount}`;
+    p.style.color = isPassive ? "#4ecca3" : "#ff0055";
+    p.style.left = `calc(50% + ${Math.random() * 40 - 20}px)`;
+    container.appendChild(p);
+    setTimeout(() => p.remove(), 800);
 }
 
-function instaKill() {
+// --- 6. CORE ENGINE ---
+function gameLoop() {
+    const hourglass = artifactPool.find(a => a.id === 'hourglass');
+    let speedMult = (hourglass && hourglass.owned) ? (1 - (hourglass.level * 0.05)) : 1;
+    let tickDelay = Math.max(20, baseTickSpeed * speedMult);
+
+    mana += (globalMPS / 10);
     if (monsterHP > 0) {
-        monsterHP = 0;
-        updateCombatUI();
-        defeatMonster();
+        let pDmg = (globalMPS * 0.01);
+        monsterHP -= pDmg;
+        passiveDamageBuffer += pDmg;
+        if (monsterHP <= 0) defeatMonster();
     }
-}
-
-function unlockAllArtifacts() {
-    artifactPool.forEach(art => art.owned = true);
-    renderArtifacts();
-    renderCompendium(); 
+    passiveTimer++;
+    if (passiveTimer >= 10) {
+        if (passiveDamageBuffer >= 1) createDamagePopup(Math.ceil(passiveDamageBuffer), true);
+        passiveDamageBuffer = 0;
+        passiveTimer = 0;
+    }
     updateUI();
+    updateCombatUI();
+    setTimeout(gameLoop, tickDelay);
 }
 
-function deleteSave() {
-    if (confirm("Are you sure? This will permanently delete all mana, essence, and artifacts!")) {
-        localStorage.removeItem("wizardIdleSave");
-        location.reload(); 
+function updateUI() {
+    document.getElementById('total-mps-display').innerText = `${Math.floor(globalMPS).toLocaleString()} Mana/sec`;
+    document.getElementById('mana-display').innerText = `Mana: ${Math.floor(mana).toLocaleString()}`;
+    document.getElementById('essence-display').innerText = essence;
+    updateCombatUI();
+}
+
+function updateCombatUI() {
+    const pct = Math.max(0, (monsterHP / monsterMaxHP) * 100);
+    document.getElementById('hp-bar').style.width = pct + "%";
+    document.getElementById('hp-text').innerText = `HP: ${Math.ceil(monsterHP)} / ${monsterMaxHP}`;
+    const btn = document.getElementById('attack-btn');
+    if (btn) btn.disabled = (mana < 10);
+}
+
+// --- 7. SAVE SYSTEM ---
+function saveGame() {
+    try {
+        const state = { 
+            mana, essence, globalMPS, monsterMaxHP, monstersDefeated,
+            upgrades: upgrades.map(u => ({count: u.count, cost: u.cost})),
+            artifacts: artifactPool.map(a => ({id: a.id, owned: a.owned, level: a.level})) 
+        };
+        localStorage.setItem("wizardIdleSave", JSON.stringify(state));
+    } catch (e) { console.error("Save Failed", e); }
+}
+
+function loadGame() {
+    try {
+        const saved = localStorage.getItem("wizardIdleSave");
+        if (!saved) return;
+        const data = JSON.parse(saved);
+        mana = data.mana || 0;
+        essence = data.essence || 0;
+        monsterMaxHP = data.monsterMaxHP || 50;
+        monstersDefeated = data.monstersDefeated || 0;
+        monsterHP = monsterMaxHP;
+        if (data.upgrades) data.upgrades.forEach((u, i) => { if (upgrades[i]) { upgrades[i].count = u.count; upgrades[i].cost = u.cost; } });
+        if (data.artifacts) data.artifacts.forEach(a => { const art = artifactPool.find(ar => ar.id === a.id); if (art) { art.owned = a.owned; art.level = a.level; } });
+    } catch (e) { console.error("Load Failed", e); }
+}
+
+// --- 8. ADMIN FUNCTIONS ---
+function cheatMana() { mana += 1000000; updateUI(); }
+function cheatEssence() { essence += 100; updateUI(); }
+function instaKill() { monsterHP = 0; defeatMonster(); }
+function unlockAllArtifacts() { artifactPool.forEach(a => a.owned = true); renderArtifacts(); renderCompendium(); }
+function deleteSave() { if (confirm("Wipe everything?")) { localStorage.removeItem("wizardIdleSave"); location.reload(); } }
+
+window.addEventListener('keydown', (e) => {
+    if (e.key === '`' || e.key === '~') {
+        const menu = document.getElementById('admin-menu');
+        menu.style.display = (menu.style.display === 'none' ? 'block' : 'none');
     }
-}
+});
 
-// --- INITIALIZATION (This makes the game start) ---
-// This part must be at the very end to ensure all functions are loaded first
-try {
-    loadGame();      
-    calculateMPS();  
-    renderShop();    
-    updateUI();      
-    gameLoop();      
-} catch (err) {
-    console.error("Initialization failed:", err);
-}
-
-// Force initialization
-console.log("Game script fully loaded. Initializing...");
-loadGame();
-calculateMPS();
-showTab('sanctum'); // This will trigger renderShop()
-updateUI();
-
+// --- INITIALIZE ---
+window.onload = function() {
+    loadGame();
+    calculateMPS();
+    showTab('sanctum');
+    gameLoop();
+};
 </script>
 </body>
 </html>
