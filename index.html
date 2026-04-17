@@ -87,7 +87,14 @@
         @keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-50px); } }
 
         /* Shop Layout */
-        .shop-container { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+        .shop-container {
+    		display: flex;
+    		flex-direction: column;
+    		gap: 10px;
+    		max-height: 70vh; 
+    		overflow-y: auto; 
+    		padding: 10px;
+		}
         .upgrade-card { 
             background: #16213e; 
    			border: 1px solid #4ecca3; 
@@ -546,16 +553,29 @@ function upgradeArtifact(id) {
 function renderCompendium() {
     const list = document.getElementById('compendium-list');
     if (!list) return;
-    list.innerHTML = "";
+    
+    list.innerHTML = ""; // Clear the list
+    
     artifactPool.forEach(art => {
-        list.innerHTML += `
-            <div class="upgrade-card" style="opacity: ${art.owned ? '1' : '0.3'}">
+        const card = document.createElement('div');
+        card.className = "upgrade-card";
+        
+        card.style.opacity = art.owned ? "1" : "0.4";
+        card.style.filter = art.owned ? "none" : "grayscale(1)";
+
+        card.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div style="font-size: 2.5em;">${art.owned ? art.icon : '❓'}</div>
                 <div>
-                    <span style="font-size: 2em;">${art.owned ? art.icon : '❓'}</span><br>
-                    <strong>${art.owned ? art.name : 'Unknown Artifact'}</strong><br>
-                    <small>${art.owned ? art.desc : 'Explore the Rift to discover this.'}</small>
+                    <strong style="color: ${art.owned ? '#4ecca3' : '#888'};">
+                        ${art.owned ? art.name : 'Unknown Relic'}
+                    </strong><br>
+                    <small>${art.owned ? art.desc : 'Continue exploring the Rift to discover this item.'}</small>
+                    ${art.owned ? `<br><span style="color: #4ecca3; font-size: 0.8em;">Current Lv: ${art.level}</span>` : ''}
                 </div>
-            </div>`;
+            </div>
+        `;
+        list.appendChild(card);
     });
 }
 
