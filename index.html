@@ -219,17 +219,25 @@ function renderShop() {
         const robe = artifactPool.find(a => a.id === 'robe');
         const discount = (robe && robe.owned) ? 0.9 : 1;
         const currentCost = Math.floor(upg.cost * discount);
+        const affordable = getAffordableAmount(upg, mana);
 
-        // We explicitly set the ID here as btn-0, btn-1, etc.
         html += `
             <div class="upgrade-card">
                 <div class="info">
                     <strong>${upg.name}</strong> <br>
-                    <small>Level: ${upg.count}</small>
+                    <small>Level: ${upg.count}</small><br>
+                    <small style="color: #4ecca3">+${upg.mps} Mana/sec</small>
                 </div>
-                <button id="btn-${index}" onclick="buyUpgrade(${index})">
-                    Buy: ${currentCost.toLocaleString()}
-                </button>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <button id="btn-${index}" onclick="buyUpgrade(${index})">
+                        Buy: ${currentCost.toLocaleString()}
+                    </button>
+                    
+                    <button id="max-${index}" onclick="buyMax(${index})" 
+                            style="background: #0f3460; font-size: 0.7em; color: white;">
+                        Max (+${affordable})
+                    </button>
+                </div>
             </div>`;
     });
     shop.innerHTML = html;
@@ -455,7 +463,14 @@ function updateUI() {
             const robe = artifactPool.find(a => a.id === 'robe');
             const discount = (robe && robe.owned) ? 0.9 : 1;
             const currentCost = Math.floor(upg.cost * discount);
-
+			const maxBtn = document.getElementById(`max-${i}`);
+		if (maxBtn) {
+    		const affordable = getAffordableAmount(upg, mana);
+    		maxBtn.disabled = (affordable === 0);
+    		maxBtn.style.opacity = (affordable === 0) ? "0.4" : "1";
+    		maxBtn.innerText = `Max (+${affordable})`; // Keeps the number updated
+		}
+			
             if (mana >= currentCost) {
                 btn.disabled = false;
                 btn.style.background = "#4ecca3"; // Green
