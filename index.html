@@ -213,30 +213,26 @@ function getAffordableAmount(upg, currentMana) {
 function renderShop() {
     const shop = document.getElementById('shop');
     if (!shop) return;
-    shop.innerHTML = "";
-
+    
+    let html = "";
     upgrades.forEach((upg, index) => {
         const robe = artifactPool.find(a => a.id === 'robe');
         const discount = (robe && robe.owned) ? 0.9 : 1;
-        const cost = Math.floor(upg.cost * discount);
-        const affordable = getAffordableAmount(upg, mana);
+        const currentCost = Math.floor(upg.cost * discount);
 
-        shop.innerHTML += `
+        // We explicitly set the ID here as btn-0, btn-1, etc.
+        html += `
             <div class="upgrade-card">
                 <div class="info">
-                    <strong>${upg.name}</strong> <span class="level-badge">Lv. ${upg.count}</span><br>
-                    <small>+${upg.mps} Mana/sec</small>
+                    <strong>${upg.name}</strong> <br>
+                    <small>Level: ${upg.count}</small>
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 5px;">
-                    <button id="btn-${index}" onclick="buyUpgrade(${index})" ${mana < cost ? 'disabled' : ''}>
-                        Buy: ${cost.toLocaleString()}
-                    </button>
-                    <button onclick="buyMax(${index})" style="background: #0f3460; font-size: 0.7em;" ${affordable === 0 ? 'disabled' : ''}>
-                        Max (+${affordable})
-                    </button>
-                </div>
+                <button id="btn-${index}" onclick="buyUpgrade(${index})">
+                    Buy: ${currentCost.toLocaleString()}
+                </button>
             </div>`;
     });
+    shop.innerHTML = html;
 }
 
 function buyUpgrade(index) {
@@ -441,33 +437,36 @@ function gameLoop() {
 }
 
 function updateUI() {
-    // Update text displays
-    const mpsEl = document.getElementById('total-mps-display');
-    const manaEl = document.getElementById('mana-display');
-    const essenceEl = document.getElementById('essence-display');
+    // 1. Update text displays
+    if (document.getElementById('total-mps-display')) {
+        document.getElementById('total-mps-display').innerText = `${Math.floor(globalMPS).toLocaleString()} Mana/sec`;
+    }
+    if (document.getElementById('mana-display')) {
+        document.getElementById('mana-display').innerText = `Mana: ${Math.floor(mana).toLocaleString()}`;
+    }
+    if (document.getElementById('essence-display')) {
+        document.getElementById('essence-display').innerText = essence;
+    }
 
-    if (mpsEl) mpsEl.innerText = `${Math.floor(globalMPS).toLocaleString()} Mana/sec`;
-    if (manaEl) manaEl.innerText = `Mana: ${Math.floor(mana).toLocaleString()}`;
-    if (essenceEl) essenceEl.innerText = essence;
-
-    // Sync Button States
+    // 2. The Button Loop
     upgrades.forEach((upg, i) => {
-        const btn = document.getElementById(`btn-${i}`);
+        const btn = document.getElementById(`btn-${i}`); // Matches the ID above
         if (btn) {
-            // Re-calculate the EXACT cost used in the shop
             const robe = artifactPool.find(a => a.id === 'robe');
             const discount = (robe && robe.owned) ? 0.9 : 1;
             const currentCost = Math.floor(upg.cost * discount);
 
-            // Enable if mana >= cost, disable if not
-            btn.disabled = (mana < currentCost);
-            
-            // Optional: Visual feedback
-            btn.style.opacity = (mana < currentCost) ? "0.5" : "1";
+            if (mana >= currentCost) {
+                btn.disabled = false;
+                btn.style.background = "#4ecca3"; // Green
+                btn.style.opacity = "1";
+            } else {
+                btn.disabled = true;
+                btn.style.background = "#555";    // Gray
+                btn.style.opacity = "0.6";
+            }
         }
     });
-
-    updateCombatUI();
 }
 
 function updateCombatUI() {
@@ -506,7 +505,7 @@ function loadGame() {
 }
 
 // --- 8. ADMIN FUNCTIONS ---
-function cheatMana() { mana += 1000000; updateUI(); }
+function cheatMana() { mana += 1000000; renderShop(); updateUI(); }
 function cheatEssence() { essence += 100; updateUI(); }
 function instaKill() { monsterHP = 0; defeatMonster(); }
 function unlockAllArtifacts() { artifactPool.forEach(a => a.owned = true); renderArtifacts(); renderCompendium(); }
