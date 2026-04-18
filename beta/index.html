@@ -407,15 +407,16 @@ button {
 </div>
         </div>
 
-        <div id="artifact-vault">
-            <h3 style="color: #4ecca3;">Arcane Upgrades</h3>
-            <div id="artifact-list" style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;"></div>
-        </div>
+        
     </div> 
 
     <div id="compendium-tab" class="tab-content" style="display: none; padding: 20px;">
         <h2 style="color: #4ecca3;">Mystic Compendium</h2>
         <div id="compendium-list" class="shop-container"></div>
+		<div id="artifact-vault">
+            <h3 style="color: #4ecca3;">Arcane Upgrades</h3>
+            <div id="artifact-list" style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;"></div>
+        </div>
     </div>
 
 	<div id="settings-tab" class="tab-content" style="display: none; padding: 20px;">
@@ -1123,57 +1124,72 @@ function renderArtifacts() {
 }
 
 function upgradeArtifact(id) {
+    // 1. Find the specific artifact in your pool
     const art = artifactPool.find(a => a.id === id);
     
-    // 1. SAFETY CHECKS
-    if (!art || !art.owned) return;
-
-    // 2. EXPONENTIAL COST CALCULATION
-    const upgCost = Math.floor(5 * Math.pow(1.5, art.level - 1));
-
-    // 3. AFFORDABILITY CHECK
-    if (essence < upgCost) {
-        console.log(`Insufficient Essence! Need ${upgCost}.`);
+    // 2. Safety check: if the artifact doesn't exist or isn't owned, stop
+    if (!art || !art.owned) {
+        console.error("Artifact not found or not owned.");
         return;
     }
 
-    // 4. EXECUTE UPGRADE
-    essence -= upgCost;
-    art.level++;
-    
-    // 5. SCALE BONUSES (Specific to each artifact type)
-    switch(id) {
-        case 'wand':
-            art.bonus += 1; // +1 Base Mana/Damage per level
+    // 3. Calculate the Upgrade Cost
+    // Formula: 10 * (2 ^ (level - 1)) -> Level 1=10, 2=20, 3=40, 4=80...
+    const upgradeCost = Math.pow(2, art.level - 1) * 10;
+
+    // 4. Check Essence Balance
+    if (essence >= upgradeCost) {
+        // Deduct Currency
+        essence -= upgradeCost;
+        
+        // Increase Level
+        art.level++;
+
+        // 5. Apply the Power Boost
+        // This scales the bonus based on the artifact's specific type
+        applyArtifactPowerBoost(art);
+
+        // 6. Refresh the Entire Game State
+        if (typeof calculateMPS === 'function') calculateMPS(); // Recalculate income
+        renderArtifacts(); // Redraw the grid in Compendium
+        updateUI();        // Refresh all numbers and button states
+        
+        // 7. Auto-Save
+        if (typeof saveGame === 'function') saveGame();
+
+        console.log(`Success! ${art.name} is now Level ${art.level}`);
+    } else {
+        console.warn("Insufficient Essence for this upgrade.");
+        // Optional: Trigger a visual shake on the button or a message
+    }
+}
+
+/**
+ * Helper function to define HOW each artifact scales.
+ * You can customize these numbers to balance your game.
+ */
+function applyArtifactPowerBoost(art) {
+    switch(art.id) {
+        case 'robe': // Scholar's Robe (Discount)
+            // Increases discount by 2% per level (maxing at 0.02 * level)
+            art.bonus += 0.02; 
             break;
-        case 'pouch':
-            art.bonus += 0.2; // +20% Essence drop per level
+        case 'ball': // Crystal Ball (MPS Multiplier)
+            // Increases global MPS by 5% per level
+            art.bonus += 0.05;
             break;
-        case 'orb':
-            art.bonus += 0.05; // +5% Global MPS per level
+        case 'slayer': // Mage Slayer (Combat Damage)
+            // Increases damage vs Elites by 10% per level
+            art.bonus += 0.10;
             break;
-        case 'hourglass':
-            art.bonus += 0.01; // +1% Game Speed per level
-            break;
-        case 'slayer':
-            art.bonus += 1.0; // +100% Elite Damage per level
-            break;
-        case 'robe':
-            // Cap discount at 90% to prevent items becoming free or negative
-            if (art.bonus < 0.90) art.bonus += 0.02; 
+        case 'tome': // Arcane Tome (Spell Damage)
+            // Increases spell damage by 7% per level
+            art.bonus += 0.07;
             break;
         default:
-            art.bonus += 0.05; // Fallback for new artifacts
+            // Generic fallback if you add new artifacts later
+            art.bonus += 0.01;
     }
-
-    // 6. RE-CALCULATE AND RE-DRAW
-    // Ensure the MPS is updated before the UI draws the new number
-    if (typeof calculateMPS === 'function') calculateMPS();
-    
-    updateUI();        // Refreshes the top bar and shop buttons
-    renderArtifacts(); // Refreshes the artifact cards with new costs/stats
-    
-    if (typeof saveGame === 'function') saveGame();
 }
 function getArtifactBonus(id) {
     const art = artifactPool.find(a => a.id === id);
@@ -1302,89 +1318,71 @@ function gameLoop() {
 }
 
 function updateUI() {
-    // 1. TOP BAR - Resources and the Crystal Ball (MPS) Bonus
-    const mpsEl = document.getElementById('total-mps-display');
-    const manaEl = document.getElementById('mana-display');
-    const essenceEl = document.getElementById('essence-display');
+    // 1. UPDATE CORE CURRENCIES
+    // Math.floor prevents decimal jitter; toLocaleString adds commas (e.g., 1,250)
+    const manaDisplay = document.getElementById('mana-display');
+    if (manaDisplay) {
+        manaDisplay.innerText = Math.floor(mana).toLocaleString();
+    }
 
-    // Calculate boosted MPS for display
-    const orbBonus = getArtifactBonus("orb"); // 0.25 if owned
-    const displayMPS = globalMPS * (1 + orbBonus);
+    const essenceDisplay = document.getElementById('essence-display');
+    if (essenceDisplay) {
+        essenceDisplay.innerText = Math.floor(essence).toLocaleString();
+    }
 
-    if (mpsEl) mpsEl.innerText = `${Math.floor(displayMPS).toLocaleString()} Mana/sec`;
-    if (manaEl) manaEl.innerText = `Mana: ${Math.floor(mana).toLocaleString()}`;
-    if (essenceEl) essenceEl.innerText = essence;
+    // 2. UPDATE PASSIVE INCOME (MPS) DISPLAY
+    const mpsDisplay = document.getElementById('mps-display');
+    if (mpsDisplay) {
+        mpsDisplay.innerText = `Mana Per Second: ${calculateMPS().toLocaleString()}`;
+    }
 
-    // 2. SKILLS - Check affordability
-    const skills = [
-        { id: 'skill-blast', cost: 50 },
-        { id: 'skill-siphon', cost: 200 },
-        { id: 'skill-storm', cost: 1000 }
-    ];
+    // 3. RE-RENDER THE COMPENDIUM GRIDS
+    // This ensures (+X) amounts and Upgrade costs update in real-time
+    renderShop();
+    renderArtifacts();
 
-    skills.forEach(skill => {
-        const btn = document.getElementById(skill.id);
-        if (btn && !btn.disabled) { 
-            btn.style.opacity = (mana < skill.cost) ? "0.5" : "1";
-        }
-    });
+    // 4. UPDATE SPELL BUTTON STATES
+    // Greys out buttons if you don't have enough mana
+    updateSpellButtons();
 
-    // 3. SHOP BUTTONS - Scholar's Robe Discount & Affordability
-    upgrades.forEach((upg, i) => {
-        const btn = document.getElementById(`btn-${i}`);
-        const maxBtn = document.getElementById(`max-${i}`);
+    // 5. UPDATE MONSTER UI
+    // Ensures the health bar and name are correct during combat
+    const monsterName = document.getElementById('monster-name');
+    const hpText = document.getElementById('hp-text');
+    const hpBar = document.getElementById('hp-bar-fill');
+
+    if (monsterName && hpText && hpBar) {
+        monsterName.innerText = currentMonster.name;
+        hpText.innerText = `${Math.floor(monsterHP)} / ${currentMonster.maxHP}`;
         
-        if (btn || maxBtn) {
-            // Use the Artifact Helper for the Robe discount
-            const discount = getArtifactBonus("robe"); // 0.1 if owned
-            const currentCost = Math.floor(upg.cost * (1 - discount));
-            
-            // Note: getAffordableAmount should also account for the discount internally
-            const affordable = getAffordableAmount(upg, mana);
-
-            if (btn) {
-                btn.disabled = (mana < currentCost);
-                btn.style.backgroundColor = (mana < currentCost) ? "#16213e" : "#4ecca3";
-                btn.style.color = (mana < currentCost) ? "#555" : "#1b1b2f";
-            }
-
-            if (maxBtn) {
-                maxBtn.disabled = (affordable === 0);
-                maxBtn.innerText = `Max (+${affordable})`;
-                maxBtn.style.opacity = (affordable === 0) ? "0.4" : "1";
-            }
-        }
-    });
-
-    // 4. ARTIFACT UPGRADES - Essence Costs
-    artifactPool.forEach(art => {
-        if (art.owned) {
-            const artBtn = document.getElementById(`art-up-${art.id}`);
-            if (artBtn) {
-                const upgCost = Math.floor(5 * Math.pow(1.5, art.level - 1));
-                artBtn.innerText = `Up (${upgCost} Ess)`;
-                
-                if (essence >= upgCost) {
-                    artBtn.disabled = false;
-                    artBtn.style.backgroundColor = "#4ecca3"; 
-                    artBtn.style.color = "#1b1b2f";
-                    artBtn.style.boxShadow = "0 0 10px rgba(78, 204, 163, 0.4)";
-                } else {
-                    artBtn.disabled = true;
-                    artBtn.style.backgroundColor = "#16213e"; 
-                    artBtn.style.color = "#555";
-                    artBtn.style.boxShadow = "none";
-                }
-            }
-        }
-    });
-	renderArtifacts();
-    // 5. COMBAT - Externalized Combat UI
-    if (typeof updateCombatUI === 'function') {
-        updateCombatUI();
+        const healthPercent = (monsterHP / currentMonster.maxHP) * 100;
+        hpBar.style.width = `${healthPercent}%`;
     }
 }
 
+/**
+ * Helper function to handle spell button disabling
+ */
+function updateSpellButtons() {
+    // Replace these with your actual spell costs/variables
+    const spells = [
+        { id: 'blast-btn', cost: 50 },
+        { id: 'siphon-btn', cost: 30 },
+        { id: 'storm-btn', cost: 150 }
+    ];
+
+    spells.forEach(spell => {
+        const btn = document.getElementById(spell.id);
+        if (btn) {
+            // Disable if not enough mana OR if currently on cooldown
+            const isOOM = mana < spell.cost;
+            const spellIdShort = spell.id.split('-')[0]; // e.g., 'storm'
+            const isOnCooldown = spellCooldowns[spellIdShort];
+            
+            btn.disabled = isOOM || isOnCooldown;
+        }
+    });
+}
 function updateCombatUI() {
     const pct = Math.max(0, (monsterHP / monsterMaxHP) * 100);
     document.getElementById('hp-bar').style.width = pct + "%";
