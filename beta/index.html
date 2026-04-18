@@ -420,6 +420,12 @@ let baseTickSpeed = 100;
 let killsSinceLastArtifact = 0;
 let manaPerKill = 5;
 let isCurrentMonsterElite = false;
+let spellCooldowns = {
+    blast: false,
+    siphon: false,
+    storm: false
+};
+
 	  
 const PITY_THRESHOLD = 20; 
 
@@ -650,6 +656,46 @@ function createFloatingText(event, text, color = "#4ecca3") {
 }
 
 // --- 4. COMBAT & ARTIFACTS ---
+function startCooldown(spellId, duration) {
+    // 1. Lock the spell in the background logic
+    spellCooldowns[spellId] = true;
+    
+    // 2. Find the visual overlay and the button
+    const overlay = document.getElementById(`cooldown-${spellId}`);
+    
+    // Find the button by its onclick function name
+    const functionName = "cast" + spellId.charAt(0).toUpperCase() + spellId.slice(1);
+    const btn = document.querySelector(`button[onclick*="${functionName}"]`);
+
+    if (overlay) {
+        // Reset transition and set height to 100% (completely dark)
+        overlay.style.transition = "none";
+        overlay.style.height = "100%";
+        
+        // Use a tiny timeout to allow the browser to register the "100%" height
+        // before we start the transition back to 0%
+        setTimeout(() => {
+            overlay.style.transition = `height ${duration}s linear`;
+            overlay.style.height = "0%";
+        }, 50);
+    }
+
+    if (btn) {
+        btn.disabled = true;
+    }
+
+    // 3. Unlock the spell after the duration ends
+    setTimeout(() => {
+        spellCooldowns[spellId] = false;
+        if (btn) btn.disabled = false;
+        
+        // Clean up the overlay transition
+        if (overlay) overlay.style.transition = "none";
+        
+        updateUI(); // Refresh UI to show the spell is ready
+    }, duration * 1000);
+}
+	  
 // --- STANDARD STRIKE ---
 function attackMonster(event) {
     const cost = 10;
