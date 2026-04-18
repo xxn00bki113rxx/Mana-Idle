@@ -12,9 +12,9 @@
     <meta name="theme-color" content="#1a1a2e">
     <title>Fantasy Idle: Tiered Magic</title>
     <style>
-    /* 1. BASE THEME & LAYOUT */
+    /* 1. GLOBAL THEME & LAYOUT */
     body { 
-        font-family: sans-serif; 
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
         background: #1a1a2e; 
         color: #fff; 
         text-align: center; 
@@ -27,6 +27,7 @@
         font-size: 2.5em; 
         color: #4ecca3; 
         margin: 10px; 
+        text-shadow: 0 0 10px rgba(78, 204, 163, 0.3);
     }
 
     /* 2. COMBAT SECTION & MONSTER */
@@ -36,34 +37,42 @@
         background: #16213e;
         border: 2px solid #e94560;
         padding: 20px;
-        border-radius: 15px;
+        border-radius: 20px; /* Highly rounded for modern feel */
         margin: 20px auto;
         position: relative;
-        transition: all 0.2s ease;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
 
     #monster-sprite { 
-        font-size: clamp(50px, 15vw, 80px); 
+        font-size: clamp(60px, 18vw, 90px); 
         transition: transform 0.1s, filter 0.2s; 
         cursor: pointer; 
         display: inline-block;
+        user-select: none;
+        padding: 10px;
+    }
+
+    #monster-sprite:active {
+        transform: scale(0.9); /* Tactile "squish" on click */
     }
 
     /* 3. ABILITY BAR & SKILLS */
     .ability-bar {
         display: flex;
-        gap: 10px;
+        gap: 12px;
         justify-content: center;
-        margin-top: 15px;
-        width: 100%;
+        margin: 20px auto;
+        width: 95%;
+        max-width: 450px;
     }
 
     .skill-container {
-        position: relative; /* CRITICAL: Anchors the overlay */
+        position: relative;
         flex: 1;
         overflow: hidden;
-        border-radius: 8px;
-        height: 60px; /* Fixed height for consistency */
+        border-radius: 12px;
+        height: 70px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     }
 
     .skill-btn {
@@ -72,136 +81,145 @@
         background: #16213e;    
         border: 2px solid #4ecca3; 
         color: #4ecca3;         
-        padding: 5px;
-        border-radius: 8px;
-        font-size: 0.8em;
+        font-size: 0.85em;
+        font-weight: bold;
         cursor: pointer;
-        transition: all 0.2s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
         position: relative;
-        z-index: 1; /* Keeps button under the tint */
+        z-index: 1;
+        transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 
-    /* Text needs to be above the overlay */
     .skill-btn span {
         position: relative;
-        z-index: 3;
+        z-index: 3; /* Keeps text above the dark tint */
+        pointer-events: none;
     }
 
     .skill-btn:hover:not(:disabled) {
-        background: #4ecca3;
-        color: #1b1b2f;
-        box-shadow: 0 0 15px #4ecca3;
+        background: #1f2d52;
+        transform: translateY(-2px);
     }
 
     .skill-btn:disabled {
-        border-color: #555;
-        color: #555;
+        border-color: #444;
+        color: #666;
         cursor: not-allowed;
+        opacity: 0.7;
     }
 
-    /* Cooldown visual logic */
     .cooldown-overlay {
         position: absolute;
-        top: 0; /* Changed from bottom to top for better 'drain' feel */
+        top: 0;
         left: 0;
         width: 100%;
         height: 0%; 
-        background: rgba(0, 0, 0, 0.7); /* Slightly darker for better visibility */
+        background: rgba(0, 0, 0, 0.75); 
         pointer-events: none; 
-        z-index: 2; /* Sits between button and text */
+        z-index: 2;
+        border-radius: 10px;
     }
 
-    /* 4. ANIMATIONS & EFFECTS */
+    /* 4. SHOP & UPGRADE CARDS */
+    .shop-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        max-height: 60vh; 
+        overflow-y: auto; 
+        padding: 15px;
+    }
+
+    .upgrade-card { 
+        background: #16213e; 
+        border: 2px solid #4ecca3; 
+        padding: 15px; 
+        width: 90%; 
+        max-width: 420px; 
+        border-radius: 15px; /* Rounded corners restored */
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        transition: transform 0.2s;
+    }
+
+    .upgrade-card:hover {
+        transform: translateX(5px);
+        background: #1f2d52;
+    }
+
+    /* 5. NAVIGATION */
+    .nav-btn {
+        background-color: #1a1a2e;
+        color: #4ecca3;
+        border: 2px solid #4ecca3;
+        padding: 10px 25px;
+        border-radius: 12px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.3s;
+        margin: 5px;
+    }
+
+    .nav-btn.active {
+        background-color: #4ecca3;
+        color: #1a1a2e;
+        box-shadow: 0 0 15px #4ecca3;
+    }
+
+    /* 6. ANIMATIONS & SPECIAL EFFECTS */
     
-    /* Standard hit pulse */
-    .monster-pulse { animation: pulse-red 0.2s ease-in-out; }
-    @keyframes pulse-red { 
-        0% { transform: scale(1); filter: brightness(1); } 
-        50% { transform: scale(1.1); filter: brightness(1.8) drop-shadow(0 0 10px #e94560); } 
-        100% { transform: scale(1); filter: brightness(1); } 
+    /* Monster Hit Flash */
+    .monster-pulse { animation: hitFlash 0.15s ease-out; }
+    @keyframes hitFlash {
+        0% { transform: scale(1); filter: brightness(1); }
+        50% { transform: scale(1.1); filter: brightness(2) drop-shadow(0 0 15px #e94560); }
+        100% { transform: scale(1); filter: brightness(1); }
     }
 
-    /* Mana Storm Multi-hit Flash */
-    .monster-storm-hit { animation: flashPurple 0.1s; }
-    @keyframes flashPurple {
+    /* Mana Storm Multi-hit */
+    .monster-storm-hit { animation: stormFlash 0.1s infinite; }
+    @keyframes stormFlash {
         0% { filter: brightness(1); }
-        50% { filter: brightness(2) drop-shadow(0 0 20px #bb86fc); }
+        50% { filter: brightness(2.5) drop-shadow(0 0 25px #bb86fc); }
         100% { filter: brightness(1); }
     }
 
-    /* Screen Shake for Big Spells */
-    .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
-    @keyframes shake {
+    /* Screen Shake */
+    .shake { animation: shakeEffect 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+    @keyframes shakeEffect {
         10%, 90% { transform: translate3d(-1px, 0, 0); }
         20%, 80% { transform: translate3d(2px, 0, 0); }
         30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
         40%, 60% { transform: translate3d(4px, 0, 0); }
     }
 
-    /* Skill Ready Glow */
+    /* Ready Glow for Skills */
     .skill-btn:not(:disabled) {
-        animation: skillReady 2s infinite;
+        animation: glowReady 2s infinite;
     }
-    @keyframes skillReady {
+    @keyframes glowReady {
         0% { box-shadow: 0 0 5px rgba(78, 204, 163, 0.2); }
-        50% { box-shadow: 0 0 15px rgba(78, 204, 163, 0.5); }
+        50% { box-shadow: 0 0 15px rgba(78, 204, 163, 0.6); }
         100% { box-shadow: 0 0 5px rgba(78, 204, 163, 0.2); }
     }
 
-    /* 5. SHOP & NAVIGATION */
-    .shop-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 10px;
-        max-height: 70vh; 
-        overflow-y: auto; 
-        padding: 10px;
-    }
-
-    .upgrade-card { 
-        background: #16213e; 
-        border: 1px solid #4ecca3; 
-        padding: 15px; 
-        width: 90%; 
-        max-width: 400px; 
-        border-radius: 12px; 
-        display: flex; 
-        justify-content: space-between; 
-        align-items: center; 
-        margin-bottom: 10px;
-        transition: transform 0.2s;
-    }
-
-    .upgrade-card:hover { transform: translateY(-2px); }
-
-    .nav-btn {
-        background-color: #1a1a2e;
-        color: #4ecca3;
-        border: 1px solid #4ecca3;
-        padding: 10px 20px;
-        cursor: pointer;
-        transition: 0.3s;
-    }
-
-    .nav-btn.active {
-        background-color: #4ecca3;
-        color: #1a1a2e;
-        box-shadow: 0 0 10px #4ecca3;
-        font-weight: bold;
-    }
-
+    /* Floating Text Popups */
     .damage-popup { 
         position: absolute; 
         font-weight: bold; 
         pointer-events: none; 
-        animation: floatUp 0.8s ease-out forwards; 
+        animation: popupFloat 0.8s ease-out forwards; 
         z-index: 100; 
-        color: #ff4d4d;
     }
-    @keyframes floatUp { 
-        0% { opacity: 1; transform: translateY(0); } 
-        100% { opacity: 0; transform: translateY(-50px); } 
+    @keyframes popupFloat { 
+        0% { opacity: 1; transform: translateY(0) scale(1); } 
+        100% { opacity: 0; transform: translateY(-60px) scale(1.2); } 
     }
 </style>
 </head>
