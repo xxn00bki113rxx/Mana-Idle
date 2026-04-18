@@ -240,6 +240,12 @@
         <div id="compendium-list" class="shop-container"></div>
     </div>
 
+	<div id="save-management" style="margin-top: 15px; border-top: 1px solid #444; padding-top: 10px;">
+    	<button onclick="exportSave()" style="background: #4ecca3; color: #1b1b2f; width: 100%; margin-bottom: 5px;">Export Save Code</button>
+    	<button onclick="importSave()" style="background: #fca311; color: #1b1b2f; width: 100%;">Import Save Code</button>
+    	<textarea id="save-box" placeholder="Paste save code here..." style="width: 100%; height: 60px; margin-top: 10px; background: #0f3460; color: #fff; border: 1px solid #4ecca3; font-size: 0.7em;"></textarea>
+	</div>
+
     <div id="admin-menu" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #222; border: 2px solid #ff0055; padding: 20px; border-radius: 10px; z-index: 99999; text-align: left; box-shadow: 0 0 20px #000;">
         <h3 style="color: #ff0055; margin: 0 0 10px 0;">Arcane Debugger</h3>
         <div style="display: flex; flex-direction: column; gap: 10px;">
@@ -840,6 +846,64 @@ function loadGame() {
         console.log("Game Loaded Successfully");
     } catch (e) {
         console.error("Load Error:", e);
+    }
+}
+
+	  function exportSave() {
+    try {
+        // 1. Grab all the current game data
+        const saveState = {
+            mana: mana,
+            essence: essence,
+            monstersDefeated: monstersDefeated,
+            monsterMaxHP: monsterMaxHP,
+            upgrades: upgrades.map(u => ({ count: u.count, cost: u.cost })),
+            artifacts: artifactPool.map(a => ({ id: a.id, owned: a.owned, level: a.level }))
+        };
+
+        // 2. Convert to JSON, then to a Base64 string
+        const jsonStr = JSON.stringify(saveState);
+        const encoded = btoa(jsonStr);
+
+        // 3. Put it in the text box and auto-select it for the user
+        const saveBox = document.getElementById('save-box');
+        saveBox.value = encoded;
+        saveBox.select();
+        
+        // Copy to clipboard automatically
+        document.execCommand('copy');
+        alert("Save code copied to clipboard! Keep it somewhere safe.");
+    } catch (e) {
+        console.error("Export failed:", e);
+        alert("Failed to export save.");
+    }
+}
+
+function importSave() {
+    try {
+        const saveBox = document.getElementById('save-box');
+        const encoded = saveBox.value.trim();
+
+        if (!encoded) {
+            alert("Please paste a save code into the box first.");
+            return;
+        }
+
+        // 1. Decode the string and parse the JSON
+        const jsonStr = atob(encoded);
+        const data = JSON.parse(jsonStr);
+
+        // 2. Confirm with the user
+        if (confirm("Importing this save will overwrite your current progress. Continue?")) {
+            // 3. Manually trigger the save to LocalStorage so it sticks
+            localStorage.setItem("wizardIdle_v1", jsonStr);
+            
+            // 4. Reload the page to apply the new save
+            location.reload();
+        }
+    } catch (e) {
+        console.error("Import failed:", e);
+        alert("Invalid save code! Make sure you copied the entire string.");
     }
 }
 
