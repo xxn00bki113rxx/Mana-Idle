@@ -302,6 +302,9 @@ let monstersDefeated = 0;
 let passiveDamageBuffer = 0;
 let passiveTimer = 0;
 let baseTickSpeed = 100;
+let killsSinceLastArtifact = 0;
+
+const PITY_THRESHOLD = 20; 
 
 const artifactPool = [
     { id: "wand", name: "Ancient Wand", icon: "🪄", owned: false, level: 1, bonus: 2, desc: "Increases Click & Blast damage." },
@@ -545,39 +548,52 @@ function triggerCooldown(skillId, ms) {
 }
 	  
 function defeatMonster() {
+    // 1. Array of possible monsters (Flavor)
+    const monsters = [
+        { name: "Shadow Imp", icon: "👿" },
+        { name: "Void Wraith", icon: "👻" },
+        { name: "Chaos Golem", icon: "🗿" },
+        { name: "Abyssal Drake", icon: "🐲" }
+    ];
+
+    // 2. Reward the player
+    mana += manaPerKill; 
+    essence += 1; 
     monstersDefeated++;
-    
-    // Logic to unlock a random artifact every 5 kills
-    if (monstersDefeated % 5 === 0) {
-        const locked = artifactPool.filter(a => !a.owned);
-        if (locked.length > 0) {
-            const randomArt = locked[Math.floor(Math.random() * locked.length)];
-            randomArt.owned = true;
-            alert("New Artifact Discovered: " + randomArt.name);
-        }
+
+    // 3. Artifact Drop Logic (10% Chance + 20-Kill Pity Timer)
+    killsSinceLastArtifact++;
+    const dropChance = 0.10;
+    const roll = Math.random();
+
+    if (roll < dropChance || killsSinceLastArtifact >= 20) {
+        gainRandomArtifact(); 
+        killsSinceLastArtifact = 0; 
+        console.log("Artifact dropped!");
     }
 
-    const pouch = artifactPool.find(a => a.id === 'pouch');
-    const pouchMult = (pouch && pouch.owned) ? (1 + (pouch.level * 0.2)) : 1;
-    essence += Math.ceil((monstersDefeated / 2) * pouchMult);
-    mana += (monsterMaxHP * 2);
+    // 4. Scale the Monster HP (Smooth 1.12 Multiplier)
+    monsterMaxHP = Math.floor(monsterMaxHP * 1.12);
+    currentMonsterHP = monsterMaxHP;
+
+    // 5. Select a NEW monster appearance for the next fight
+    const nextMonster = monsters[Math.floor(Math.random() * monsters.length)];
     
-    monsterHP = 0;
-    document.getElementById('monster-name').innerText = "Rift Opening...";
-    setTimeout(() => {
-        monsterMaxHP = Math.floor(monsterMaxHP * 1.4);
-        monsterHP = monsterMaxHP;
-        const monsters = [
-            { name: "Shadow Imp", icon: "👿" },
-            { name: "Void Wraith", icon: "👻" },
-            { name: "Chaos Golem", icon: "🗿" },
-            { name: "Abyssal Drake", icon: "🐲" }
-        ];
-        const idx = Math.min(Math.floor(monstersDefeated / 5), monsters.length - 1);
-        document.getElementById('monster-name').innerText = monsters[idx].name;
-        document.getElementById('monster-sprite').innerText = monsters[idx].icon;
-        updateCombatUI();
-    }, 1000);
+    // 6. Update the UI
+    // Assuming you have IDs for name and icon in your HTML
+    const nameElement = document.getElementById('monster-name');
+    const iconElement = document.getElementById('monster-icon');
+    
+    if (nameElement) nameElement.innerText = nextMonster.name;
+    if (iconElement) iconElement.innerText = nextMonster.icon;
+
+    updateUI();
+    
+    // Battle Log Update
+    const log = document.getElementById('battle-log');
+    if (log) {
+        log.innerText = `Defeated! A ${nextMonster.name} appears in Level ${monstersDefeated + 1}...`;
+    }
 }
 
 function renderArtifacts() {
@@ -835,7 +851,8 @@ function saveGame() {
             essence: Number(essence),
             monstersDefeated: Number(monstersDefeated),
             monsterMaxHP: Number(monsterMaxHP),
-            // Map upgrades to a simple array of counts/costs
+            killsSinceLastArtifact: killsSinceLastArtifact,
+			// Map upgrades to a simple array of counts/costs
             upgrades: upgrades.map(u => ({ count: u.count, cost: u.cost })),
             // Map artifacts to their owned status and levels
             artifacts: artifactPool.map(a => ({ id: a.id, owned: a.owned, level: a.level }))
@@ -860,7 +877,8 @@ function loadGame() {
         monstersDefeated = Number(data.monstersDefeated) || 0;
         monsterMaxHP = Number(data.monsterMaxHP) || 50;
         monsterHP = monsterMaxHP; // Reset HP to full on load
-
+		killsSinceLastArtifact = saveState.killsSinceLastArtifact || 0;
+		
         // Load Upgrades
         if (data.upgrades) {
             data.upgrades.forEach((savedUpg, i) => {
@@ -896,7 +914,8 @@ function loadGame() {
             essence: typeof essence !== 'undefined' ? essence : 0,
             monstersDefeated: typeof monstersDefeated !== 'undefined' ? monstersDefeated : 0,
             monsterMaxHP: typeof monsterMaxHP !== 'undefined' ? monsterMaxHP : 50,
-            
+            killsSinceLastArtifact: killsSinceLastArtifact
+				
             // Map the upgrades to a clean array
             upgrades: upgrades.map(u => ({ 
                 count: u.count, 
@@ -965,28 +984,62 @@ function handleExportFeedback() {
 function importSave() {
     try {
         const saveBox = document.getElementById('save-box');
-        const encoded = saveBox.value.trim();
+        const encodedData = saveBox.value.trim();
 
-        if (!encoded) {
-            alert("Please paste a save code into the box first.");
+        if (!encodedData) {
+            alert("The scroll is empty! Please paste a save code.");
             return;
         }
 
-        // 1. Decode the string and parse the JSON
-        const jsonStr = atob(encoded);
-        const data = JSON.parse(jsonStr);
+        // 1. Decode the Base64 string back into JSON
+        const jsonStr = atob(encodedData);
+        const saveState = JSON.parse(jsonStr);
 
-        // 2. Confirm with the user
-        if (confirm("Importing this save will overwrite your current progress. Continue?")) {
-            // 3. Manually trigger the save to LocalStorage so it sticks
-            localStorage.setItem("wizardIdle_v1", jsonStr);
-            
-            // 4. Reload the page to apply the new save
-            location.reload();
+        // 2. Restore core variables
+        mana = saveState.mana || 0;
+        essence = saveState.essence || 0;
+        monstersDefeated = saveState.monstersDefeated || 0;
+        monsterMaxHP = saveState.monsterMaxHP || 50;
+
+        // 3. Restore the Artifact Pity Counter
+        // The "|| 0" ensures it works even for saves from the older version
+        killsSinceLastArtifact = saveState.killsSinceLastArtifact || 0;
+
+        // 4. Restore Upgrades (Mapping back to the live array)
+        if (saveState.upgrades) {
+            saveState.upgrades.forEach((savedUp, index) => {
+                if (upgrades[index]) {
+                    upgrades[index].count = savedUp.count;
+                    upgrades[index].cost = savedUp.cost;
+                }
+            });
         }
+
+        // 5. Restore Artifacts
+        if (saveState.artifacts) {
+            saveState.artifacts.forEach(savedArt => {
+                const realArt = artifactPool.find(a => a.id === savedArt.id);
+                if (realArt) {
+                    realArt.owned = savedArt.owned;
+                    realArt.level = savedArt.level || 1;
+                }
+            });
+        }
+
+        // 6. Force a save to LocalStorage so progress persists
+        const finalSave = JSON.stringify(saveState);
+        localStorage.setItem("wizardIdle_save", finalSave);
+
+        // 7. Refresh the UI and provide feedback
+        alert("✨ Save Successfully Imported! ✨");
+        
+        // Reloading the page is the safest way to ensure all game 
+        // loops and logic restart with the new data.
+        location.reload();
+
     } catch (e) {
-        console.error("Import failed:", e);
-        alert("Invalid save code! Make sure you copied the entire string.");
+        console.error("Import Error:", e);
+        alert("Failed to read the save code. It may be corrupted or from an incompatible version.");
     }
 }
 
