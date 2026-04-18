@@ -413,10 +413,6 @@ button {
     <div id="compendium-tab" class="tab-content" style="display: none; padding: 20px;">
         <h2 style="color: #4ecca3;">Mystic Compendium</h2>
         <div id="compendium-list" class="shop-container"></div>
-		<div id="artifact-vault">
-            <h3 style="color: #4ecca3;">Arcane Upgrades</h3>
-            <div id="artifact-list" style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;"></div>
-        </div>
     </div>
 
 	<div id="settings-tab" class="tab-content" style="display: none; padding: 20px;">
@@ -1333,7 +1329,6 @@ function updateUI() {
     // --- 2. MPS DISPLAY ---
     const mpsDisplay = document.getElementById('mps-display');
     if (mpsDisplay) {
-        // We use Math.max(0, ...) just in case a calculation ever goes negative
         mpsDisplay.innerText = `Mana Per Second: ${Math.max(0, calculateMPS()).toLocaleString()}`;
     }
 
@@ -1361,14 +1356,14 @@ function updateUI() {
         if (lvlTxt) lvlTxt.innerText = `Level: ${upg.count}`;
     });
 
-    // --- 4. COMPENDIUM (Artifacts) ---
-    // Loop through ALL artifacts so locked ones don't break the UI flow
+    // --- 4. COMPENDIUM (Unified Artifact System) ---
+    // This now handles all artifact updates in one place
     artifactPool.forEach(art => {
         const artBtn = document.getElementById(`upgrade-art-${art.id}`);
         const artLvlTxt = document.getElementById(`art-level-${art.id}`);
         const artBonusTxt = document.getElementById(`art-bonus-${art.id}`);
 
-        // Only update if the artifact is actually owned and the elements exist
+        // We only try to update these if the artifact is owned
         if (art.owned) {
             const upgradeCost = Math.pow(2, art.level - 1) * 10;
             
@@ -1380,14 +1375,16 @@ function updateUI() {
             if (artLvlTxt) artLvlTxt.innerText = `Lv. ${art.level}`;
             
             if (artBonusTxt) {
-                const displayBonus = (art.bonus * 100).toFixed(0);
-                artBonusTxt.innerText = `+${displayBonus}% Bonus`;
+                // Formatting bonus based on type (percentage vs multiplier)
+                const isMultiplier = art.type === "damage" || art.type === "essence";
+                const displayBonus = isMultiplier ? art.bonus.toFixed(1) : (art.bonus * 100).toFixed(0);
+                const suffix = isMultiplier ? "x" : "%";
+                artBonusTxt.innerText = `+${displayBonus}${suffix} Bonus`;
             }
         }
     });
 
     // --- 5. BATTLE RIFT & SPELLS ---
-    // Ensure these functions exist to prevent Uncaught ReferenceErrors
     if (typeof updateMonsterUI === "function") updateMonsterUI(); 
     if (typeof updateSpellButtons === "function") updateSpellButtons();
 }
