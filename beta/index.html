@@ -221,6 +221,62 @@
         0% { opacity: 1; transform: translateY(0) scale(1); } 
         100% { opacity: 0; transform: translateY(-60px) scale(1.2); } 
     }
+
+	
+
+/* This targets the main action buttons (Gather, Strike, Buy) */
+#gather-mana-btn, #strike-btn, .buy-btn {
+    border-radius: 15px; /* Matches the rounded game UI */
+    border: 2px solid #4ecca3;
+    background: #16213e;
+    color: #4ecca3;
+    font-weight: bold;
+    font-size: 1.1em;
+    padding: 15px;
+    width: 100%;
+    max-width: 300px;
+    margin: 10px auto;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: block;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+/* Hover effects for the rectangles that are now rounded */
+#gather-mana-btn:hover, #strike-btn:hover, .buy-btn:hover:not(:disabled) {
+    transform: translateY(-3px) scale(1.02);
+    background: #4ecca3;
+    color: #1b1b2f;
+    box-shadow: 0 8px 20px rgba(78, 204, 163, 0.4);
+}
+
+/* Specific styling for the Standard Strike to keep it "Combat Red" */
+#strike-btn {
+    border-color: #e94560;
+    color: #e94560;
+}
+
+#strike-btn:hover {
+    background: #e94560;
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(233, 69, 96, 0.4);
+}
+
+/* Ensure the disabled state also respects the rounded corners */
+button:disabled, .buy-btn:disabled {
+    border-color: #444 !important;
+    color: #666 !important;
+    background: #1a1a2e !important;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+button {
+    border-radius: 12px !important;
+    transition: all 0.2s ease;
+}
+		
 </style>
 </head>
 <body>
@@ -241,7 +297,7 @@
 
     <div id="sanctum-tab" class="tab-content">
         <div id="mana-display">Mana: 0</div>
-        <button onclick="clickMana(event)" style="width: 200px; height: 60px; margin-bottom: 20px;">Gather Mana</button>
+        <button onclick="clickMana(event)" id="gather-mana-btn" style="width: 200px; height: 60px; margin-bottom: 20px;">Gather Mana</button>
         <div class="shop-container" id="shop"></div>
     </div>
 
@@ -259,7 +315,7 @@
                 <div id="hp-text" style="position: absolute; width: 100%; text-align: center; font-size: 0.8em; line-height: 20px; color: white; font-weight: bold;">HP: 50 / 50</div>
             </div>
 
-            <button onclick="attackMonster()" id="attack-btn" style="background: #e94560; color: white; width: 100%; margin-top: 10px; font-weight: bold;">
+            <button onclick="attackMonster()" id="strike-btn" style="background: #e94560; color: white; width: 100%; margin-top: 10px; font-weight: bold;">
                 Standard Strike (10 Mana)
             </button>
 
