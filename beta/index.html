@@ -460,7 +460,7 @@ button {
 	<div id="artifact-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:99999; justify-content:center; align-items:center; font-family: sans-serif;">
     	<div style="background:#1a1a2e; border:2px solid #f1c40f; padding:30px; border-radius:15px; text-align:center; max-width:350px; color:white; box-shadow: 0 0 20px #f1c40f;">
         	<h2 style="color:#f1c40f; margin-top:0;">New Artifact Found!</h2>
-        	<img id="artifact-icon-popup" src="" style="width:80px; height:80px; margin:10px auto; display:block;">
+        	<div id="artifact-icon-popup" style="width:80px; height:80px; margin:10px auto; display:flex; align-items:center; justify-content:center; font-size:50px;"></div>
         	<h3 id="artifact-name-popup" style="margin:10px 0;">Item Name</h3>
         	<p id="artifact-desc-popup" style="font-size:0.9em; color:#bdc3c7;">Description goes here.</p>
         	<button onclick="closeArtifactPopup()" style="background:#f1c40f; color:#1a1a2e; border:none; padding:10px 20px; border-radius:5px; font-weight:bold; cursor:pointer; margin-top:15px;">Awesome!</button>
@@ -1013,7 +1013,7 @@ function gainRandomArtifact() {
         return;
     }
 
-    // 3. Select a random artifact from the unowned list
+    // 3. Select a random artifact
     const randomIndex = Math.floor(Math.random() * unowned.length);
     const newArtifact = unowned[randomIndex];
 
@@ -1024,20 +1024,23 @@ function gainRandomArtifact() {
     // 5. Reset the Pity Timer
     killsSinceLastArtifact = 0;
 
-    // 6a. Visual Feedback - Logging
+    // 6. Visual Feedback
     const log = document.getElementById('battle-log');
     if (log) {
-        log.innerHTML = `<span style="color: #f1c40f; font-weight: bold;">✨ DISCOVERY: You found the ${newArtifact.name}! ✨</span>`;
+        log.innerHTML = `<span style="color: #f1c40f; font-weight: bold;">${newArtifact.icon} DISCOVERY: You found the ${newArtifact.name}!</span>`;
     }
 
-    // 6b. NEW: Visual Feedback - Modal Popup
+    // Show the Popup (Make sure this uses innerText for emojis!)
     showArtifactPopup(newArtifact); 
 
     // 7. CRITICAL: Update every relevant system
     if (typeof calculateMPS === 'function') calculateMPS();
-    renderArtifacts();
+    
+    // --- THE FIX ---
+    renderCompendium(); // Corrected from renderArtifacts
     updateUI();
     
+    // Save the progress immediately
     if (typeof saveGame === 'function') saveGame();
 }
 
@@ -1045,20 +1048,28 @@ function showArtifactPopup(artifact) {
     const modal = document.getElementById('artifact-modal');
     const nameTxt = document.getElementById('artifact-name-popup');
     const descTxt = document.getElementById('artifact-desc-popup');
-    const iconImg = document.getElementById('artifact-icon-popup');
+    const iconContainer = document.getElementById('artifact-icon-popup'); // Renamed for clarity
 
     if (!modal) return;
 
-    // Fill the popup with the new artifact's data
-    nameTxt.innerText = artifact.name;
-    descTxt.innerText = artifact.description;
-    iconImg.src = artifact.icon || 'default-artifact.png'; // Fallback icon
+    // 1. Set the Name
+    nameTxt.innerText = artifact.name || "Unknown Artifact";
 
-    // Make it visible
+    // 2. Set the Description (Prioritizing 'desc' to match your pool)
+    descTxt.innerText = artifact.desc || artifact.description || "A mysterious relic.";
+
+    // 3. Set the Emoji Icon
+    if (iconContainer) {
+        iconContainer.innerText = artifact.icon || "❓";
+        // Ensure it's large and centered
+        iconContainer.style.fontSize = '50px';
+        iconContainer.style.display = 'flex';
+        iconContainer.style.alignItems = 'center';
+        iconContainer.style.justifyContent = 'center';
+    }
+
+    // 4. Final step: Make it visible
     modal.style.display = 'flex';
-    
-    // Play a sound effect if you have one!
-    // new Audio('assets/unlock.mp3').play();
 }
 
 // Function to close it (attach this to your "Awesome!" button)
@@ -1134,7 +1145,7 @@ function upgradeArtifact(id) {
 
         // 6. Refresh the Entire Game State
         if (typeof calculateMPS === 'function') calculateMPS(); // Recalculate income
-        renderArtifacts(); // Redraw the grid in Compendium
+        renderCompendium(); // Redraw the grid in Compendium
         updateUI();        // Refresh all numbers and button states
         
         // 7. Auto-Save
