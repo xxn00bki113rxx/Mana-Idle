@@ -276,6 +276,30 @@ button {
     border-radius: 12px !important;
     transition: all 0.2s ease;
 }
+
+.floating-text {
+    position: fixed; /* Ensures it uses screen coordinates from the click */
+    font-weight: bold;
+    font-size: 1.8rem;
+    color: #4ecca3;
+    pointer-events: none;
+    z-index: 10000;
+    user-select: none;
+    text-shadow: 0 0 10px rgba(0,0,0,1);
+    /* We handle the initial position in JS, so we only animate the movement */
+    animation: floatAndFade 0.8s ease-out forwards;
+}
+
+@keyframes floatAndFade {
+    0% {
+        opacity: 1;
+        transform: translateY(0); /* Start at click point */
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-100px); /* Move straight up from click point */
+    }
+}
 		
 </style>
 </head>
@@ -486,45 +510,51 @@ function getAffordableAmount(upg, currentMana) {
 function renderShop() {
     const shopContainer = document.querySelector('.shop-container');
     if (!shopContainer) return;
-
     shopContainer.innerHTML = '';
 
     const robe = artifactPool.find(a => a.id === 'robe');
     const discount = (robe && robe.owned) ? robe.bonus : 0;
 
     upgrades.forEach(upg => {
-        const finalCost = Math.floor(upg.cost * (1 - discount));
+        const currentCost = Math.floor(upg.cost * (1 - discount));
         
         const card = document.createElement('div');
         card.className = 'upgrade-card';
 
-        // Set the description based on your array values
-        card.innerHTML = `
-            <div style="text-align: left;">
-                <div style="font-weight: bold; color: #4ecca3;">${upg.name}</div>
-                <div style="font-size: 0.8em; color: #888;">
-                    Owned: ${upg.count} | +${upg.mps} MPS
-                </div>
-            </div>
+        // Information Section
+        const info = document.createElement('div');
+        info.innerHTML = `
+            <div style="font-weight: bold; color: #4ecca3; text-align: left;">${upg.name}</div>
+            <div style="font-size: 0.8em; color: #888; text-align: left;">Level: ${upg.count} | +${upg.mps} MPS</div>
         `;
 
-        const buyBtn = document.createElement('button');
-        buyBtn.className = 'buy-btn'; 
-        buyBtn.style.minWidth = "110px";
-        buyBtn.innerText = `${finalCost.toLocaleString()}`;
+        // Action Buttons Container
+        const btnGroup = document.createElement('div');
+        btnGroup.style.display = 'flex';
+        btnGroup.style.gap = '5px';
+
+        // Buy 1 Button
+        const buy1 = document.createElement('button');
+        buy1.className = 'buy-btn';
+        buy1.innerText = currentCost.toLocaleString();
+        buy1.onclick = () => buyUpgrade(upg.id);
+        buy1.disabled = (mana < currentCost);
+
+        // Buy Max Button
+        const buyMaxBtn = document.createElement('button');
+        buyMaxBtn.className = 'buy-btn max-btn';
+        buyMaxBtn.innerText = "MAX";
+        buyMaxBtn.onclick = () => buyMax(upg.id); // Ensure you have the buyMax(id) function!
+        buyMaxBtn.disabled = (mana < currentCost);
+
+        btnGroup.appendChild(buy1);
+        btnGroup.appendChild(buyMaxBtn);
         
-        // Gray out if unaffordable
-        if (mana < finalCost) {
-            buyBtn.disabled = true;
-        }
-
-        buyBtn.onclick = () => buyUpgrade(upg.id);
-
-        card.appendChild(buyBtn);
+        card.appendChild(info);
+        card.appendChild(btnGroup);
         shopContainer.appendChild(card);
     });
 }
-
 function buyUpgrade(id) {
     const upg = upgrades.find(u => u.id === id);
     if (!upg) return;
@@ -1146,40 +1176,49 @@ function renderCompendium() {
 
 // --- 5. VISUALS ---
 function clickMana(event) {
-    // 1. DYNAMIC POWER CALCULATION
-    // We check the Wand for click power and the Orb for a percentage multiplier
+    // 1. DATA RETRIEVAL
+    // Find our artifacts to calculate current click power
     const wand = artifactPool.find(a => a.id === 'wand');
     const orb = artifactPool.find(a => a.id === 'orb');
 
-    // Base power (starts at 1) + Wand level bonus
+    // 2. POWER CALCULATION
+    // Base power starts at 1. Every Wand level adds +1 to base.
     let basePower = 1 + (wand && wand.owned ? wand.level : 0);
     
-    // Global multiplier from the Crystal Orb (e.g., level 1 = +25% or 1.25x)
-    const multiplier = orb && orb.owned ? (1 + orb.bonus) : 1;
+    // The Orb provides a global multiplier (e.g., 1.25 for +25%)
+    const multiplier = (orb && orb.owned) ? (1 + orb.bonus) : 1;
     
+    // Calculate final gain and round down to keep integers clean
     const finalPower = Math.floor(basePower * multiplier);
 
-    // 2. STATE UPDATE
+    // 3. STATE UPDATE
     mana += finalPower;
 
-    // 3. FLOATING TEXT (Synced with your CSS)
-    const p = document.createElement('div');
-    p.className = 'floating-text';
-    p.innerText = `+${finalPower}`;
-    
-    // Position check: ensures the text is centered on the cursor
-    p.style.left = `${event.clientX}px`;
-    p.style.top = `${event.clientY}px`;
-    
-    document.body.appendChild(p);
+    // 4. FLOATING TEXT LOGIC
+    if (event) {
+        const p = document.createElement('div');
+        p.className = 'floating-text';
+        p.innerText = `+${finalPower}`;
+        
+        // Pin the text to the exact mouse coordinates
+        // Using 'fixed' in CSS means we use clientX and clientY
+        p.style.left = event.clientX + 'px';
+        p.style.top = event.clientY + 'px';
+        
+        // Centering the text horizontally relative to the click point
+        p.style.transform = 'translateX(-50%)'; 
 
-    // 4. CLEANUP & SYNC
-    setTimeout(() => p.remove(), 800);
-    
-    updateUI(); // Refreshes the top bar mana count
-    
-    // Optional: Save progress on click every once in a while
-    // if (mana % 10 === 0) saveGame(); 
+        document.body.appendChild(p);
+
+        // Remove the element after the animation duration (0.8s)
+        setTimeout(() => {
+            p.remove();
+        }, 800);
+    }
+
+    // 5. UI SYNC
+    // This ensures your mana bar and button colors update immediately
+    updateUI();
 }
 
 function createDamagePopup(amount, isPassive) {
