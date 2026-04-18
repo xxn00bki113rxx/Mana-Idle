@@ -113,9 +113,21 @@
         /* Buttons */
         button { background: #4ecca3; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; touch-action: manipulation; }
         button:disabled { background: #555; color: #888; cursor: not-allowed; opacity: 0.6; }
-        .nav-btn { border-radius: 8px 8px 0 0; background: #16213e; color: white; margin: 0 5px; }
-        .nav-btn.active { background: #4ecca3; color: #1a1a2e; }
-
+        .nav-btn {
+    		background-color: #1a1a2e; /* Dark background */
+    		color: #4ecca3;
+    		border: 1px solid #4ecca3;
+    		padding: 10px 20px;
+    		cursor: pointer;
+    		transition: 0.3s;
+		}
+        .nav-btn.active {
+    		background-color: #4ecca3; /* Bright background */
+    		color: #1a1a2e;            /* Dark text */
+    		box-shadow: 0 0 10px #4ecca3;
+    		font-weight: bold;
+		}
+		
         .floating-text { position: fixed; color: #4ecca3; font-weight: bold; font-size: 1.5rem; pointer-events: none; animation: floatAndFade 0.8s forwards; z-index: 1000; }
         @keyframes floatAndFade { 0% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -100px); } }
 	
@@ -179,7 +191,7 @@
         <button id="sanctum-btn" onclick="showTab('sanctum')" class="nav-btn active">Sanctum</button>
         <button id="battle-btn" onclick="showTab('battle')" class="nav-btn">Battle Rift</button>
 		<button id="compendium-btn" onclick="showTab('compendium')" class="nav-btn">Compendium</button>
-		<button class="tab-btn" onclick="showTab('settings')">Settings</button>
+		<button id="settings-btn" class="nav-btn" onclick="showTab('settings')">Settings</button>
     </div>
 
     <div id="sanctum-tab" class="tab-content">
