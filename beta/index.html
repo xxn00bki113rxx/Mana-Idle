@@ -496,27 +496,30 @@ function getAffordableAmount(upg, currentMana, discount) {
 }
 
 function renderShop() {
-    const shopContainer = document.querySelector('.shop-container');
+    // 1. Ensure the selector matches your HTML (ID is usually safer)
+    const shopContainer = document.getElementById('shop') || document.querySelector('.shop-container');
     if (!shopContainer) return;
-    shopContainer.innerHTML = '';
+
+    shopContainer.innerHTML = ''; // Clear the old shop
 
     const robe = artifactPool.find(a => a.id === 'robe');
     const discount = (robe && robe.owned) ? robe.bonus : 0;
 
     upgrades.forEach(upg => {
         const currentCost = Math.floor(upg.cost * (1 - discount));
+        const affordable = getAffordableAmount(upg, mana, discount);
         
         const card = document.createElement('div');
         card.className = 'upgrade-card';
 
-        // Information Section
         const info = document.createElement('div');
         info.innerHTML = `
             <div style="font-weight: bold; color: #4ecca3; text-align: left;">${upg.name}</div>
-            <div style="font-size: 0.8em; color: #888; text-align: left;">Level: ${upg.count} | +${upg.mps} MPS</div>
+            <div style="font-size: 0.8em; color: #888; text-align: left;">
+                Level: ${upg.count} | +${upg.mps.toLocaleString()} MPS
+            </div>
         `;
 
-        // Action Buttons Container
         const btnGroup = document.createElement('div');
         btnGroup.style.display = 'flex';
         btnGroup.style.gap = '5px';
@@ -524,16 +527,24 @@ function renderShop() {
         // Buy 1 Button
         const buy1 = document.createElement('button');
         buy1.className = 'buy-btn';
-        buy1.innerText = currentCost.toLocaleString();
-        buy1.onclick = () => buyUpgrade(upg.id);
+        buy1.innerHTML = `Buy: ${currentCost.toLocaleString()} <span style="font-size:0.8em">M</span>`;
+        buy1.onclick = () => {
+            buyUpgrade(upg.id);
+            // Refresh shop immediately after purchase
+            renderShop(); 
+        };
         buy1.disabled = (mana < currentCost);
 
         // Buy Max Button
         const buyMaxBtn = document.createElement('button');
         buyMaxBtn.className = 'buy-btn max-btn';
-        buyMaxBtn.innerText = "MAX";
-        buyMaxBtn.onclick = () => buyMax(upg.id); // Ensure you have the buyMax(id) function!
-        buyMaxBtn.disabled = (mana < currentCost);
+        buyMaxBtn.innerText = `MAX (+${affordable})`;
+        buyMaxBtn.onclick = () => {
+            buyMax(upg.id);
+            // Refresh shop immediately after purchase
+            renderShop();
+        };
+        buyMaxBtn.disabled = (affordable === 0);
 
         btnGroup.appendChild(buy1);
         btnGroup.appendChild(buyMaxBtn);
