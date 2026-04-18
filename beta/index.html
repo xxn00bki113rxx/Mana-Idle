@@ -877,7 +877,7 @@ function loadGame() {
         monstersDefeated = Number(data.monstersDefeated) || 0;
         monsterMaxHP = Number(data.monsterMaxHP) || 50;
         monsterHP = monsterMaxHP; // Reset HP to full on load
-		killsSinceLastArtifact = saveState.killsSinceLastArtifact || 0;
+		killsSinceLastArtifact = Number(data.killsSinceLastArtifact) || 0;
 		
         // Load Upgrades
         if (data.upgrades) {
