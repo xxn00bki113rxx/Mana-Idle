@@ -304,6 +304,7 @@ let passiveTimer = 0;
 let baseTickSpeed = 100;
 let killsSinceLastArtifact = 0;
 let manaPerKill = 5;
+let isCurrentMonsterElite = false;
 	  
 const PITY_THRESHOLD = 20; 
 
@@ -312,7 +313,8 @@ const artifactPool = [
     { id: "robe", name: "Scholar's Robe", icon: "🥋", owned: false, level: 1, bonus: 0.1, type: "discount", desc: "10% discount on upgrades." },
     { id: "orb", name: "Crystal Ball", icon: "🔮", owned: false, level: 1, bonus: 0.25, type: "mps", desc: "Increases Global MPS by 25%." },
     { id: "hourglass", name: "Temporal Hourglass", icon: "⏳", owned: false, level: 1, bonus: 0.05, type: "speed", desc: "Makes the game tick 5% faster." },
-    { id: "pouch", name: "Bottomless Pouch", icon: "💰", owned: false, level: 1, bonus: 1.2, type: "essence", desc: "Monsters drop 20% more Essence." }
+    { id: "pouch", name: "Bottomless Pouch", icon: "💰", owned: false, level: 1, bonus: 1.2, type: "essence", desc: "Monsters drop 20% more Essence." },
+    { id: "slayer", name: "Slayer's Mark", icon: "🎯", owned: false, level: 1, bonus: 2, type: "elite_damage", desc: "Deals massive bonus damage to Elite monsters." }
 ];
 
 const upgrades = [
@@ -466,23 +468,55 @@ function calculateMPS() {
 
 // --- 4. COMBAT & ARTIFACTS ---
 function attackMonster() {
-    if (monsterHP <= 0 || mana < 10) return;
-    mana -= 10;
-    let dmg = 5 + (globalMPS * 0.1);
-    const wand = artifactPool.find(a => a.id === 'wand');
-    if (wand && wand.owned) dmg *= (wand.level + 1);
-
-    monsterHP -= dmg;
+    // 1. CONSTANTS - Matches your HTML
+    const attackCost = 10; 
+    const log = document.getElementById('battle-log');
     const sprite = document.getElementById('monster-sprite');
-    if (sprite) {
-        sprite.classList.remove('shake');
-        void sprite.offsetWidth; 
-        sprite.classList.add('shake');
+
+    // 2. MANA REQUIREMENT CHECK
+    if (mana < attackCost) {
+        if (log) {
+            log.innerText = "Insufficient Mana! Wait for your pool to replenish.";
+            log.style.color = "#ff4d4d"; // Temporary red warning
+        }
+        return; 
     }
-    createDamagePopup(Math.ceil(dmg), false);
-    if (monsterHP <= 0) defeatMonster();
-    updateCombatUI();
-    updateUI();
+
+    // 3. DAMAGE CALCULATION
+    // Base damage (1) + Ancient Wand bonus (e.g., +2 per level)
+    let damage = 1 + getArtifactBonus("wand"); 
+
+    // Slayer's Mark Multiplier (Only applies to Elites)
+    if (isCurrentMonsterElite) {
+        const slayerBonus = getArtifactBonus("slayer"); 
+        damage *= (1 + slayerBonus); 
+    }
+
+    // 4. EXECUTE ATTACK
+    mana -= attackCost;
+    monsterHP -= damage;
+
+    // 5. VISUAL FEEDBACK (The Pulse)
+    if (sprite) {
+        sprite.classList.remove('monster-pulse'); // Reset animation
+        void sprite.offsetWidth;                // Trigger reflow
+        sprite.classList.add('monster-pulse');    // Restart animation
+    }
+
+    // 6. DEATH CHECK OR UI REFRESH
+    if (monsterHP <= 0) {
+        monsterHP = 0; // Safety for the HP Bar width
+        defeatMonster();
+    } else {
+        // We call updateUI to refresh Mana and the HP Bar immediately
+        updateUI();
+        
+        // Optional: Update the battle log with damage dealt
+        if (log) {
+            log.style.color = isCurrentMonsterElite ? "#f1c40f" : "#fff";
+            log.innerText = `Struck ${isCurrentMonsterElite ? "Elite" : "Monster"} for ${Math.floor(damage).toLocaleString()} damage!`;
+        }
+    }
 }
 
 // --- NEW ATTACK ABILITIES ---
@@ -563,6 +597,7 @@ function triggerCooldown(skillId, ms) {
 }
 	  
 function defeatMonster() {
+    // 1. MONSTER DATA
     const monsters = [
         { name: "Shadow Imp", icon: "👿" },
         { name: "Void Wraith", icon: "👻" },
@@ -570,70 +605,109 @@ function defeatMonster() {
         { name: "Abyssal Drake", icon: "🐲" }
     ];
 
-    // 1. Calculate Rewards with Artifact Bonuses
-    const wandBonus = getArtifactBonus("wand"); // e.g., +2
-    manaPerKill = Math.floor((5 + wandBonus) * (1 + monstersDefeated * 0.1)); 
+    // 2. CALCULATE REWARDS FOR THE DEFEATED MONSTER
+    // (We use the 'isCurrentMonsterElite' flag set from the PREVIOUS round)
+    const eliteMult = isCurrentMonsterElite ? 3 : 1;
+    const wandBonus = getArtifactBonus("wand");
     
-    const pouchBonus = getArtifactBonus("pouch"); // e.g., 1.2
-    const essenceGained = Math.floor(1 * (pouchBonus || 1)); 
+    // Base Mana + Wand Bonus, scaled by total kills, then tripled if Elite
+    manaPerKill = Math.floor((5 + wandBonus) * (1 + monstersDefeated * 0.1)) * eliteMult;
+    
+    // Essence logic + Pouch bonus, tripled if Elite
+    const pouchBonus = getArtifactBonus("pouch") || 1; 
+    const essenceGained = Math.floor(1 * pouchBonus) * eliteMult;
 
-    // 2. Grant Rewards
-    mana += manaPerKill; 
-    essence += essenceGained; 
+    // 3. APPLY REWARDS
+    mana += manaPerKill;
+    essence += essenceGained;
     monstersDefeated++;
 
-    // 3. Artifact Drop Logic (Pity Timer)
+    // 4. ARTIFACT DROP LOGIC (With Pity Timer)
     killsSinceLastArtifact++;
-    if (Math.random() < 0.10 || killsSinceLastArtifact >= 20) {
+    // Elites have a 20% drop chance, Normals have 10%
+    const dropChance = isCurrentMonsterElite ? 0.20 : 0.10; 
+    
+    if (Math.random() < dropChance || killsSinceLastArtifact >= 20) {
         if (typeof gainRandomArtifact === 'function') gainRandomArtifact();
-        killsSinceLastArtifact = 0; 
+        killsSinceLastArtifact = 0; // Reset pity timer
     }
 
-    // 4. Scale Monster Stats
-    monsterMaxHP = Math.floor(monsterMaxHP * 1.12);
-    monsterHP = monsterMaxHP; 
+    // 5. ROLL FOR NEXT MONSTER STATUS
+    // This sets the flag for the monster that is about to appear
+    isCurrentMonsterElite = Math.random() < 0.10; 
+    const nextEliteMult = isCurrentMonsterElite ? 3 : 1;
 
-    // 5. Update Visuals (Restored Monster Rotation)
-    const nextMonster = monsters[Math.floor(Math.random() * monsters.length)];
+    // 6. SCALE STATS FOR NEXT MONSTER
+    // Uses exponential scaling so health doesn't stay flat
+    monsterMaxHP = Math.floor(50 * Math.pow(1.12, monstersDefeated)) * nextEliteMult;
+    monsterHP = monsterMaxHP;
+
+    // 7. UI VISUALS
+    const roll = monsters[Math.floor(Math.random() * monsters.length)];
     const nameEl = document.getElementById('monster-name');
     const spriteEl = document.getElementById('monster-sprite');
-    
-    if (nameEl) nameEl.innerText = nextMonster.name;
-    if (spriteEl) spriteEl.innerText = nextMonster.icon;
-
-    // 6. Restored Battle Log
     const log = document.getElementById('battle-log');
-    if (log) {
-        log.innerText = `Victory! +${manaPerKill} Mana, +${essenceGained} Ess. A ${nextMonster.name} appears (Lvl ${monstersDefeated + 1})`;
+    
+    if (nameEl) {
+        nameEl.innerText = isCurrentMonsterElite ? "✨ ELITE " + roll.name : roll.name;
+        nameEl.style.color = isCurrentMonsterElite ? "#f1c40f" : "#fff";
+    }
+    
+    if (spriteEl) {
+        spriteEl.innerText = roll.icon;
+        spriteEl.style.transform = isCurrentMonsterElite ? "scale(1.4)" : "scale(1.0)";
+        spriteEl.style.filter = isCurrentMonsterElite ? "drop-shadow(0 0 15px #f1c40f)" : "none";
     }
 
+    if (log) {
+        log.style.color = isCurrentMonsterElite ? "#f1c40f" : "#fff";
+        log.innerText = `Victory! +${manaPerKill.toLocaleString()} Mana, +${essenceGained} Ess.`;
+    }
+
+    // 8. FINAL SYNC
     updateUI();
     if (typeof saveGame === 'function') saveGame();
 }
 
 function gainRandomArtifact() {
-    // 1. Filter for artifacts the player doesn't own yet
-    const unowned = artifactPool.filter(a => !a.owned);
+    // 1. Filter for artifacts the player DOES NOT own yet
+    const unowned = artifactPool.filter(art => !art.owned);
 
-    if (unowned.length > 0) {
-        // 2. Pick a random one from the unowned list
-        const randomArt = unowned[Math.floor(Math.random() * unowned.length)];
-        
-        // 3. Grant it to the player
-        randomArt.owned = true;
-        randomArt.level = 1;
-
-        // 4. Tell the player the good news
-        alert(`✨ Discovery! You found: ${randomArt.name} ✨`);
-        
-        // 5. Refresh the UI to show the new shiny item
-        if (typeof renderArtifacts === 'function') {
-            renderArtifacts();
-        }
-        updateUI();
-    } else {
-        console.log("You already own all current artifacts!");
+    // 2. If there are no artifacts left to find, exit
+    if (unowned.length === 0) {
+        console.log("All artifacts have been recovered from the Rift!");
+        return;
     }
+
+    // 3. Select a random artifact from the unowned list
+    const randomIndex = Math.floor(Math.random() * unowned.length);
+    const newArtifact = unowned[randomIndex];
+
+    // 4. Mark as owned
+    newArtifact.owned = true;
+    newArtifact.level = 1; // Ensure it starts at level 1
+
+    // 5. Reset the Pity Timer
+    killsSinceLastArtifact = 0;
+
+    // 6. Visual Feedback & Logging
+    const log = document.getElementById('battle-log');
+    if (log) {
+        log.innerHTML = `<span style="color: #f1c40f; font-weight: bold;">✨ DISCOVERY: You found the ${newArtifact.name}! ✨</span>`;
+    }
+
+    // 7. CRITICAL: Update every relevant system
+    // We recalculate MPS because the new artifact might be the Crystal Ball
+    if (typeof calculateMPS === 'function') calculateMPS();
+    
+    // We re-render the artifact list to show the new card
+    renderArtifacts();
+    
+    // We update the UI to refresh mana prices (in case it's the Scholar's Robe)
+    updateUI();
+    
+    // Save the new state immediately
+    if (typeof saveGame === 'function') saveGame();
 }
 	  
 function renderArtifacts() {
@@ -690,48 +764,57 @@ function renderArtifacts() {
 
 function upgradeArtifact(id) {
     const art = artifactPool.find(a => a.id === id);
-    if (!art) return;
+    
+    // 1. SAFETY CHECKS
+    if (!art || !art.owned) return;
 
-    // Suggestion 1: Exponential Cost (Base 5, grows by 50% each level)
-    // Formula: 5 * (1.5 ^ (level - 1))
+    // 2. EXPONENTIAL COST CALCULATION
     const upgCost = Math.floor(5 * Math.pow(1.5, art.level - 1));
 
+    // 3. AFFORDABILITY CHECK
     if (essence < upgCost) {
-        console.log(`Need ${upgCost} Essence!`);
+        console.log(`Insufficient Essence! Need ${upgCost}.`);
         return;
     }
 
-    // Process Transaction
+    // 4. EXECUTE UPGRADE
     essence -= upgCost;
     art.level++;
     
-    // Update Bonuses based on your pool
+    // 5. SCALE BONUSES (Specific to each artifact type)
     switch(id) {
         case 'wand':
-            art.bonus += 1; // Flat damage/mana increase
+            art.bonus += 1; // +1 Base Mana/Damage per level
             break;
         case 'pouch':
-            art.bonus += 0.2; // 20% Essence multiplier boost
+            art.bonus += 0.2; // +20% Essence drop per level
             break;
         case 'orb':
-            art.bonus += 0.05; // 5% MPS boost
+            art.bonus += 0.05; // +5% Global MPS per level
             break;
         case 'hourglass':
-            art.bonus += 0.01; // 1% Game speed boost
+            art.bonus += 0.01; // +1% Game Speed per level
+            break;
+        case 'slayer':
+            art.bonus += 1.0; // +100% Elite Damage per level
             break;
         case 'robe':
-            // Be careful: Discounts usually cap at 90% (0.9) to avoid free items
-            if (art.bonus < 0.9) art.bonus += 0.02; 
+            // Cap discount at 90% to prevent items becoming free or negative
+            if (art.bonus < 0.90) art.bonus += 0.02; 
             break;
+        default:
+            art.bonus += 0.05; // Fallback for new artifacts
     }
 
-    // Refresh State
+    // 6. RE-CALCULATE AND RE-DRAW
+    // Ensure the MPS is updated before the UI draws the new number
     if (typeof calculateMPS === 'function') calculateMPS();
-    updateUI();        
-    renderArtifacts(); 
+    
+    updateUI();        // Refreshes the top bar and shop buttons
+    renderArtifacts(); // Refreshes the artifact cards with new costs/stats
+    
     if (typeof saveGame === 'function') saveGame();
 }
-
 function getArtifactBonus(id) {
     const art = artifactPool.find(a => a.id === id);
     return (art && art.owned) ? art.bonus : 0;
