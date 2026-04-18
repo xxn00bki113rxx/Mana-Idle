@@ -113,9 +113,21 @@
         /* Buttons */
         button { background: #4ecca3; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; touch-action: manipulation; }
         button:disabled { background: #555; color: #888; cursor: not-allowed; opacity: 0.6; }
-        .nav-btn { border-radius: 8px 8px 0 0; background: #16213e; color: white; margin: 0 5px; }
-        .nav-btn.active { background: #4ecca3; color: #1a1a2e; }
-
+        .nav-btn {
+    		background-color: #1a1a2e; /* Dark background */
+    		color: #4ecca3;
+    		border: 1px solid #4ecca3;
+    		padding: 10px 20px;
+    		cursor: pointer;
+    		transition: 0.3s;
+		}
+        .nav-btn.active {
+    		background-color: #4ecca3; /* Bright background */
+    		color: #1a1a2e;            /* Dark text */
+    		box-shadow: 0 0 10px #4ecca3;
+    		font-weight: bold;
+		}
+		
         .floating-text { position: fixed; color: #4ecca3; font-weight: bold; font-size: 1.5rem; pointer-events: none; animation: floatAndFade 0.8s forwards; z-index: 1000; }
         @keyframes floatAndFade { 0% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -100px); } }
 	
@@ -179,6 +191,7 @@
         <button id="sanctum-btn" onclick="showTab('sanctum')" class="nav-btn active">Sanctum</button>
         <button id="battle-btn" onclick="showTab('battle')" class="nav-btn">Battle Rift</button>
 		<button id="compendium-btn" onclick="showTab('compendium')" class="nav-btn">Compendium</button>
+		<button id="settings-btn" class="nav-btn" onclick="showTab('settings')">Settings</button>
     </div>
 
     <div id="sanctum-tab" class="tab-content">
@@ -240,6 +253,33 @@
         <div id="compendium-list" class="shop-container"></div>
     </div>
 
+	<div id="settings-tab" class="tab-content" style="display: none; padding: 20px;">
+    <h2 style="color: #fca311;">Game Settings</h2>
+    
+    <div style="background: #16213e; padding: 15px; border-radius: 8px; border: 1px solid #444;">
+        <h3 style="margin-top: 0; color: #4ecca3;">Data Transfer</h3>
+        <p style="font-size: 0.8em; color: #ccc;">Use these codes to move your save between browsers or test the Beta branch.</p>
+        
+        <button onclick="exportSave()" style="background: #4ecca3; color: #1b1b2f; width: 100%; margin-bottom: 10px; font-weight: bold;">
+            Export Save Code
+        </button>
+        
+        <textarea id="save-box" placeholder="Paste save code here..." 
+            style="width: 100%; height: 80px; background: #0f3460; color: #fff; border: 1px solid #4ecca3; border-radius: 4px; padding: 8px; font-family: monospace; font-size: 0.8em;">
+        </textarea>
+        
+        <button onclick="importSave()" style="background: #fca311; color: #1b1b2f; width: 100%; margin-top: 10px; font-weight: bold;">
+            Import Save Code
+        </button>
+    </div>
+
+    <div style="margin-top: 20px; text-align: center;">
+        <button onclick="deleteSave()" style="background: #e94560; color: white; padding: 5px 15px; font-size: 0.8em; opacity: 0.6;">
+            Hard Reset Game
+        </button>
+    </div>
+</div>
+
     <div id="admin-menu" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #222; border: 2px solid #ff0055; padding: 20px; border-radius: 10px; z-index: 99999; text-align: left; box-shadow: 0 0 20px #000;">
         <h3 style="color: #ff0055; margin: 0 0 10px 0;">Arcane Debugger</h3>
         <div style="display: flex; flex-direction: column; gap: 10px;">
@@ -262,6 +302,10 @@ let monstersDefeated = 0;
 let passiveDamageBuffer = 0;
 let passiveTimer = 0;
 let baseTickSpeed = 100;
+let killsSinceLastArtifact = 0;
+let manaPerKill = 5;
+	  
+const PITY_THRESHOLD = 20; 
 
 const artifactPool = [
     { id: "wand", name: "Ancient Wand", icon: "🪄", owned: false, level: 1, bonus: 2, desc: "Increases Click & Blast damage." },
@@ -281,7 +325,9 @@ const upgrades = [
 
 // --- 2. NAVIGATION LOGIC ---
 window.showTab = function(tabName) {
-    const tabs = ['sanctum', 'battle', 'compendium'];
+    // 1. Add 'settings' to this list so the game knows it exists
+    const tabs = ['sanctum', 'battle', 'compendium', 'settings']; 
+    
     tabs.forEach(t => {
         const content = document.getElementById(t + '-tab');
         const btn = document.getElementById(t + '-btn');
@@ -289,16 +335,18 @@ window.showTab = function(tabName) {
         if (btn) btn.classList.remove('active');
     });
 
+    // 2. Show the active tab
     const activeTab = document.getElementById(tabName + '-tab');
     if (activeTab) {
         activeTab.style.display = 'block';
-        console.log("Showing tab: " + tabName); // Debug log
+        console.log("Showing tab: " + tabName);
     }
     
+    // 3. Highlight the active button
     const activeBtn = document.getElementById(tabName + '-btn');
     if (activeBtn) activeBtn.classList.add('active');
 
-    // Trigger specific renders
+    // 4. Trigger specific renders so the data is fresh
     if (tabName === 'sanctum') renderShop();
     if (tabName === 'battle') {
         renderArtifacts();
@@ -307,6 +355,7 @@ window.showTab = function(tabName) {
     if (tabName === 'compendium') {
         renderCompendium();
     }
+    // No specific render needed for settings, it's just static buttons!
 };
 
 // --- 3. SHOP & ECONOMY ---
@@ -500,41 +549,87 @@ function triggerCooldown(skillId, ms) {
 }
 	  
 function defeatMonster() {
-    monstersDefeated++;
+    // 1. Array of possible monsters (Flavor)
+    const monsters = [
+        { name: "Shadow Imp", icon: "👿" },
+        { name: "Void Wraith", icon: "👻" },
+        { name: "Chaos Golem", icon: "🗿" },
+        { name: "Abyssal Drake", icon: "🐲" }
+    ];
+
+    // 2. Update and Reward Mana/Essence
+    // This scales mana rewards by 10% for every monster defeated
+    manaPerKill = Math.floor(5 * (1 + monstersDefeated * 0.1)); 
     
-    // Logic to unlock a random artifact every 5 kills
-    if (monstersDefeated % 5 === 0) {
-        const locked = artifactPool.filter(a => !a.owned);
-        if (locked.length > 0) {
-            const randomArt = locked[Math.floor(Math.random() * locked.length)];
-            randomArt.owned = true;
-            alert("New Artifact Discovered: " + randomArt.name);
+    mana += manaPerKill; 
+    essence += 1; 
+    monstersDefeated++;
+
+    // 3. Artifact Drop Logic (10% Chance + 20-Kill Pity Timer)
+    killsSinceLastArtifact++;
+    const dropChance = 0.10;
+    
+    if (Math.random() < dropChance || killsSinceLastArtifact >= 20) {
+        // Ensure this function is defined in your script!
+        if (typeof gainRandomArtifact === 'function') {
+            gainRandomArtifact(); 
         }
+        killsSinceLastArtifact = 0; 
     }
 
-    const pouch = artifactPool.find(a => a.id === 'pouch');
-    const pouchMult = (pouch && pouch.owned) ? (1 + (pouch.level * 0.2)) : 1;
-    essence += Math.ceil((monstersDefeated / 2) * pouchMult);
-    mana += (monsterMaxHP * 2);
+    // 4. Scale the Monster HP (Smooth 1.12 Multiplier)
+    monsterMaxHP = Math.floor(monsterMaxHP * 1.12);
+    monsterHP = monsterMaxHP; 
+
+    // 5. Select a NEW monster for the next fight
+    const nextMonster = monsters[Math.floor(Math.random() * monsters.length)];
     
-    monsterHP = 0;
-    document.getElementById('monster-name').innerText = "Rift Opening...";
-    setTimeout(() => {
-        monsterMaxHP = Math.floor(monsterMaxHP * 1.4);
-        monsterHP = monsterMaxHP;
-        const monsters = [
-            { name: "Shadow Imp", icon: "👿" },
-            { name: "Void Wraith", icon: "👻" },
-            { name: "Chaos Golem", icon: "🗿" },
-            { name: "Abyssal Drake", icon: "🐲" }
-        ];
-        const idx = Math.min(Math.floor(monstersDefeated / 5), monsters.length - 1);
-        document.getElementById('monster-name').innerText = monsters[idx].name;
-        document.getElementById('monster-sprite').innerText = monsters[idx].icon;
-        updateCombatUI();
-    }, 1000);
+    // 6. Update the UI Elements
+    const nameElement = document.getElementById('monster-name');
+    const iconElement = document.getElementById('monster-sprite');
+    
+    if (nameElement) nameElement.innerText = nextMonster.name;
+    
+    // This updates the emoji/icon
+    if (iconElement) iconElement.innerText = nextMonster.icon;
+
+    // 7. Update the Battle Log
+    const log = document.getElementById('battle-log');
+    if (log) {
+        // Using backticks (``) allows us to put variables directly in the string
+        log.innerText = `Victory! You gained ${manaPerKill} Mana. A ${nextMonster.name} appears (Level ${monstersDefeated + 1})`;
+    }
+
+    // 8. Final UI Refresh and Save
+    updateUI();
+    if (typeof saveGame === 'function') saveGame();
 }
 
+function gainRandomArtifact() {
+    // 1. Filter for artifacts the player doesn't own yet
+    const unowned = artifactPool.filter(a => !a.owned);
+
+    if (unowned.length > 0) {
+        // 2. Pick a random one from the unowned list
+        const randomArt = unowned[Math.floor(Math.random() * unowned.length)];
+        
+        // 3. Grant it to the player
+        randomArt.owned = true;
+        randomArt.level = 1;
+
+        // 4. Tell the player the good news
+        alert(`✨ Discovery! You found: ${randomArt.name} ✨`);
+        
+        // 5. Refresh the UI to show the new shiny item
+        if (typeof renderArtifacts === 'function') {
+            renderArtifacts();
+        }
+        updateUI();
+    } else {
+        console.log("You already own all current artifacts!");
+    }
+}
+	  
 function renderArtifacts() {
     const list = document.getElementById('artifact-list');
     if (!list) return;
@@ -790,7 +885,8 @@ function saveGame() {
             essence: Number(essence),
             monstersDefeated: Number(monstersDefeated),
             monsterMaxHP: Number(monsterMaxHP),
-            // Map upgrades to a simple array of counts/costs
+            killsSinceLastArtifact: killsSinceLastArtifact,
+			// Map upgrades to a simple array of counts/costs
             upgrades: upgrades.map(u => ({ count: u.count, cost: u.cost })),
             // Map artifacts to their owned status and levels
             artifacts: artifactPool.map(a => ({ id: a.id, owned: a.owned, level: a.level }))
@@ -815,7 +911,8 @@ function loadGame() {
         monstersDefeated = Number(data.monstersDefeated) || 0;
         monsterMaxHP = Number(data.monsterMaxHP) || 50;
         monsterHP = monsterMaxHP; // Reset HP to full on load
-
+		killsSinceLastArtifact = Number(data.killsSinceLastArtifact) || 0;
+		
         // Load Upgrades
         if (data.upgrades) {
             data.upgrades.forEach((savedUpg, i) => {
@@ -840,6 +937,143 @@ function loadGame() {
         console.log("Game Loaded Successfully");
     } catch (e) {
         console.error("Load Error:", e);
+    }
+}
+
+	  function exportSave() {
+    try {
+        // 1. Package all current game variables into one object
+        const saveState = {
+            mana: typeof mana !== 'undefined' ? mana : 0,
+            essence: typeof essence !== 'undefined' ? essence : 0,
+            monstersDefeated: typeof monstersDefeated !== 'undefined' ? monstersDefeated : 0,
+            monsterMaxHP: typeof monsterMaxHP !== 'undefined' ? monsterMaxHP : 50,
+            killsSinceLastArtifact: killsSinceLastArtifact,
+				
+            // Map the upgrades to a clean array
+            upgrades: upgrades.map(u => ({ 
+                count: u.count, 
+                cost: u.cost 
+            })),
+            
+            // Map the artifacts to ensure we only save what's necessary
+            artifacts: artifactPool.map(a => ({ 
+                id: a.id, 
+                owned: a.owned, 
+                level: a.level || 1 
+            })),
+            
+            // Add a timestamp so you know when the save was made
+            timestamp: Date.now(),
+            version: "1.0.0"
+        };
+
+        // 2. Convert object to JSON string, then to Base64
+        const jsonStr = JSON.stringify(saveState);
+        const encodedSave = btoa(jsonStr);
+
+        // 3. Display the code in the textarea
+        const saveBox = document.getElementById('save-box');
+        if (saveBox) {
+            saveBox.value = encodedSave;
+            saveBox.focus();
+            saveBox.select();
+        }
+
+        // 4. Attempt to copy to clipboard
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(encodedSave).then(() => {
+                handleExportFeedback();
+            }).catch(err => {
+                // Fallback if Clipboard API fails
+                document.execCommand('copy');
+                handleExportFeedback();
+            });
+        } else {
+            document.execCommand('copy');
+            handleExportFeedback();
+        }
+
+    } catch (e) {
+        console.error("Export Error:", e);
+        alert("Wizard Council Error: Could not enchant save string.");
+    }
+}
+
+// Helper function to show the user it worked
+function handleExportFeedback() {
+    const exportBtn = document.querySelector("button[onclick='exportSave()']");
+    if (exportBtn) {
+        const originalText = exportBtn.innerText;
+        exportBtn.innerText = "✨ SAVED TO CLIPBOARD! ✨";
+        exportBtn.style.background = "#4ecca3";
+        
+        setTimeout(() => {
+            exportBtn.innerText = originalText;
+            exportBtn.style.background = ""; // Returns to CSS default
+        }, 2500);
+    }
+}
+
+function importSave() {
+    try {
+        const saveBox = document.getElementById('save-box');
+        const encodedData = saveBox.value.trim();
+
+        if (!encodedData) {
+            alert("The scroll is empty! Please paste a save code.");
+            return;
+        }
+
+        // 1. Decode the Base64 string back into JSON
+        const jsonStr = atob(encodedData);
+        const saveState = JSON.parse(jsonStr);
+
+        // 2. Restore core variables
+        mana = saveState.mana || 0;
+        essence = saveState.essence || 0;
+        monstersDefeated = saveState.monstersDefeated || 0;
+        monsterMaxHP = saveState.monsterMaxHP || 50;
+
+        // 3. Restore the Artifact Pity Counter
+        // The "|| 0" ensures it works even for saves from the older version
+        killsSinceLastArtifact = saveState.killsSinceLastArtifact || 0;
+
+        // 4. Restore Upgrades (Mapping back to the live array)
+        if (saveState.upgrades) {
+            saveState.upgrades.forEach((savedUp, index) => {
+                if (upgrades[index]) {
+                    upgrades[index].count = savedUp.count;
+                    upgrades[index].cost = savedUp.cost;
+                }
+            });
+        }
+
+        // 5. Restore Artifacts
+        if (saveState.artifacts) {
+            saveState.artifacts.forEach(savedArt => {
+                const realArt = artifactPool.find(a => a.id === savedArt.id);
+                if (realArt) {
+                    realArt.owned = savedArt.owned;
+                    realArt.level = savedArt.level || 1;
+                }
+            });
+        }
+
+        // 6. Force a save to LocalStorage so progress persists
+        const finalSave = JSON.stringify(saveState);
+        localStorage.setItem("wizardIdle_save", finalSave);
+
+        // 7. Refresh the UI and provide feedback
+        alert("✨ Save Successfully Imported! ✨");
+        
+        // Reloading the page is the safest way to ensure all game 
+        // loops and logic restart with the new data.
+        location.reload();
+
+    } catch (e) {
+        console.error("Import Error:", e);
+        alert("Failed to read the save code. It may be corrupted or from an incompatible version.");
     }
 }
 
@@ -896,3 +1130,4 @@ window.onload = function() {
 </script>
 </body>
 </html>
+
