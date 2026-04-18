@@ -179,6 +179,7 @@
         <button id="sanctum-btn" onclick="showTab('sanctum')" class="nav-btn active">Sanctum</button>
         <button id="battle-btn" onclick="showTab('battle')" class="nav-btn">Battle Rift</button>
 		<button id="compendium-btn" onclick="showTab('compendium')" class="nav-btn">Compendium</button>
+		<button class="tab-btn" onclick="showTab('settings')">Settings</button>
     </div>
 
     <div id="sanctum-tab" class="tab-content">
@@ -240,11 +241,32 @@
         <div id="compendium-list" class="shop-container"></div>
     </div>
 
-	<div id="save-management" style="margin-top: 15px; border-top: 1px solid #444; padding-top: 10px;">
-    	<button onclick="exportSave()" style="background: #4ecca3; color: #1b1b2f; width: 100%; margin-bottom: 5px;">Export Save Code</button>
-    	<button onclick="importSave()" style="background: #fca311; color: #1b1b2f; width: 100%;">Import Save Code</button>
-    	<textarea id="save-box" placeholder="Paste save code here..." style="width: 100%; height: 60px; margin-top: 10px; background: #0f3460; color: #fff; border: 1px solid #4ecca3; font-size: 0.7em;"></textarea>
-	</div>
+	<div id="settings-tab" class="tab-content" style="display: none; padding: 20px;">
+    <h2 style="color: #fca311;">Game Settings</h2>
+    
+    <div style="background: #16213e; padding: 15px; border-radius: 8px; border: 1px solid #444;">
+        <h3 style="margin-top: 0; color: #4ecca3;">Data Transfer</h3>
+        <p style="font-size: 0.8em; color: #ccc;">Use these codes to move your save between browsers or test the Beta branch.</p>
+        
+        <button onclick="exportSave()" style="background: #4ecca3; color: #1b1b2f; width: 100%; margin-bottom: 10px; font-weight: bold;">
+            Export Save Code
+        </button>
+        
+        <textarea id="save-box" placeholder="Paste save code here..." 
+            style="width: 100%; height: 80px; background: #0f3460; color: #fff; border: 1px solid #4ecca3; border-radius: 4px; padding: 8px; font-family: monospace; font-size: 0.8em;">
+        </textarea>
+        
+        <button onclick="importSave()" style="background: #fca311; color: #1b1b2f; width: 100%; margin-top: 10px; font-weight: bold;">
+            Import Save Code
+        </button>
+    </div>
+
+    <div style="margin-top: 20px; text-align: center;">
+        <button onclick="deleteSave()" style="background: #e94560; color: white; padding: 5px 15px; font-size: 0.8em; opacity: 0.6;">
+            Hard Reset Game
+        </button>
+    </div>
+</div>
 
     <div id="admin-menu" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #222; border: 2px solid #ff0055; padding: 20px; border-radius: 10px; z-index: 99999; text-align: left; box-shadow: 0 0 20px #000;">
         <h3 style="color: #ff0055; margin: 0 0 10px 0;">Arcane Debugger</h3>
@@ -287,7 +309,9 @@ const upgrades = [
 
 // --- 2. NAVIGATION LOGIC ---
 window.showTab = function(tabName) {
-    const tabs = ['sanctum', 'battle', 'compendium'];
+    // 1. Add 'settings' to this list so the game knows it exists
+    const tabs = ['sanctum', 'battle', 'compendium', 'settings']; 
+    
     tabs.forEach(t => {
         const content = document.getElementById(t + '-tab');
         const btn = document.getElementById(t + '-btn');
@@ -295,16 +319,18 @@ window.showTab = function(tabName) {
         if (btn) btn.classList.remove('active');
     });
 
+    // 2. Show the active tab
     const activeTab = document.getElementById(tabName + '-tab');
     if (activeTab) {
         activeTab.style.display = 'block';
-        console.log("Showing tab: " + tabName); // Debug log
+        console.log("Showing tab: " + tabName);
     }
     
+    // 3. Highlight the active button
     const activeBtn = document.getElementById(tabName + '-btn');
     if (activeBtn) activeBtn.classList.add('active');
 
-    // Trigger specific renders
+    // 4. Trigger specific renders so the data is fresh
     if (tabName === 'sanctum') renderShop();
     if (tabName === 'battle') {
         renderArtifacts();
@@ -313,6 +339,7 @@ window.showTab = function(tabName) {
     if (tabName === 'compendium') {
         renderCompendium();
     }
+    // No specific render needed for settings, it's just static buttons!
 };
 
 // --- 3. SHOP & ECONOMY ---
@@ -851,31 +878,75 @@ function loadGame() {
 
 	  function exportSave() {
     try {
-        // 1. Grab all the current game data
+        // 1. Package all current game variables into one object
         const saveState = {
-            mana: mana,
-            essence: essence,
-            monstersDefeated: monstersDefeated,
-            monsterMaxHP: monsterMaxHP,
-            upgrades: upgrades.map(u => ({ count: u.count, cost: u.cost })),
-            artifacts: artifactPool.map(a => ({ id: a.id, owned: a.owned, level: a.level }))
+            mana: typeof mana !== 'undefined' ? mana : 0,
+            essence: typeof essence !== 'undefined' ? essence : 0,
+            monstersDefeated: typeof monstersDefeated !== 'undefined' ? monstersDefeated : 0,
+            monsterMaxHP: typeof monsterMaxHP !== 'undefined' ? monsterMaxHP : 50,
+            
+            // Map the upgrades to a clean array
+            upgrades: upgrades.map(u => ({ 
+                count: u.count, 
+                cost: u.cost 
+            })),
+            
+            // Map the artifacts to ensure we only save what's necessary
+            artifacts: artifactPool.map(a => ({ 
+                id: a.id, 
+                owned: a.owned, 
+                level: a.level || 1 
+            })),
+            
+            // Add a timestamp so you know when the save was made
+            timestamp: Date.now(),
+            version: "1.0.0"
         };
 
-        // 2. Convert to JSON, then to a Base64 string
+        // 2. Convert object to JSON string, then to Base64
         const jsonStr = JSON.stringify(saveState);
-        const encoded = btoa(jsonStr);
+        const encodedSave = btoa(jsonStr);
 
-        // 3. Put it in the text box and auto-select it for the user
+        // 3. Display the code in the textarea
         const saveBox = document.getElementById('save-box');
-        saveBox.value = encoded;
-        saveBox.select();
-        
-        // Copy to clipboard automatically
-        document.execCommand('copy');
-        alert("Save code copied to clipboard! Keep it somewhere safe.");
+        if (saveBox) {
+            saveBox.value = encodedSave;
+            saveBox.focus();
+            saveBox.select();
+        }
+
+        // 4. Attempt to copy to clipboard
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(encodedSave).then(() => {
+                handleExportFeedback();
+            }).catch(err => {
+                // Fallback if Clipboard API fails
+                document.execCommand('copy');
+                handleExportFeedback();
+            });
+        } else {
+            document.execCommand('copy');
+            handleExportFeedback();
+        }
+
     } catch (e) {
-        console.error("Export failed:", e);
-        alert("Failed to export save.");
+        console.error("Export Error:", e);
+        alert("Wizard Council Error: Could not enchant save string.");
+    }
+}
+
+// Helper function to show the user it worked
+function handleExportFeedback() {
+    const exportBtn = document.querySelector("button[onclick='exportSave()']");
+    if (exportBtn) {
+        const originalText = exportBtn.innerText;
+        exportBtn.innerText = "✨ SAVED TO CLIPBOARD! ✨";
+        exportBtn.style.background = "#4ecca3";
+        
+        setTimeout(() => {
+            exportBtn.innerText = originalText;
+            exportBtn.style.background = ""; // Returns to CSS default
+        }, 2500);
     }
 }
 
