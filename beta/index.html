@@ -308,11 +308,11 @@ let manaPerKill = 5;
 const PITY_THRESHOLD = 20; 
 
 const artifactPool = [
-    { id: "wand", name: "Ancient Wand", icon: "🪄", owned: false, level: 1, bonus: 2, desc: "Increases Click & Blast damage." },
-    { id: "robe", name: "Scholar's Robe", icon: "🥋", owned: false, level: 1, bonus: 0.1, desc: "10% discount on upgrades." },
-    { id: "orb", name: "Crystal Ball", icon: "🔮", owned: false, level: 1, bonus: 0.25, desc: "Increases Global MPS by 25%." },
-    { id: "hourglass", name: "Temporal Hourglass", icon: "⏳", owned: false, level: 1, bonus: 0.05, desc: "Makes the game tick 5% faster." },
-    { id: "pouch", name: "Bottomless Pouch", icon: "💰", owned: false, level: 1, bonus: 1.2, desc: "Monsters drop 20% more Essence." }
+    { id: "wand", name: "Ancient Wand", icon: "🪄", owned: false, level: 1, bonus: 2, type: "damage", desc: "Increases Click & Blast damage." },
+    { id: "robe", name: "Scholar's Robe", icon: "🥋", owned: false, level: 1, bonus: 0.1, type: "discount", desc: "10% discount on upgrades." },
+    { id: "orb", name: "Crystal Ball", icon: "🔮", owned: false, level: 1, bonus: 0.25, type: "mps", desc: "Increases Global MPS by 25%." },
+    { id: "hourglass", name: "Temporal Hourglass", icon: "⏳", owned: false, level: 1, bonus: 0.05, type: "speed", desc: "Makes the game tick 5% faster." },
+    { id: "pouch", name: "Bottomless Pouch", icon: "💰", owned: false, level: 1, bonus: 1.2, type: "essence", desc: "Monsters drop 20% more Essence." }
 ];
 
 const upgrades = [
@@ -361,15 +361,21 @@ window.showTab = function(tabName) {
 // --- 3. SHOP & ECONOMY ---
 function getAffordableAmount(upg, currentMana) {
     let count = 0;
-    let tempCost = upg.cost;
     let tempMana = currentMana;
-    const robe = artifactPool.find(a => a.id === 'robe');
-    const discount = (robe && robe.owned) ? 0.9 : 1;
+    let tempCost = upg.cost;
+    
+    const discount = getArtifactBonus("robe");
 
-    while (tempMana >= Math.floor(tempCost * discount) && count < 100) {
-        tempMana -= Math.floor(tempCost * discount);
-        tempCost = Math.floor(tempCost * 1.15);
-        count++;
+    // We simulate buying until we run out of mana
+    while (true) {
+        let actualCost = Math.floor(tempCost * (1 - discount));
+        if (tempMana >= actualCost) {
+            tempMana -= actualCost;
+            tempCost = Math.floor(tempCost * 1.15);
+            count++;
+        } else {
+            break;
+        }
     }
     return count;
 }
@@ -409,18 +415,26 @@ function renderShop() {
 
 function buyUpgrade(index) {
     const upg = upgrades[index];
-    const robe = artifactPool.find(a => a.id === 'robe');
-    const discount = (robe && robe.owned) ? 0.9 : 1;
-    const finalCost = Math.floor(upg.cost * discount);
+    
+    // Robe Logic: Apply discount to the cost before checking mana
+    const discount = getArtifactBonus("robe"); 
+    const finalCost = Math.floor(upg.cost * (1 - discount));
 
     if (mana >= finalCost) {
         mana -= finalCost;
         upg.count++;
-        upg.cost = Math.floor(upg.cost * 1.15);
-        calculateMPS();
+        
+        // Increase base cost for next time (Standard 1.15x scaling)
+        upg.cost = Math.floor(upg.cost * 1.15); 
+        
+        // Restore Global MPS calculation if this was a production upgrade
+        globalMPS += upg.mps; 
+
         updateUI();
-        renderShop();
-        saveGame();
+        if (typeof saveGame === 'function') saveGame();
+    } else {
+        // Optional: Flash the button red if you want feedback here
+        console.log("Insufficient Mana for " + upg.name);
     }
 }
 
@@ -549,7 +563,6 @@ function triggerCooldown(skillId, ms) {
 }
 	  
 function defeatMonster() {
-    // 1. Array of possible monsters (Flavor)
     const monsters = [
         { name: "Shadow Imp", icon: "👿" },
         { name: "Void Wraith", icon: "👻" },
@@ -557,50 +570,43 @@ function defeatMonster() {
         { name: "Abyssal Drake", icon: "🐲" }
     ];
 
-    // 2. Update and Reward Mana/Essence
-    // This scales mana rewards by 10% for every monster defeated
-    manaPerKill = Math.floor(5 * (1 + monstersDefeated * 0.1)); 
+    // 1. Calculate Rewards with Artifact Bonuses
+    const wandBonus = getArtifactBonus("wand"); // e.g., +2
+    manaPerKill = Math.floor((5 + wandBonus) * (1 + monstersDefeated * 0.1)); 
     
+    const pouchBonus = getArtifactBonus("pouch"); // e.g., 1.2
+    const essenceGained = Math.floor(1 * (pouchBonus || 1)); 
+
+    // 2. Grant Rewards
     mana += manaPerKill; 
-    essence += 1; 
+    essence += essenceGained; 
     monstersDefeated++;
 
-    // 3. Artifact Drop Logic (10% Chance + 20-Kill Pity Timer)
+    // 3. Artifact Drop Logic (Pity Timer)
     killsSinceLastArtifact++;
-    const dropChance = 0.10;
-    
-    if (Math.random() < dropChance || killsSinceLastArtifact >= 20) {
-        // Ensure this function is defined in your script!
-        if (typeof gainRandomArtifact === 'function') {
-            gainRandomArtifact(); 
-        }
+    if (Math.random() < 0.10 || killsSinceLastArtifact >= 20) {
+        if (typeof gainRandomArtifact === 'function') gainRandomArtifact();
         killsSinceLastArtifact = 0; 
     }
 
-    // 4. Scale the Monster HP (Smooth 1.12 Multiplier)
+    // 4. Scale Monster Stats
     monsterMaxHP = Math.floor(monsterMaxHP * 1.12);
     monsterHP = monsterMaxHP; 
 
-    // 5. Select a NEW monster for the next fight
+    // 5. Update Visuals (Restored Monster Rotation)
     const nextMonster = monsters[Math.floor(Math.random() * monsters.length)];
+    const nameEl = document.getElementById('monster-name');
+    const spriteEl = document.getElementById('monster-sprite');
     
-    // 6. Update the UI Elements
-    const nameElement = document.getElementById('monster-name');
-    const iconElement = document.getElementById('monster-sprite');
-    
-    if (nameElement) nameElement.innerText = nextMonster.name;
-    
-    // This updates the emoji/icon
-    if (iconElement) iconElement.innerText = nextMonster.icon;
+    if (nameEl) nameEl.innerText = nextMonster.name;
+    if (spriteEl) spriteEl.innerText = nextMonster.icon;
 
-    // 7. Update the Battle Log
+    // 6. Restored Battle Log
     const log = document.getElementById('battle-log');
     if (log) {
-        // Using backticks (``) allows us to put variables directly in the string
-        log.innerText = `Victory! You gained ${manaPerKill} Mana. A ${nextMonster.name} appears (Level ${monstersDefeated + 1})`;
+        log.innerText = `Victory! +${manaPerKill} Mana, +${essenceGained} Ess. A ${nextMonster.name} appears (Lvl ${monstersDefeated + 1})`;
     }
 
-    // 8. Final UI Refresh and Save
     updateUI();
     if (typeof saveGame === 'function') saveGame();
 }
@@ -701,6 +707,11 @@ function upgradeArtifact(id) {
     saveGame();        // Save the progress
 }
 
+function getArtifactBonus(id) {
+    const art = artifactPool.find(a => a.id === id);
+    return (art && art.owned) ? art.bonus : 0;
+}
+	  
 function renderCompendium() {
     const list = document.getElementById('compendium-list');
     if (!list) {
@@ -792,41 +803,48 @@ function gameLoop() {
 }
 
 function updateUI() {
-    // 1. TOP BAR - Always update global resources
+    // 1. TOP BAR - Resources and the Crystal Ball (MPS) Bonus
     const mpsEl = document.getElementById('total-mps-display');
     const manaEl = document.getElementById('mana-display');
     const essenceEl = document.getElementById('essence-display');
-	const skills = [
-    	{ id: 'skill-blast', cost: 50 },
-    	{ id: 'skill-siphon', cost: 200 },
-    	{ id: 'skill-storm', cost: 1000 }
-	];
 
-	skills.forEach(skill => {
-    	const btn = document.getElementById(skill.id);
-    	if (btn && !btn.disabled) { 
-        	btn.style.opacity = (mana < skill.cost) ? "0.5" : "1";
-         }
-	});
-	
-    if (mpsEl) mpsEl.innerText = `${Math.floor(globalMPS).toLocaleString()} Mana/sec`;
+    // Calculate boosted MPS for display
+    const orbBonus = getArtifactBonus("orb"); // 0.25 if owned
+    const displayMPS = globalMPS * (1 + orbBonus);
+
+    if (mpsEl) mpsEl.innerText = `${Math.floor(displayMPS).toLocaleString()} Mana/sec`;
     if (manaEl) manaEl.innerText = `Mana: ${Math.floor(mana).toLocaleString()}`;
     if (essenceEl) essenceEl.innerText = essence;
 
-    // 2. SHOP BUTTONS - Check if upgrades are affordable
+    // 2. SKILLS - Check affordability
+    const skills = [
+        { id: 'skill-blast', cost: 50 },
+        { id: 'skill-siphon', cost: 200 },
+        { id: 'skill-storm', cost: 1000 }
+    ];
+
+    skills.forEach(skill => {
+        const btn = document.getElementById(skill.id);
+        if (btn && !btn.disabled) { 
+            btn.style.opacity = (mana < skill.cost) ? "0.5" : "1";
+        }
+    });
+
+    // 3. SHOP BUTTONS - Scholar's Robe Discount & Affordability
     upgrades.forEach((upg, i) => {
         const btn = document.getElementById(`btn-${i}`);
         const maxBtn = document.getElementById(`max-${i}`);
         
         if (btn || maxBtn) {
-            const robe = artifactPool.find(a => a.id === 'robe');
-            const discount = (robe && robe.owned) ? 0.9 : 1;
-            const currentCost = Math.floor(upg.cost * discount);
+            // Use the Artifact Helper for the Robe discount
+            const discount = getArtifactBonus("robe"); // 0.1 if owned
+            const currentCost = Math.floor(upg.cost * (1 - discount));
+            
+            // Note: getAffordableAmount should also account for the discount internally
             const affordable = getAffordableAmount(upg, mana);
 
             if (btn) {
                 btn.disabled = (mana < currentCost);
-                // Visual feedback: green when affordable, dimmed when not
                 btn.style.backgroundColor = (mana < currentCost) ? "#16213e" : "#4ecca3";
                 btn.style.color = (mana < currentCost) ? "#555" : "#1b1b2f";
             }
@@ -839,25 +857,22 @@ function updateUI() {
         }
     });
 
-    // 3. ARTIFACT BUTTONS - The "Battle Rift" background sync
+    // 4. ARTIFACT UPGRADES - Essence Costs
     artifactPool.forEach(art => {
         if (art.owned) {
             const artBtn = document.getElementById(`art-up-${art.id}`);
             if (artBtn) {
                 const upgCost = art.level * 5;
-                
-                // Update text to show current level and cost
                 artBtn.innerText = `Up (${upgCost} Ess)`;
                 
-                // Toggle state based on Essence
                 if (essence >= upgCost) {
                     artBtn.disabled = false;
-                    artBtn.style.backgroundColor = "#4ecca3"; // Bright Emerald
+                    artBtn.style.backgroundColor = "#4ecca3"; 
                     artBtn.style.color = "#1b1b2f";
                     artBtn.style.boxShadow = "0 0 10px rgba(78, 204, 163, 0.4)";
                 } else {
                     artBtn.disabled = true;
-                    artBtn.style.backgroundColor = "#16213e"; // Dark Navy
+                    artBtn.style.backgroundColor = "#16213e"; 
                     artBtn.style.color = "#555";
                     artBtn.style.boxShadow = "none";
                 }
@@ -865,8 +880,10 @@ function updateUI() {
         }
     });
 
-    // 4. COMBAT - Update the HP bar and monster info
-    updateCombatUI();
+    // 5. COMBAT - Externalized Combat UI
+    if (typeof updateCombatUI === 'function') {
+        updateCombatUI();
+    }
 }
 
 function updateCombatUI() {
