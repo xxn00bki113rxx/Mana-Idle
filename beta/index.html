@@ -549,6 +549,7 @@ function triggerCooldown(skillId, ms) {
 }
 	  
 function defeatMonster() {
+    // 1. Array of possible monsters (Flavor)
     const monsters = [
         { name: "Shadow Imp", icon: "👿" },
         { name: "Void Wraith", icon: "👻" },
@@ -556,42 +557,52 @@ function defeatMonster() {
         { name: "Abyssal Drake", icon: "🐲" }
     ];
 
-    // Update Mana reward BEFORE adding it
+    // 2. Update and Reward Mana/Essence
+    // This scales mana rewards by 10% for every monster defeated
     manaPerKill = Math.floor(5 * (1 + monstersDefeated * 0.1)); 
-
-    // Reward the player
+    
     mana += manaPerKill; 
     essence += 1; 
     monstersDefeated++;
 
-    // Artifact Drop Logic
+    // 3. Artifact Drop Logic (10% Chance + 20-Kill Pity Timer)
     killsSinceLastArtifact++;
     const dropChance = 0.10;
+    
     if (Math.random() < dropChance || killsSinceLastArtifact >= 20) {
-        gainRandomArtifact(); 
+        // Ensure this function is defined in your script!
+        if (typeof gainRandomArtifact === 'function') {
+            gainRandomArtifact(); 
+        }
         killsSinceLastArtifact = 0; 
     }
 
-    // Scale the Monster HP
+    // 4. Scale the Monster HP (Smooth 1.12 Multiplier)
     monsterMaxHP = Math.floor(monsterMaxHP * 1.12);
-    monsterHP = monsterMaxHP; // FIXED: Changed currentMonsterHP to monsterHP
+    monsterHP = monsterMaxHP; 
 
-    // Select NEW monster appearance
+    // 5. Select a NEW monster for the next fight
     const nextMonster = monsters[Math.floor(Math.random() * monsters.length)];
     
-    // Update UI Elements
+    // 6. Update the UI Elements
     const nameElement = document.getElementById('monster-name');
     const iconElement = document.getElementById('monster-icon');
     
     if (nameElement) nameElement.innerText = nextMonster.name;
+    
+    // This updates the emoji/icon
     if (iconElement) iconElement.innerText = nextMonster.icon;
 
-    updateUI();
-    
+    // 7. Update the Battle Log
     const log = document.getElementById('battle-log');
     if (log) {
-        log.innerText = `Defeated! A ${nextMonster.name} appears in Level ${monstersDefeated + 1}...`;
+        // Using backticks (``) allows us to put variables directly in the string
+        log.innerText = `Victory! You gained ${manaPerKill} Mana. A ${nextMonster.name} appears (Level ${monstersDefeated + 1})`;
     }
+
+    // 8. Final UI Refresh and Save
+    updateUI();
+    if (typeof saveGame === 'function') saveGame();
 }
 
 function gainRandomArtifact() {
