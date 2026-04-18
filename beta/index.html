@@ -372,7 +372,7 @@ button {
     <div id="sanctum-tab" class="tab-content">
         <div id="mana-display">Mana: 0</div>
         <button onclick="clickMana(event)" id="gather-mana-btn" style="width: 200px; height: 60px; margin-bottom: 20px;">Gather Mana</button>
-        <div class="shop-container" id="shop"></div>
+        <div class="shop-container" id="sanctum-display"></div>
     </div>
 
     <div id="battle-tab" class="tab-content" style="display: none;">
@@ -556,131 +556,110 @@ function getAffordableAmount(upg, currentMana, discount) {
     return count;
 }
 
-function renderShop() {
-    // Matches your HTML container
-    const shopContainer = document.getElementById('shop') || document.querySelector('.shop-container');
-    if (!shopContainer) return;
+function renderSanctum() {
+    // 1. Target the Sanctum container
+    const container = document.getElementById('sanctum-display');
+    if (!container) return;
 
-    // Clear and set to Grid
-    shopContainer.innerHTML = '';
-    shopContainer.className = 'shop-container'; // This triggers the CSS Grid we set up
+    // 2. Clear it out (Only happens once on load or after a purchase)
+    container.innerHTML = '';
+    container.className = 'shop-container'; // Keeps the grid CSS
 
-    // 1. Check for the Scholar's Robe discount
+    // 3. Get the discount from the Scholar's Robe (if owned)
     const robe = artifactPool.find(a => a.id === 'robe');
     const discount = (robe && robe.owned) ? robe.bonus : 0;
 
+    // 4. Create a card for every building in your upgrades list
     upgrades.forEach(upg => {
-        // 2. Calculate dynamic price and affordablity
-        const currentCost = Math.floor(upg.cost * (1 - discount));
-        const affordable = getAffordableAmount(upg, mana, discount);
-        
-        // 3. Create the Card Container
         const card = document.createElement('div');
         card.className = 'upgrade-card';
-
-        // 4. Inner HTML for Information
+        
+        // We use IDs like 'buy1-${upg.id}' so updateUI can find them later
         card.innerHTML = `
-            <div class="info">
-                <div style="font-weight: bold; color: #4ecca3;">${upg.name}</div>
-                <div style="font-size: 0.8em; color: #888; margin-bottom: 8px;">
-                    Lv. ${upg.count} | +${upg.mps.toLocaleString()} MPS
-                </div>
+            <div style="font-weight: bold; color: #4ecca3;">${upg.name}</div>
+            <div id="level-${upg.id}" style="font-size: 0.8em; color: #888;">Level: ${upg.count}</div>
+            <div style="font-size: 0.75em; color: #4ecca3; margin-bottom: 10px;">+${upg.mps} MPS</div>
+            
+            <div style="display: flex; flex-direction: column; gap: 5px; width: 100%;">
+                <button id="buy1-${upg.id}" class="buy-btn" onclick="buyUpgrade('${upg.id}')">
+                    Buy
+                </button>
+                <button id="max-${upg.id}" class="buy-btn max-btn" onclick="buyMax('${upg.id}')">
+                    MAX
+                </button>
             </div>
         `;
-
-        // 5. Button Group
-        const btnGroup = document.createElement('div');
-        btnGroup.style.display = 'flex';
-        btnGroup.style.flexDirection = 'column';
-        btnGroup.style.gap = '5px';
-        btnGroup.style.width = '100%';
-
-        // Buy 1 Button
-        const buy1 = document.createElement('button');
-        buy1.className = 'buy-btn';
-        buy1.innerHTML = `Buy: ${currentCost.toLocaleString()}`;
-        buy1.disabled = (mana < currentCost);
-        buy1.onclick = () => {
-            buyUpgrade(upg.id);
-            renderShop(); // Refresh immediately
-        };
-
-        // Buy Max Button
-        const buyMaxBtn = document.createElement('button');
-        buyMaxBtn.className = 'buy-btn max-btn';
-        buyMaxBtn.style.fontSize = '0.8em';
-        buyMaxBtn.innerText = `MAX (+${affordable})`;
-        buyMaxBtn.disabled = (affordable === 0);
-        buyMaxBtn.onclick = () => {
-            buyMax(upg.id);
-            renderShop(); // Refresh immediately
-        };
-
-        btnGroup.appendChild(buy1);
-        btnGroup.appendChild(buyMaxBtn);
-        card.appendChild(btnGroup);
-        shopContainer.appendChild(card);
+        container.appendChild(card);
     });
 }
 function buyUpgrade(id) {
+    // 1. Find the building in your upgrades array
     const upg = upgrades.find(u => u.id === id);
     if (!upg) return;
 
-    // 1. Calculate Discount
+    // 2. Calculate the discounted cost
     const robe = artifactPool.find(a => a.id === 'robe');
     const discount = (robe && robe.owned) ? robe.bonus : 0;
-    const finalCost = Math.floor(upg.cost * (1 - discount));
+    const currentCost = Math.floor(upg.cost * (1 - discount));
 
-    // 2. Transaction Logic
-    if (mana >= finalCost) {
-        mana -= finalCost;
+    // 3. Check if player can afford it
+    if (mana >= currentCost) {
+        mana -= currentCost;
         upg.count++;
-
-        // Exponential cost scaling (15% increase)
+        
+        // 4. Increase the cost for the next one (standard 15% increase)
         upg.cost = Math.ceil(upg.cost * 1.15);
 
-        // 3. Economy & UI Sync
-        calculateMPS(); 
-        updateUI(); // This will trigger renderShop() internally
+        // 5. Update game state
+        if (typeof calculateMPS === 'function') calculateMPS();
         
-        if (typeof saveGame === 'function') saveGame();
+        // 6. Refresh the UI
+        // We call renderSanctum here to update the static text (like Level)
+        renderSanctum(); 
+        updateUI();
+        saveGame();
     } else {
-        const log = document.getElementById('battle-log');
-        if (log) {
-            log.style.color = "#ff4d4d";
-            log.innerText = `Insufficient Mana! Need ${finalCost.toLocaleString()}.`;
-        }
+        console.log("Not enough mana!");
     }
 }
 
 function buyMax(id) {
-    // If you are using indexes, change 'id' to 'index' and 'upgrades.find' to 'upgrades[index]'
-    const upg = upgrades.find(u => u.id === id) || upgrades[id]; 
+    const upg = upgrades.find(u => u.id === id);
     if (!upg) return;
 
     const robe = artifactPool.find(a => a.id === 'robe');
     const discount = (robe && robe.owned) ? robe.bonus : 0;
 
-    let boughtTotal = 0;
-    
-    // Continue buying as long as the next building is affordable
-    while (mana >= Math.floor(upg.cost * (1 - discount))) {
-        const finalCost = Math.floor(upg.cost * (1 - discount));
-        
-        mana -= finalCost;
-        upg.count++;
-        
-        // Increase cost for the next one in the loop
-        upg.cost = Math.ceil(upg.cost * 1.15);
-        boughtTotal++;
-    }
+    // 1. Use the helper to see how many we can actually afford
+    let amountToBuy = getAffordableAmount(upg, mana, discount);
 
-    if (boughtTotal > 0) {
-        // CRITICAL: This is what makes the "Level" and "MPS" update on the screen
-        calculateMPS(); 
-        updateUI(); // Ensure updateUI calls renderShop()!
-        
-        if (typeof saveGame === 'function') saveGame();
+    if (amountToBuy > 0) {
+        let totalCost = 0;
+        let tempCost = upg.cost;
+
+        // 2. Loop through to calculate the total cumulative cost
+        for (let i = 0; i < amountToBuy; i++) {
+            const discountedPrice = Math.floor(tempCost * (1 - discount));
+            totalCost += discountedPrice;
+            tempCost = Math.ceil(tempCost * 1.15);
+        }
+
+        // 3. Final safety check on mana
+        if (mana >= totalCost) {
+            mana -= totalCost;
+            upg.count += amountToBuy;
+            upg.cost = tempCost; // Set the new base cost for the next purchase
+
+            // 4. Update game state
+            if (typeof calculateMPS === 'function') calculateMPS();
+            
+            // 5. Refresh the UI
+            renderSanctum();
+            updateUI();
+            saveGame();
+            
+            console.log(`Bought ${amountToBuy} of ${upg.name}`);
+        }
     }
 }
 
@@ -1318,70 +1297,72 @@ function gameLoop() {
 }
 
 function updateUI() {
-    // 1. UPDATE CORE CURRENCIES
-    // Math.floor prevents decimal jitter; toLocaleString adds commas (e.g., 1,250)
-    const manaDisplay = document.getElementById('mana-display');
-    if (manaDisplay) {
-        manaDisplay.innerText = Math.floor(mana).toLocaleString();
-    }
+    // --- 1. CORE CURRENCIES ---
+    const mDisplay = document.getElementById('mana-display');
+    const eDisplay = document.getElementById('essence-display');
+    if (mDisplay) mDisplay.innerText = Math.floor(mana).toLocaleString();
+    if (eDisplay) eDisplay.innerText = Math.floor(essence).toLocaleString();
 
-    const essenceDisplay = document.getElementById('essence-display');
-    if (essenceDisplay) {
-        essenceDisplay.innerText = Math.floor(essence).toLocaleString();
-    }
-
-    // 2. UPDATE PASSIVE INCOME (MPS) DISPLAY
+    // --- 2. MPS DISPLAY ---
     const mpsDisplay = document.getElementById('mps-display');
     if (mpsDisplay) {
+        // Assuming calculateMPS() returns your total passive mana per second
         mpsDisplay.innerText = `Mana Per Second: ${calculateMPS().toLocaleString()}`;
     }
 
-    // 3. RE-RENDER THE COMPENDIUM GRIDS
-    // This ensures (+X) amounts and Upgrade costs update in real-time
-    renderShop();
-    renderArtifacts();
+    // --- 3. SANCTUM (Building Upgrades) ---
+    // Instead of renderSanctum(), we just update the existing buttons
+    const robe = artifactPool.find(a => a.id === 'robe');
+    const discount = (robe && robe.owned) ? robe.bonus : 0;
 
-    // 4. UPDATE SPELL BUTTON STATES
-    // Greys out buttons if you don't have enough mana
-    updateSpellButtons();
+    upgrades.forEach(upg => {
+        const currentCost = Math.floor(upg.cost * (1 - discount));
+        const affordable = getAffordableAmount(upg, mana, discount);
 
-    // 5. UPDATE MONSTER UI
-    // Ensures the health bar and name are correct during combat
-    const monsterName = document.getElementById('monster-name');
-    const hpText = document.getElementById('hp-text');
-    const hpBar = document.getElementById('hp-bar-fill');
+        // Update Buy 1 Button
+        const b1Btn = document.getElementById(`buy1-${upg.id}`);
+        if (b1Btn) {
+            b1Btn.disabled = (mana < currentCost);
+            // Optionally update price text here if it changes due to artifacts
+            b1Btn.innerText = `Buy: ${currentCost.toLocaleString()}`;
+        }
 
-    if (monsterName && hpText && hpBar) {
-        monsterName.innerText = currentMonster.name;
-        hpText.innerText = `${Math.floor(monsterHP)} / ${currentMonster.maxHP}`;
+        // Update Max Button
+        const mxBtn = document.getElementById(`max-${upg.id}`);
+        if (mxBtn) {
+            mxBtn.disabled = (affordable === 0);
+            mxBtn.innerText = `MAX (+${affordable})`;
+        }
         
-        const healthPercent = (monsterHP / currentMonster.maxHP) * 100;
-        hpBar.style.width = `${healthPercent}%`;
-    }
-}
+        // Update Level Text
+        const lvlTxt = document.getElementById(`level-${upg.id}`);
+        if (lvlTxt) lvlTxt.innerText = `Level: ${upg.count}`;
+    });
 
-/**
- * Helper function to handle spell button disabling
- */
-function updateSpellButtons() {
-    // Replace these with your actual spell costs/variables
-    const spells = [
-        { id: 'blast-btn', cost: 50 },
-        { id: 'siphon-btn', cost: 30 },
-        { id: 'storm-btn', cost: 150 }
-    ];
+    // --- 4. COMPENDIUM (Artifact Upgrades) ---
+    const ownedArtifacts = artifactPool.filter(art => art.owned);
+    ownedArtifacts.forEach(art => {
+        const upgradeCost = Math.pow(2, art.level - 1) * 10;
+        const artBtn = document.getElementById(`upgrade-art-${art.id}`);
+        
+        if (artBtn) {
+            artBtn.disabled = (essence < upgradeCost);
+            artBtn.innerText = `Upgrade: ${upgradeCost.toLocaleString()} Essence`;
+        }
 
-    spells.forEach(spell => {
-        const btn = document.getElementById(spell.id);
-        if (btn) {
-            // Disable if not enough mana OR if currently on cooldown
-            const isOOM = mana < spell.cost;
-            const spellIdShort = spell.id.split('-')[0]; // e.g., 'storm'
-            const isOnCooldown = spellCooldowns[spellIdShort];
-            
-            btn.disabled = isOOM || isOnCooldown;
+        const artLvlTxt = document.getElementById(`art-level-${art.id}`);
+        if (artLvlTxt) artLvlTxt.innerText = `Lv. ${art.level}`;
+        
+        const artBonusTxt = document.getElementById(`art-bonus-${art.id}`);
+        if (artBonusTxt) {
+            const displayBonus = (art.bonus * 100).toFixed(0);
+            artBonusTxt.innerText = `+${displayBonus}% Bonus`;
         }
     });
+
+    // --- 5. BATTLE RIFT (Monster UI) ---
+    updateMonsterUI(); 
+    updateSpellButtons();
 }
 function updateCombatUI() {
     const pct = Math.max(0, (monsterHP / monsterMaxHP) * 100);
@@ -1629,7 +1610,7 @@ window.onload = function() {
 
     // 2. Force UI Render
     calculateMPS();
-    renderShop();
+    renderSanctum();
     renderArtifacts();
     renderCompendium(); // Draw it once at start
     
