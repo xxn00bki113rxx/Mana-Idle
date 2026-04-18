@@ -549,7 +549,6 @@ function triggerCooldown(skillId, ms) {
 }
 	  
 function defeatMonster() {
-    // 1. Array of possible monsters (Flavor)
     const monsters = [
         { name: "Shadow Imp", icon: "👿" },
         { name: "Void Wraith", icon: "👻" },
@@ -557,33 +556,30 @@ function defeatMonster() {
         { name: "Abyssal Drake", icon: "🐲" }
     ];
 
-    // 2. Reward the player
+    // Update Mana reward BEFORE adding it
+    manaPerKill = Math.floor(5 * (1 + monstersDefeated * 0.1)); 
+
+    // Reward the player
     mana += manaPerKill; 
     essence += 1; 
     monstersDefeated++;
 
-    // 3. Artifact Drop Logic (10% Chance + 20-Kill Pity Timer)
+    // Artifact Drop Logic
     killsSinceLastArtifact++;
     const dropChance = 0.10;
-    const roll = Math.random();
-
-    if (roll < dropChance || killsSinceLastArtifact >= 20) {
+    if (Math.random() < dropChance || killsSinceLastArtifact >= 20) {
         gainRandomArtifact(); 
         killsSinceLastArtifact = 0; 
-        console.log("Artifact dropped!");
     }
 
-	manaPerKill = Math.floor(5 * (1 + monstersDefeated * 0.1));
-	
-    // 4. Scale the Monster HP (Smooth 1.12 Multiplier)
+    // Scale the Monster HP
     monsterMaxHP = Math.floor(monsterMaxHP * 1.12);
-    currentMonsterHP = monsterMaxHP;
+    monsterHP = monsterMaxHP; // FIXED: Changed currentMonsterHP to monsterHP
 
-    // 5. Select a NEW monster appearance for the next fight
+    // Select NEW monster appearance
     const nextMonster = monsters[Math.floor(Math.random() * monsters.length)];
     
-    // 6. Update the UI
-    // Assuming you have IDs for name and icon in your HTML
+    // Update UI Elements
     const nameElement = document.getElementById('monster-name');
     const iconElement = document.getElementById('monster-icon');
     
@@ -592,7 +588,6 @@ function defeatMonster() {
 
     updateUI();
     
-    // Battle Log Update
     const log = document.getElementById('battle-log');
     if (log) {
         log.innerText = `Defeated! A ${nextMonster.name} appears in Level ${monstersDefeated + 1}...`;
