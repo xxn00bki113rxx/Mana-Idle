@@ -303,7 +303,8 @@ let passiveDamageBuffer = 0;
 let passiveTimer = 0;
 let baseTickSpeed = 100;
 let killsSinceLastArtifact = 0;
-
+let manaPerKill = 5;
+	  
 const PITY_THRESHOLD = 20; 
 
 const artifactPool = [
@@ -572,6 +573,8 @@ function defeatMonster() {
         console.log("Artifact dropped!");
     }
 
+	manaPerKill = Math.floor(5 * (1 + monstersDefeated * 0.1));
+	
     // 4. Scale the Monster HP (Smooth 1.12 Multiplier)
     monsterMaxHP = Math.floor(monsterMaxHP * 1.12);
     currentMonsterHP = monsterMaxHP;
