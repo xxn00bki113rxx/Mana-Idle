@@ -12,171 +12,198 @@
     <meta name="theme-color" content="#1a1a2e">
     <title>Fantasy Idle: Tiered Magic</title>
     <style>
-        body { font-family: sans-serif; background: #1a1a2e; color: #fff; text-align: center; margin: 0; padding-bottom: 50px; overflow-x: hidden; }
-        #mana-display { font-size: 2.5em; color: #4ecca3; margin: 10px; }
-        
-        
-        #combat-section {
-            width: 90%;
-            max-width: 400px;
-            background: #16213e;
-            border: 2px solid #e94560;
-            padding: 20px;
-            border-radius: 15px;
-            margin: 20px auto;
-        }
+    /* 1. BASE THEME & LAYOUT */
+    body { 
+        font-family: sans-serif; 
+        background: #1a1a2e; 
+        color: #fff; 
+        text-align: center; 
+        margin: 0; 
+        padding-bottom: 50px; 
+        overflow-x: hidden; 
+    }
 
-		
-		.ability-bar {
-    		display: flex;
-    		gap: 10px;
-    		justify-content: center;
-    		margin-top: 15px;
-    		width: 100%;
-		}
+    #mana-display { 
+        font-size: 2.5em; 
+        color: #4ecca3; 
+        margin: 10px; 
+    }
 
+    /* 2. COMBAT SECTION & MONSTER */
+    #combat-section {
+        width: 90%;
+        max-width: 400px;
+        background: #16213e;
+        border: 2px solid #e94560;
+        padding: 20px;
+        border-radius: 15px;
+        margin: 20px auto;
+        position: relative;
+        transition: all 0.2s ease;
+    }
 
-		.skill-btn {
-    		background: #16213e;    
-    		border: 2px solid #4ecca3; 
-    		color: #4ecca3;         
-    		padding: 8px;
-    		border-radius: 8px;
-    		font-size: 0.8em;
-    		flex: 1;                
-    		cursor: pointer;
-    		transition: all 0.2s;   
-		}
+    #monster-sprite { 
+        font-size: clamp(50px, 15vw, 80px); 
+        transition: transform 0.1s, filter 0.2s; 
+        cursor: pointer; 
+        display: inline-block;
+    }
 
-
-		.skill-btn:hover:not(:disabled) {
-    		background: #4ecca3;
-    		color: #1b1b2f;
-    		box-shadow: 0 0 15px #4ecca3;
-		}
-
-
-		.skill-btn:disabled {
-    		border-color: #555;
-    		color: #555;
-    		cursor: not-allowed;
-    		opacity: 0.5;
-		}
-
-		.skill-btn:not(:disabled) {
-    		border-color: #4ecca3;
-    		box-shadow: 0 0 5px rgba(78, 204, 163, 0.3);
-    		animation: skillReady 2s infinite;
-		}
-
-		@keyframes skillReady {
-    		0% { box-shadow: 0 0 5px rgba(78, 204, 163, 0.2); }
-    		50% { box-shadow: 0 0 15px rgba(78, 204, 163, 0.5); }
-    		100% { box-shadow: 0 0 5px rgba(78, 204, 163, 0.2); }
-		}
-		
-        #monster-sprite { font-size: clamp(50px, 15vw, 80px); transition: transform 0.1s; cursor: pointer; }
-        .monster-pulse { animation: pulse-red 0.5s infinite; }
-        @keyframes pulse-red { 0% { filter: brightness(1); } 50% { filter: brightness(1.5) drop-shadow(0 0 10px #e94560); } 100% { filter: brightness(1); } }
-
-        /* Animations */
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
-        .shake { animation: shake 0.2s; }
-        
-        .damage-popup { position: absolute; font-weight: bold; pointer-events: none; animation: floatUp 0.8s ease-out forwards; z-index: 100; }
-        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-50px); } }
-
-        /* Shop Layout */
-        .shop-container {
-    		display: flex;
-    		flex-direction: column;
-    		align-items: center; /* This centers the cards horizontally */
-    		gap: 10px;
-    		max-height: 70vh; 
-    		overflow-y: auto; 
-    		padding: 10px;
-    		width: 100%;
-		}
-        .upgrade-card { 
-            background: #16213e; 
-   			border: 1px solid #4ecca3; 
-    		padding: 15px; 
-    		width: 90%; 
-    		max-width: 400px; 
-    		border-radius: 12px; 
-    		display: flex; 
-    		justify-content: space-between; 
-    		align-items: center; 
-    		margin-bottom: 10px;
-        }
-
-        /* Buttons */
-        button { background: #4ecca3; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; touch-action: manipulation; }
-        button:disabled { background: #555; color: #888; cursor: not-allowed; opacity: 0.6; }
-        .nav-btn {
-    		background-color: #1a1a2e; /* Dark background */
-    		color: #4ecca3;
-    		border: 1px solid #4ecca3;
-    		padding: 10px 20px;
-    		cursor: pointer;
-    		transition: 0.3s;
-		}
-        .nav-btn.active {
-    		background-color: #4ecca3; /* Bright background */
-    		color: #1a1a2e;            /* Dark text */
-    		box-shadow: 0 0 10px #4ecca3;
-    		font-weight: bold;
-		}
-		
-        .floating-text { position: fixed; color: #4ecca3; font-weight: bold; font-size: 1.5rem; pointer-events: none; animation: floatAndFade 0.8s forwards; z-index: 1000; }
-        @keyframes floatAndFade { 0% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -100px); } }
-	
-		#compendium-list .upgrade-card {
-   	 		flex-direction: column;
-   	 		text-align: left;
-   	 		height: auto;
-   	 		min-height: 100px;
-		}
-
-		.upgrade-card div {
-    	   transition: transform 0.2s;
-		}
-		
-		.upgrade-card:hover div {
-    	   transform: scale(1.05);
-		}
-	
-		#compendium-list {
-    	   display: grid;
-		   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    	   gap: 15px;
-    	   padding: 10px;
-	}
+    /* 3. ABILITY BAR & SKILLS */
+    .ability-bar {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 15px;
+        width: 100%;
+    }
 
     .skill-container {
-    position: relative;
-    flex: 1;
-    overflow: hidden;
-    border-radius: 8px;
-}
+        position: relative; /* CRITICAL: Anchors the overlay */
+        flex: 1;
+        overflow: hidden;
+        border-radius: 8px;
+        height: 60px; /* Fixed height for consistency */
+    }
 
-.cooldown-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 0%; /* Starts at 0% */
-    background: rgba(0, 0, 0, 0.6); /* Dark tint */
-    pointer-events: none; /* Allows clicks to pass through to the button */
-    transition: height 0.1s linear;
-}
+    .skill-btn {
+        width: 100%;
+        height: 100%;
+        background: #16213e;    
+        border: 2px solid #4ecca3; 
+        color: #4ecca3;         
+        padding: 5px;
+        border-radius: 8px;
+        font-size: 0.8em;
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+        z-index: 1; /* Keeps button under the tint */
+    }
 
-/* Glow effect for when the skill is NOT on cooldown */
-.skill-btn:not(:disabled) {
-    box-shadow: 0 0 10px rgba(78, 204, 163, 0.2);
-}
+    /* Text needs to be above the overlay */
+    .skill-btn span {
+        position: relative;
+        z-index: 3;
+    }
 
-    </style>
+    .skill-btn:hover:not(:disabled) {
+        background: #4ecca3;
+        color: #1b1b2f;
+        box-shadow: 0 0 15px #4ecca3;
+    }
+
+    .skill-btn:disabled {
+        border-color: #555;
+        color: #555;
+        cursor: not-allowed;
+    }
+
+    /* Cooldown visual logic */
+    .cooldown-overlay {
+        position: absolute;
+        top: 0; /* Changed from bottom to top for better 'drain' feel */
+        left: 0;
+        width: 100%;
+        height: 0%; 
+        background: rgba(0, 0, 0, 0.7); /* Slightly darker for better visibility */
+        pointer-events: none; 
+        z-index: 2; /* Sits between button and text */
+    }
+
+    /* 4. ANIMATIONS & EFFECTS */
+    
+    /* Standard hit pulse */
+    .monster-pulse { animation: pulse-red 0.2s ease-in-out; }
+    @keyframes pulse-red { 
+        0% { transform: scale(1); filter: brightness(1); } 
+        50% { transform: scale(1.1); filter: brightness(1.8) drop-shadow(0 0 10px #e94560); } 
+        100% { transform: scale(1); filter: brightness(1); } 
+    }
+
+    /* Mana Storm Multi-hit Flash */
+    .monster-storm-hit { animation: flashPurple 0.1s; }
+    @keyframes flashPurple {
+        0% { filter: brightness(1); }
+        50% { filter: brightness(2) drop-shadow(0 0 20px #bb86fc); }
+        100% { filter: brightness(1); }
+    }
+
+    /* Screen Shake for Big Spells */
+    .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+    @keyframes shake {
+        10%, 90% { transform: translate3d(-1px, 0, 0); }
+        20%, 80% { transform: translate3d(2px, 0, 0); }
+        30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+        40%, 60% { transform: translate3d(4px, 0, 0); }
+    }
+
+    /* Skill Ready Glow */
+    .skill-btn:not(:disabled) {
+        animation: skillReady 2s infinite;
+    }
+    @keyframes skillReady {
+        0% { box-shadow: 0 0 5px rgba(78, 204, 163, 0.2); }
+        50% { box-shadow: 0 0 15px rgba(78, 204, 163, 0.5); }
+        100% { box-shadow: 0 0 5px rgba(78, 204, 163, 0.2); }
+    }
+
+    /* 5. SHOP & NAVIGATION */
+    .shop-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        max-height: 70vh; 
+        overflow-y: auto; 
+        padding: 10px;
+    }
+
+    .upgrade-card { 
+        background: #16213e; 
+        border: 1px solid #4ecca3; 
+        padding: 15px; 
+        width: 90%; 
+        max-width: 400px; 
+        border-radius: 12px; 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        margin-bottom: 10px;
+        transition: transform 0.2s;
+    }
+
+    .upgrade-card:hover { transform: translateY(-2px); }
+
+    .nav-btn {
+        background-color: #1a1a2e;
+        color: #4ecca3;
+        border: 1px solid #4ecca3;
+        padding: 10px 20px;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+    .nav-btn.active {
+        background-color: #4ecca3;
+        color: #1a1a2e;
+        box-shadow: 0 0 10px #4ecca3;
+        font-weight: bold;
+    }
+
+    .damage-popup { 
+        position: absolute; 
+        font-weight: bold; 
+        pointer-events: none; 
+        animation: floatUp 0.8s ease-out forwards; 
+        z-index: 100; 
+        color: #ff4d4d;
+    }
+    @keyframes floatUp { 
+        0% { opacity: 1; transform: translateY(0); } 
+        100% { opacity: 0; transform: translateY(-50px); } 
+    }
+</style>
 </head>
 <body>
 
@@ -227,11 +254,11 @@
     </div>
 
     <div class="skill-container">
-        <button id="skill-siphon" class="skill-btn" onclick="castSiphon()">
-            Siphon<br><small>200 Mana</small>
-        </button>
+    <button id="skill-siphon" class="skill-btn" onclick="castSiphon()">
+        <span style="position: relative; z-index: 2;">Siphon<br><small>200 Mana</small></span>
         <div id="cooldown-siphon" class="cooldown-overlay"></div>
-    </div>
+    </button>
+</div>
 
     <div class="skill-container">
         <button id="skill-storm" class="skill-btn" onclick="castStorm()">
@@ -522,77 +549,208 @@ function attackMonster() {
 // --- NEW ATTACK ABILITIES ---
 
 function castBlast() {
-    const cost = 50;
-    if (mana < cost || monsterHP <= 0) return;
-    
-    mana -= cost;
-    // Blast deals 5x your normal click damage
-    const wand = artifactPool.find(a => a.id === 'wand');
-    let dmg = (5 + (globalMPS * 0.1)) * 5;
-    if (wand && wand.owned) dmg *= (wand.level + 1);
+    const cost = 50; 
+    const cooldownMs = 5000; // 5 second cooldown
+    const log = document.getElementById('battle-log');
+    const btn = document.getElementById('skill-blast');
 
-    monsterHP -= dmg;
-    createDamagePopup(Math.ceil(dmg), false);
-    triggerCooldown("skill-blast", 2000); // 2 second cooldown
+    // 1. Check Mana and Cooldown State
+    if (mana < cost) {
+        if (log) log.innerText = "Need 50 Mana for Arcane Blast!";
+        return;
+    }
+    if (btn.disabled) return;
+
+    // 2. Spend Mana and Trigger Cooldown
+    mana -= cost;
+    triggerCooldown('skill-blast', cooldownMs);
+
+    // 3. Calculate Damage
+    // Base 20 damage + scaling with Ancient Wand
+    let damage = 20 + (getArtifactBonus("wand") * 5);
     
-    if (monsterHP <= 0) defeatMonster();
-    updateUI();
+    // Apply Slayer's Mark if fighting an Elite
+    if (isCurrentMonsterElite) {
+        damage *= (1 + getArtifactBonus("slayer"));
+    }
+
+    // 4. Apply Damage and Visuals
+    monsterHP -= damage;
+
+    const sprite = document.getElementById('monster-sprite');
+    if (sprite) {
+        sprite.style.filter = "brightness(2) contrast(2) hue-rotate(180deg)";
+        setTimeout(() => { 
+            sprite.style.filter = isCurrentMonsterElite ? "drop-shadow(0 0 15px #f1c40f)" : "none"; 
+        }, 150);
+    }
+
+    if (log) {
+        log.style.color = "#4ecca3";
+        log.innerText = `ARCANE BLAST! Dealt ${Math.floor(damage).toLocaleString()} damage!`;
+    }
+
+    // 5. Final Sync
+    if (monsterHP <= 0) {
+        monsterHP = 0;
+        defeatMonster();
+    } else {
+        updateUI();
+    }
 }
 
 function castSiphon() {
-    const cost = 200;
-    if (mana < cost || monsterHP <= 0) return;
+    const cost = 200; // Matches your HTML <small>200 Mana</small>
+    const cooldownMs = 15000; // 15 second cooldown
+    const log = document.getElementById('battle-log');
+    const btn = document.getElementById('skill-siphon');
 
+    // 1. MANA & COOLDOWN CHECK
+    if (mana < cost) {
+        if (log) log.innerText = "Insufficient Mana for Siphon!";
+        return;
+    }
+    if (btn.disabled) return;
+
+    // 2. SPEND MANA & TRIGGER COOLDOWN
     mana -= cost;
-    // Low damage, but generates 1-3 Essence instantly
-    monsterHP -= (5 + (globalMPS * 0.1));
-    const gain = Math.floor(Math.random() * 3) + 1;
-    essence += gain;
+    triggerCooldown('skill-siphon', cooldownMs);
 
-    createDamagePopup("SIPHON!", true);
-    triggerCooldown("skill-siphon", 8000); // 8 second cooldown
+    // 3. DAMAGE CALCULATION
+    // Base 50 damage + scaling with Ancient Wand
+    let damage = 50 + (getArtifactBonus("wand") * 10);
     
-    if (monsterHP <= 0) defeatMonster();
-    updateUI();
+    // Apply Slayer's Mark bonus if fighting an Elite
+    if (isCurrentMonsterElite) {
+        damage *= (1 + getArtifactBonus("slayer"));
+    }
+
+    // 4. THE SIPHON MECHANIC (MANA RECOVERY)
+    // Recover 50% of the damage dealt as Mana
+    const manaRecovered = Math.floor(damage * 0.5);
+    mana += manaRecovered;
+
+    // 5. VISUAL FEEDBACK
+    const sprite = document.getElementById('monster-sprite');
+    if (sprite) {
+        // Deep teal/green "leech" effect
+        sprite.style.filter = "brightness(0.5) sepia(1) hue-rotate(120deg) saturate(3)";
+        setTimeout(() => { 
+            sprite.style.filter = isCurrentMonsterElite ? "drop-shadow(0 0 15px #f1c40f)" : "none"; 
+        }, 300);
+    }
+
+    if (log) {
+        log.style.color = "#4ecca3"; // Emerald green for healing/recovery
+        log.innerText = `MANA SIPHON! Dealt ${Math.floor(damage).toLocaleString()} damage and recovered ${manaRecovered.toLocaleString()} Mana!`;
+    }
+
+    // 6. APPLY DAMAGE & SYNC
+    monsterHP -= damage;
+
+    if (monsterHP <= 0) {
+        monsterHP = 0;
+        defeatMonster();
+    } else {
+        updateUI();
+    }
 }
 
 function castStorm() {
     const cost = 1000;
-    if (mana < cost || monsterHP <= 0) return;
+    const cooldownMs = 30000; // 30 second cooldown
+    const log = document.getElementById('battle-log');
+    const btn = document.getElementById('skill-storm');
 
+    // 1. Check Mana and Cooldown State
+    if (mana < cost) {
+        if (log) log.innerText = "Need 1,000 Mana for Mana Storm!";
+        return;
+    }
+    if (btn.disabled) return;
+
+    // 2. Spend Mana and Trigger Cooldown
     mana -= cost;
-    // Deals damage based on your Total MPS (15 seconds worth of production at once)
-    let dmg = globalMPS * 15;
-    
-    monsterHP -= dmg;
-    createDamagePopup("STORM!", false);
-    triggerCooldown("skill-storm", 20000); // 20 second cooldown
+    triggerCooldown('skill-storm', cooldownMs);
 
-    if (monsterHP <= 0) defeatMonster();
-    updateUI();
+    // 3. Multi-Hit Configuration
+    const totalTicks = 10;
+    const duration = 2000; // 2 seconds
+    const tickRate = duration / totalTicks;
+    
+    // Total Damage: 500 base + 10% of current mana
+    const totalBaseDamage = 500 + (mana * 0.10);
+    const damagePerTick = totalBaseDamage / totalTicks;
+
+    let ticksProcessed = 0;
+
+    if (log) {
+        log.style.color = "#bb86fc";
+        log.innerText = "The Rift trembles... MANA STORM!";
+    }
+
+    // 4. The Multi-Hit Interval
+    const stormInterval = setInterval(() => {
+        let currentTickDamage = damagePerTick;
+        
+        // Apply Slayer's Mark bonus for every tick against Elites
+        if (isCurrentMonsterElite) {
+            currentTickDamage *= (1 + getArtifactBonus("slayer"));
+        }
+
+        monsterHP -= currentTickDamage;
+        ticksProcessed++;
+
+        // Visual "Electric" flickering
+        const sprite = document.getElementById('monster-sprite');
+        if (sprite) {
+            sprite.style.filter = "brightness(1.5) sepia(1) hue-rotate(280deg)";
+            setTimeout(() => { 
+                sprite.style.filter = isCurrentMonsterElite ? "drop-shadow(0 0 15px #f1c40f)" : "none"; 
+            }, 50);
+        }
+
+        // Check for monster death or interval completion
+        if (monsterHP <= 0) {
+            monsterHP = 0;
+            clearInterval(stormInterval);
+            defeatMonster();
+        } else if (ticksProcessed >= totalTicks) {
+            clearInterval(stormInterval);
+        }
+
+        updateUI(); // Refresh HP bar and numbers each tick
+    }, tickRate);
 }
 
 function triggerCooldown(skillId, ms) {
     const btn = document.getElementById(skillId);
-    // Get the overlay ID (e.g., 'cooldown-blast')
+    // Get the overlay ID (e.g., 'skill-blast' -> 'cooldown-blast')
     const overlayId = skillId.replace('skill-', 'cooldown-');
     const overlay = document.getElementById(overlayId);
     
     if (!btn || !overlay) return;
 
+    // 1. Lock the button and reset the overlay
     btn.disabled = true;
-    overlay.style.transition = "none"; // Reset instantly
-    overlay.style.height = "100%";     // Fill the button with the dark tint
+    overlay.style.transition = "none"; 
+    overlay.style.height = "100%";     
 
-    // Small delay to let the browser register the 100% height
+    // 2. Start the CSS animation
     setTimeout(() => {
         overlay.style.transition = `height ${ms}ms linear`;
-        overlay.style.height = "0%"; // Animate down to 0 over the duration
+        overlay.style.height = "0%"; 
     }, 50);
 
-    // Re-enable the button when the timer is up
+    // 3. Re-enable and Sync UI when finished
     setTimeout(() => {
         btn.disabled = false;
+        
+        // CRITICAL: Refresh the UI state. 
+        // This ensures the button's opacity/color resets correctly based on current mana.
+        updateUI(); 
+        
+        console.log(`${skillId} is ready again!`);
     }, ms);
 }
 	  
