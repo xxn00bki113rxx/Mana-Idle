@@ -153,6 +153,56 @@
         background: #1f2d52;
     }
 
+	/* Apply this to both containers */
+.shop-container, .artifact-grid {
+    display: grid;
+    /* This creates columns at least 150px wide, filling the space automatically */
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 15px;
+    padding: 10px;
+    justify-content: center;
+}
+
+/* Ensure cards take up the full width of their grid cell */
+.upgrade-card, .artifact-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    background: #1b1b2f;
+    border: 1px solid #4ecca3;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    /* Remove any fixed widths you had before so they flex */
+    width: auto; 
+}
+
+	.shop-container, .artifact-grid {
+    display: grid;
+    /* This makes columns that shrink/grow between 160px and 1fr */
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    padding: 15px;
+}
+
+.upgrade-card, .artifact-card {
+    background: #16213e;
+    border: 1px solid #0f3460;
+    border-radius: 10px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    transition: transform 0.2s;
+}
+
+.upgrade-card:hover {
+    border-color: #4ecca3;
+    transform: translateY(-2px);
+}
+
     /* 5. NAVIGATION */
     .nav-btn {
         background-color: #1a1a2e;
@@ -506,60 +556,67 @@ function getAffordableAmount(upg, currentMana, discount) {
 }
 
 function renderShop() {
-    // 1. Ensure the selector matches your HTML (ID is usually safer)
+    // Matches your HTML container
     const shopContainer = document.getElementById('shop') || document.querySelector('.shop-container');
     if (!shopContainer) return;
 
-    shopContainer.innerHTML = ''; // Clear the old shop
+    // Clear and set to Grid
+    shopContainer.innerHTML = '';
+    shopContainer.className = 'shop-container'; // This triggers the CSS Grid we set up
 
+    // 1. Check for the Scholar's Robe discount
     const robe = artifactPool.find(a => a.id === 'robe');
     const discount = (robe && robe.owned) ? robe.bonus : 0;
 
     upgrades.forEach(upg => {
+        // 2. Calculate dynamic price and affordablity
         const currentCost = Math.floor(upg.cost * (1 - discount));
         const affordable = getAffordableAmount(upg, mana, discount);
         
+        // 3. Create the Card Container
         const card = document.createElement('div');
         card.className = 'upgrade-card';
 
-        const info = document.createElement('div');
-        info.innerHTML = `
-            <div style="font-weight: bold; color: #4ecca3; text-align: left;">${upg.name}</div>
-            <div style="font-size: 0.8em; color: #888; text-align: left;">
-                Level: ${upg.count} | +${upg.mps.toLocaleString()} MPS
+        // 4. Inner HTML for Information
+        card.innerHTML = `
+            <div class="info">
+                <div style="font-weight: bold; color: #4ecca3;">${upg.name}</div>
+                <div style="font-size: 0.8em; color: #888; margin-bottom: 8px;">
+                    Lv. ${upg.count} | +${upg.mps.toLocaleString()} MPS
+                </div>
             </div>
         `;
 
+        // 5. Button Group
         const btnGroup = document.createElement('div');
         btnGroup.style.display = 'flex';
+        btnGroup.style.flexDirection = 'column';
         btnGroup.style.gap = '5px';
+        btnGroup.style.width = '100%';
 
         // Buy 1 Button
         const buy1 = document.createElement('button');
         buy1.className = 'buy-btn';
-        buy1.innerHTML = `Buy: ${currentCost.toLocaleString()} <span style="font-size:0.8em">M</span>`;
+        buy1.innerHTML = `Buy: ${currentCost.toLocaleString()}`;
+        buy1.disabled = (mana < currentCost);
         buy1.onclick = () => {
             buyUpgrade(upg.id);
-            // Refresh shop immediately after purchase
-            renderShop(); 
+            renderShop(); // Refresh immediately
         };
-        buy1.disabled = (mana < currentCost);
 
         // Buy Max Button
         const buyMaxBtn = document.createElement('button');
         buyMaxBtn.className = 'buy-btn max-btn';
+        buyMaxBtn.style.fontSize = '0.8em';
         buyMaxBtn.innerText = `MAX (+${affordable})`;
+        buyMaxBtn.disabled = (affordable === 0);
         buyMaxBtn.onclick = () => {
             buyMax(upg.id);
-            // Refresh shop immediately after purchase
-            renderShop();
+            renderShop(); // Refresh immediately
         };
-        buyMaxBtn.disabled = (affordable === 0);
 
         btnGroup.appendChild(buy1);
         btnGroup.appendChild(buyMaxBtn);
-        
-        card.appendChild(info);
         card.appendChild(btnGroup);
         shopContainer.appendChild(card);
     });
@@ -1027,54 +1084,41 @@ function closeArtifactPopup() {
 }
 	  
 function renderArtifacts() {
-    const list = document.getElementById('artifact-list');
-    if (!list) return;
+    const container = document.getElementById('artifact-display') || document.querySelector('.artifact-grid');
+    if (!container) return;
 
+    // Clear and set to Grid
+    container.innerHTML = '';
+    container.className = 'artifact-grid';
+
+    // Only show owned artifacts
     const owned = artifactPool.filter(art => art.owned);
 
-    // 1. Keep your "Empty State" (Important for new players!)
     if (owned.length === 0) {
-        list.innerHTML = `
-            <div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #666; font-style: italic;">
-                The Rift is empty... <br>
-                Defeat monsters to uncover ancient relics.
-            </div>`;
+        container.innerHTML = `<p style="color: #666; font-style: italic; grid-column: 1/-1;">No artifacts discovered yet. Defeat monsters in the Rift to find them.</p>`;
         return;
     }
 
-    list.innerHTML = ""; 
-
     owned.forEach(art => {
-        // 2. Updated Cost Logic (Suggestion 1: Exponential)
-        const upgCost = Math.floor(5 * Math.pow(1.5, art.level - 1));
-        
-        // 3. Dynamic Bonus Text (Suggestion 2)
-        // Shows "25%" for 0.25, or "+2" for 2
-        let bonusDisplay = (art.bonus < 1) ? 
-            Math.round(art.bonus * 100) + "%" : 
-            "+" + art.bonus;
+        const card = document.createElement('div');
+        card.className = 'artifact-card';
 
-        // 4. Merged HTML with your original styles + New Description
-        list.innerHTML += `
-            <div class="artifact-card" style="background: #0f3460; border: 1px solid #4ecca3; padding: 12px; border-radius: 10px; text-align: center; min-width: 110px;">
-                <div style="font-size: 2em; margin-bottom: 5px;">${art.icon}</div>
-                <div style="font-size: 0.9em; font-weight: bold; color: #fff;">${art.name}</div>
-                <div style="font-size: 0.75em; color: #4ecca3; margin-bottom: 4px;">Level ${art.level}</div>
-                
-                <div style="font-size: 0.65em; color: #aaa; margin-bottom: 8px; min-height: 30px;">
-                    ${art.desc}<br>
-                    <span style="color: #4ecca3;">Current: ${bonusDisplay}</span>
-                </div>
-                
-                <button 
-                    id="art-up-${art.id}" 
-                    onclick="upgradeArtifact('${art.id}')" 
-                    style="width: 100%; font-size: 0.7em; padding: 8px 0; transition: all 0.2s ease; cursor: pointer;"
-                    ${essence < upgCost ? 'disabled' : ''}
-                >
-                    Up (${upgCost} Ess)
-                </button>
-            </div>`;
+        // Calculate display bonus (e.g., 0.1 becomes 10%)
+        const displayBonus = (art.bonus * 100).toFixed(0);
+
+        card.innerHTML = `
+            <img src="${art.icon || 'default-art.png'}" style="width: 50px; height: 50px; margin-bottom: 5px;">
+            <div style="font-weight: bold; font-size: 0.9em; color: #f1c40f;">${art.name}</div>
+            <div style="font-size: 0.75em; color: #aaa;">Lv. ${art.level}</div>
+            <div style="font-size: 0.8em; color: #4ecca3; margin: 5px 0;">+${displayBonus}% Bonus</div>
+            
+            <button class="upgrade-art-btn" onclick="upgradeArtifact('${art.id}')" 
+                style="width: 100%; font-size: 0.7em; background: #0f3460; border: 1px solid #4ecca3; color: white; cursor: pointer; padding: 4px; border-radius: 4px;">
+                Upgrade (Essence)
+            </button>
+        `;
+
+        container.appendChild(card);
     });
 }
 
