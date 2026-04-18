@@ -339,29 +339,19 @@ button {
                 <div id="hp-text" style="position: absolute; width: 100%; text-align: center; font-size: 0.8em; line-height: 20px; color: white; font-weight: bold;">HP: 50 / 50</div>
             </div>
 
-            <button onclick="attackMonster()" id="strike-btn" style="background: #e94560; color: white; width: 100%; margin-top: 10px; font-weight: bold;">
-                Standard Strike (10 Mana)
-            </button>
+            <button id="strike-btn" onclick="attackMonster(event)">Standard Strike</button>
 
-            <div class="ability-bar" style="display: flex; gap: 8px; justify-content: center; margin-top: 15px;">
+<div class="ability-bar">
     <div class="skill-container">
-        <button id="skill-blast" class="skill-btn" onclick="castBlast()">
-            Arcane Blast<br><small>50 Mana</small>
-        </button>
+        <button class="skill-btn" onclick="castBlast(event)">Arcane Blast</button>
         <div id="cooldown-blast" class="cooldown-overlay"></div>
     </div>
-
     <div class="skill-container">
-    <button id="skill-siphon" class="skill-btn" onclick="castSiphon()">
-        <span style="position: relative; z-index: 2;">Siphon<br><small>200 Mana</small></span>
+        <button class="skill-btn" onclick="castSiphon(event)">Mana Siphon</button>
         <div id="cooldown-siphon" class="cooldown-overlay"></div>
-    </button>
-</div>
-
+    </div>
     <div class="skill-container">
-        <button id="skill-storm" class="skill-btn" onclick="castStorm()">
-            Mana Storm<br><small>1k Mana</small>
-        </button>
+        <button class="skill-btn" onclick="castStorm(event)">Mana Storm</button>
         <div id="cooldown-storm" class="cooldown-overlay"></div>
     </div>
 </div>
@@ -486,23 +476,15 @@ window.showTab = function(tabName) {
 };
 
 // --- 3. SHOP & ECONOMY ---
-function getAffordableAmount(upg, currentMana) {
-    let count = 0;
+function getAffordableAmount(upg, currentMana, discount) {
     let tempMana = currentMana;
     let tempCost = upg.cost;
-    
-    const discount = getArtifactBonus("robe");
+    let count = 0;
 
-    // We simulate buying until we run out of mana
-    while (true) {
-        let actualCost = Math.floor(tempCost * (1 - discount));
-        if (tempMana >= actualCost) {
-            tempMana -= actualCost;
-            tempCost = Math.floor(tempCost * 1.15);
-            count++;
-        } else {
-            break;
-        }
+    while (tempMana >= Math.floor(tempCost * (1 - discount))) {
+        tempMana -= Math.floor(tempCost * (1 - discount));
+        tempCost = Math.ceil(tempCost * 1.15);
+        count++;
     }
     return count;
 }
@@ -586,22 +568,34 @@ function buyUpgrade(id) {
     }
 }
 
-function buyMax(index) {
-    const upg = upgrades[index];
+function buyMax(id) {
+    // If you are using indexes, change 'id' to 'index' and 'upgrades.find' to 'upgrades[index]'
+    const upg = upgrades.find(u => u.id === id) || upgrades[id]; 
+    if (!upg) return;
+
     const robe = artifactPool.find(a => a.id === 'robe');
-    const discount = (robe && robe.owned) ? 0.9 : 1;
-    let count = 0;
-    while (mana >= Math.floor(upg.cost * discount)) {
-        mana -= Math.floor(upg.cost * discount);
+    const discount = (robe && robe.owned) ? robe.bonus : 0;
+
+    let boughtTotal = 0;
+    
+    // Continue buying as long as the next building is affordable
+    while (mana >= Math.floor(upg.cost * (1 - discount))) {
+        const finalCost = Math.floor(upg.cost * (1 - discount));
+        
+        mana -= finalCost;
         upg.count++;
-        upg.cost = Math.floor(upg.cost * 1.15);
-        count++;
+        
+        // Increase cost for the next one in the loop
+        upg.cost = Math.ceil(upg.cost * 1.15);
+        boughtTotal++;
     }
-    if (count > 0) {
-        calculateMPS();
-        updateUI();
-        renderShop();
-        saveGame();
+
+    if (boughtTotal > 0) {
+        // CRITICAL: This is what makes the "Level" and "MPS" update on the screen
+        calculateMPS(); 
+        updateUI(); // Ensure updateUI calls renderShop()!
+        
+        if (typeof saveGame === 'function') saveGame();
     }
 }
 
@@ -656,235 +650,122 @@ function createFloatingText(event, text, color = "#4ecca3") {
 }
 
 // --- 4. COMBAT & ARTIFACTS ---
-function attackMonster() {
-    // 1. CONSTANTS - Matches your HTML
-    const attackCost = 10; 
-    const log = document.getElementById('battle-log');
-    const sprite = document.getElementById('monster-sprite');
+// --- STANDARD STRIKE ---
+function attackMonster(event) {
+    const cost = 10;
+    if (mana < cost) return;
 
-    // 2. MANA REQUIREMENT CHECK
-    if (mana < attackCost) {
-        if (log) {
-            log.innerText = "Insufficient Mana! Wait for your pool to replenish.";
-            log.style.color = "#ff4d4d"; // Temporary red warning
-        }
-        return; 
+    mana -= cost;
+    
+    // Base damage + Slayer bonus if Elite
+    let damage = 5;
+    const slayer = artifactPool.find(a => a.id === 'slayer');
+    if (isCurrentMonsterElite && slayer && slayer.owned) {
+        damage *= (1 + slayer.bonus);
     }
 
-    // 3. DAMAGE CALCULATION
-    // Base damage (1) + Ancient Wand bonus (e.g., +2 per level)
-    let damage = 1 + getArtifactBonus("wand"); 
-
-    // Slayer's Mark Multiplier (Only applies to Elites)
-    if (isCurrentMonsterElite) {
-        const slayerBonus = getArtifactBonus("slayer"); 
-        damage *= (1 + slayerBonus); 
-    }
-
-    // 4. EXECUTE ATTACK
-    mana -= attackCost;
     monsterHP -= damage;
+    spawnDamageText(event, `-${Math.floor(damage)}`, "#ff4d4d");
 
-    // 5. VISUAL FEEDBACK (The Pulse)
-    if (sprite) {
-        sprite.classList.remove('monster-pulse'); // Reset animation
-        void sprite.offsetWidth;                // Trigger reflow
-        sprite.classList.add('monster-pulse');    // Restart animation
-    }
+    // Visual feedback
+    const sprite = document.getElementById('monster-sprite');
+    sprite.classList.add('monster-pulse');
+    setTimeout(() => sprite.classList.remove('monster-pulse'), 200);
 
-    // 6. DEATH CHECK OR UI REFRESH
-    if (monsterHP <= 0) {
-        monsterHP = 0; // Safety for the HP Bar width
-        defeatMonster();
-    } else {
-        // We call updateUI to refresh Mana and the HP Bar immediately
-        updateUI();
-        
-        // Optional: Update the battle log with damage dealt
-        if (log) {
-            log.style.color = isCurrentMonsterElite ? "#f1c40f" : "#fff";
-            log.innerText = `Struck ${isCurrentMonsterElite ? "Elite" : "Monster"} for ${Math.floor(damage).toLocaleString()} damage!`;
-        }
-    }
+    checkMonsterDeath();
+    updateUI();
 }
 
-// --- NEW ATTACK ABILITIES ---
+// --- ARCANE BLAST (Spell 1) ---
+function castBlast(event) {
+    const cost = 50;
+    if (mana < cost || spellCooldowns.blast) return;
 
-function castBlast() {
-    const cost = 50; 
-    const cooldownMs = 5000; // 5 second cooldown
-    const log = document.getElementById('battle-log');
-    const btn = document.getElementById('skill-blast');
-
-    // 1. Check Mana and Cooldown State
-    if (mana < cost) {
-        if (log) log.innerText = "Need 50 Mana for Arcane Blast!";
-        return;
-    }
-    if (btn.disabled) return;
-
-    // 2. Spend Mana and Trigger Cooldown
     mana -= cost;
-    triggerCooldown('skill-blast', cooldownMs);
-
-    // 3. Calculate Damage
-    // Base 20 damage + scaling with Ancient Wand
-    let damage = 20 + (getArtifactBonus("wand") * 5);
+    let damage = 25;
     
-    // Apply Slayer's Mark if fighting an Elite
-    if (isCurrentMonsterElite) {
-        damage *= (1 + getArtifactBonus("slayer"));
-    }
+    // Check for Tome bonus
+    const tome = artifactPool.find(a => a.id === 'tome');
+    if (tome && tome.owned) damage *= (1 + tome.bonus);
 
-    // 4. Apply Damage and Visuals
     monsterHP -= damage;
+    spawnDamageText(event, `-${Math.floor(damage)}`, "#4ecca3");
 
-    const sprite = document.getElementById('monster-sprite');
-    if (sprite) {
-        sprite.style.filter = "brightness(2) contrast(2) hue-rotate(180deg)";
-        setTimeout(() => { 
-            sprite.style.filter = isCurrentMonsterElite ? "drop-shadow(0 0 15px #f1c40f)" : "none"; 
-        }, 150);
-    }
+    // Screen Shake Effect
+    const combatSection = document.getElementById('combat-section');
+    combatSection.classList.add('shake');
+    setTimeout(() => combatSection.classList.remove('shake'), 400);
 
-    if (log) {
-        log.style.color = "#4ecca3";
-        log.innerText = `ARCANE BLAST! Dealt ${Math.floor(damage).toLocaleString()} damage!`;
-    }
-
-    // 5. Final Sync
-    if (monsterHP <= 0) {
-        monsterHP = 0;
-        defeatMonster();
-    } else {
-        updateUI();
-    }
+    startCooldown('blast', 5); // 5 second cooldown
+    checkMonsterDeath();
+    updateUI();
 }
 
-function castSiphon() {
-    const cost = 200; // Matches your HTML <small>200 Mana</small>
-    const cooldownMs = 15000; // 15 second cooldown
-    const log = document.getElementById('battle-log');
-    const btn = document.getElementById('skill-siphon');
+// --- MANA SIPHON (Spell 2) ---
+function castSiphon(event) {
+    const cost = 30;
+    if (mana < cost || spellCooldowns.siphon) return;
 
-    // 1. MANA & COOLDOWN CHECK
-    if (mana < cost) {
-        if (log) log.innerText = "Insufficient Mana for Siphon!";
-        return;
-    }
-    if (btn.disabled) return;
-
-    // 2. SPEND MANA & TRIGGER COOLDOWN
     mana -= cost;
-    triggerCooldown('skill-siphon', cooldownMs);
+    const damage = 15;
+    const lifesteal = 0.5; // 50% mana back
 
-    // 3. DAMAGE CALCULATION
-    // Base 50 damage + scaling with Ancient Wand
-    let damage = 50 + (getArtifactBonus("wand") * 10);
-    
-    // Apply Slayer's Mark bonus if fighting an Elite
-    if (isCurrentMonsterElite) {
-        damage *= (1 + getArtifactBonus("slayer"));
-    }
-
-    // 4. THE SIPHON MECHANIC (MANA RECOVERY)
-    // Recover 50% of the damage dealt as Mana
-    const manaRecovered = Math.floor(damage * 0.5);
-    mana += manaRecovered;
-
-    // 5. VISUAL FEEDBACK
-    const sprite = document.getElementById('monster-sprite');
-    if (sprite) {
-        // Deep teal/green "leech" effect
-        sprite.style.filter = "brightness(0.5) sepia(1) hue-rotate(120deg) saturate(3)";
-        setTimeout(() => { 
-            sprite.style.filter = isCurrentMonsterElite ? "drop-shadow(0 0 15px #f1c40f)" : "none"; 
-        }, 300);
-    }
-
-    if (log) {
-        log.style.color = "#4ecca3"; // Emerald green for healing/recovery
-        log.innerText = `MANA SIPHON! Dealt ${Math.floor(damage).toLocaleString()} damage and recovered ${manaRecovered.toLocaleString()} Mana!`;
-    }
-
-    // 6. APPLY DAMAGE & SYNC
     monsterHP -= damage;
+    mana += (damage * lifesteal);
 
-    if (monsterHP <= 0) {
-        monsterHP = 0;
-        defeatMonster();
-    } else {
-        updateUI();
-    }
+    spawnDamageText(event, `-${Math.floor(damage)}`, "#bb86fc");
+    
+    // Secondary popup for mana gained
+    setTimeout(() => {
+        spawnDamageText(event, `+${Math.floor(damage * lifesteal)}`, "#4ecca3");
+    }, 150);
+
+    startCooldown('siphon', 8);
+    checkMonsterDeath();
+    updateUI();
 }
 
-function castStorm() {
-    const cost = 1000;
-    const cooldownMs = 30000; // 30 second cooldown
-    const log = document.getElementById('battle-log');
-    const btn = document.getElementById('skill-storm');
+// --- MANA STORM (Spell 3) ---
+function castStorm(event) {
+    const cost = 150;
+    if (mana < cost || spellCooldowns.storm) return;
 
-    // 1. Check Mana and Cooldown State
-    if (mana < cost) {
-        if (log) log.innerText = "Need 1,000 Mana for Mana Storm!";
-        return;
-    }
-    if (btn.disabled) return;
-
-    // 2. Spend Mana and Trigger Cooldown
     mana -= cost;
-    triggerCooldown('skill-storm', cooldownMs);
+    startCooldown('storm', 20);
 
-    // 3. Multi-Hit Configuration
-    const totalTicks = 10;
-    const duration = 2000; // 2 seconds
-    const tickRate = duration / totalTicks;
-    
-    // Total Damage: 500 base + 10% of current mana
-    const totalBaseDamage = 500 + (mana * 0.10);
-    const damagePerTick = totalBaseDamage / totalTicks;
-
-    let ticksProcessed = 0;
-
-    if (log) {
-        log.style.color = "#bb86fc";
-        log.innerText = "The Rift trembles... MANA STORM!";
-    }
-
-    // 4. The Multi-Hit Interval
+    let hits = 0;
     const stormInterval = setInterval(() => {
-        let currentTickDamage = damagePerTick;
+        const damage = 10;
+        monsterHP -= damage;
         
-        // Apply Slayer's Mark bonus for every tick against Elites
-        if (isCurrentMonsterElite) {
-            currentTickDamage *= (1 + getArtifactBonus("slayer"));
-        }
-
-        monsterHP -= currentTickDamage;
-        ticksProcessed++;
-
-        // Visual "Electric" flickering
+        // Randomize location slightly around the monster for a "storm" look
         const sprite = document.getElementById('monster-sprite');
-        if (sprite) {
-            sprite.style.filter = "brightness(1.5) sepia(1) hue-rotate(280deg)";
-            setTimeout(() => { 
-                sprite.style.filter = isCurrentMonsterElite ? "drop-shadow(0 0 15px #f1c40f)" : "none"; 
-            }, 50);
-        }
+        const rect = sprite.getBoundingClientRect();
+        const randomEvent = {
+            clientX: rect.left + (Math.random() * rect.width),
+            clientY: rect.top + (Math.random() * rect.height)
+        };
 
-        // Check for monster death or interval completion
-        if (monsterHP <= 0) {
-            monsterHP = 0;
-            clearInterval(stormInterval);
-            defeatMonster();
-        } else if (ticksProcessed >= totalTicks) {
-            clearInterval(stormInterval);
-        }
+        spawnDamageText(randomEvent, `-${damage}`, "#4ecca3");
+        sprite.classList.add('monster-storm-hit');
+        setTimeout(() => sprite.classList.remove('monster-storm-hit'), 50);
 
-        updateUI(); // Refresh HP bar and numbers each tick
-    }, tickRate);
+        hits++;
+        if (hits >= 10 || monsterHP <= 0) {
+            clearInterval(stormInterval);
+            checkMonsterDeath();
+        }
+        updateUI();
+    }, 150);
 }
 
+// --- HELPER: MONSTER DEATH ---
+function checkMonsterDeath() {
+    if (monsterHP <= 0) {
+        monsterHP = 0;
+        defeatMonster(); // Your function that handles essence gain/new monster
+    }
+}
 function triggerCooldown(skillId, ms) {
     const btn = document.getElementById(skillId);
     // Get the overlay ID (e.g., 'skill-blast' -> 'cooldown-blast')
@@ -914,6 +795,31 @@ function triggerCooldown(skillId, ms) {
         
         console.log(`${skillId} is ready again!`);
     }, ms);
+}
+
+	function spawnDamageText(event, text, color) {
+    const p = document.createElement('div');
+    p.className = 'floating-text';
+    p.innerText = text;
+    p.style.color = color;
+    
+    // Positioning logic
+    if (event && event.clientX) {
+        p.style.left = event.clientX + 'px';
+        p.style.top = event.clientY + 'px';
+    } else {
+        // Fallback to monster center if no event (e.g., auto-hits)
+        const monster = document.getElementById('monster-sprite');
+        const rect = monster.getBoundingClientRect();
+        p.style.left = (rect.left + rect.width / 2) + 'px';
+        p.style.top = (rect.top + rect.height / 2) + 'px';
+    }
+    
+    p.style.transform = 'translateX(-50%)';
+    p.style.fontSize = '2rem'; 
+
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 800);
 }
 	  
 function defeatMonster() {
