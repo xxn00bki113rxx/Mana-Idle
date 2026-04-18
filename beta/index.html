@@ -509,7 +509,6 @@ const upgrades = [
 
 // --- 2. NAVIGATION LOGIC ---
 window.showTab = function(tabName) {
-    // 1. Add 'settings' to this list so the game knows it exists
     const tabs = ['sanctum', 'battle', 'compendium', 'settings']; 
     
     tabs.forEach(t => {
@@ -519,27 +518,31 @@ window.showTab = function(tabName) {
         if (btn) btn.classList.remove('active');
     });
 
-    // 2. Show the active tab
     const activeTab = document.getElementById(tabName + '-tab');
     if (activeTab) {
         activeTab.style.display = 'block';
         console.log("Showing tab: " + tabName);
     }
     
-    // 3. Highlight the active button
     const activeBtn = document.getElementById(tabName + '-btn');
     if (activeBtn) activeBtn.classList.add('active');
 
-    // 4. Trigger specific renders so the data is fresh
-    if (tabName === 'sanctum') renderShop();
-    if (tabName === 'battle') {
-        renderArtifacts();
-        updateUI();
+    // --- SECTION 4: THE FIXES ---
+    
+    // 1. Rename renderShop to renderSanctum
+    if (tabName === 'sanctum') {
+        renderSanctum(); 
     }
+
+    // 2. Remove renderArtifacts from Battle (it lives in Compendium now)
+    if (tabName === 'battle') {
+        updateUI(); // Keep this to ensure the health bar is correct
+    }
+
+    // 3. Ensure this matches your artifact render function name
     if (tabName === 'compendium') {
         renderCompendium();
     }
-    // No specific render needed for settings, it's just static buttons!
 };
 
 // --- 3. SHOP & ECONOMY ---
@@ -1178,38 +1181,50 @@ function getArtifactBonus(id) {
 	  
 function renderCompendium() {
     const list = document.getElementById('compendium-list');
-    if (!list) {
-        console.error("CRITICAL: compendium-list element not found!");
-        return;
-    }
+    if (!list) return;
 
-    let htmlString = "";
-    
-    // Fallback if artifactPool is empty
+    // Clear the list once
+    list.innerHTML = '';
+    list.className = 'artifact-grid'; // Use the grid layout we made
+
     if (!artifactPool || artifactPool.length === 0) {
         list.innerHTML = "<p>No artifacts found in data.</p>";
         return;
     }
 
     artifactPool.forEach(art => {
+        const card = document.createElement('div');
+        card.className = 'artifact-card';
+        // If not owned, make it look faded
+        card.style.opacity = art.owned ? '1' : '0.5';
+
         const icon = art.owned ? art.icon : "❓";
         const name = art.owned ? art.name : "Locked Relic";
-        const desc = art.owned ? art.desc : "Defeat more monsters to discover this item.";
+        const desc = art.owned ? art.desc : "Defeat monsters to discover.";
         
-        htmlString += `
-            <div class="upgrade-card" style="opacity: ${art.owned ? '1' : '0.4'}; display: flex !important; flex-direction: row !important; align-items: center; gap: 15px; width: 100%; box-sizing: border-box;">
-                <div style="font-size: 2.5em; min-width: 60px; text-align: center;">${icon}</div>
-                <div style="flex-grow: 1; text-align: left;">
-                    <div style="font-weight: bold; color: #4ecca3;">${name}</div>
-                    <div style="font-size: 0.8em; color: #ccc;">${desc}</div>
-                    ${art.owned ? `<div style="font-size: 0.7em; color: #4ecca3; margin-top: 5px;">Level ${art.level}</div>` : ''}
-                </div>
-            </div>`;
+        // Calculate current upgrade cost
+        const upgradeCost = Math.pow(2, art.level - 1) * 10;
+        const displayBonus = (art.bonus * 100).toFixed(0);
+
+        card.innerHTML = `
+            <div style="font-size: 2em; margin-bottom: 5px;">${icon}</div>
+            <div style="font-weight: bold; color: #f1c40f;">${name}</div>
+            <div id="art-level-${art.id}" style="font-size: 0.7em; color: #aaa;">Lv. ${art.level}</div>
+            <div id="art-bonus-${art.id}" style="font-size: 0.8em; color: #4ecca3;">+${displayBonus}% Bonus</div>
+            <p style="font-size: 0.7em; color: #ccc; margin: 5px 0;">${desc}</p>
+            
+            ${art.owned ? `
+                <button id="upgrade-art-${art.id}" class="upgrade-art-btn" 
+                    onclick="upgradeArtifact('${art.id}')"
+                    style="width: 100%; margin-top: 10px;">
+                    Upgrade: ${upgradeCost} Ess
+                </button>
+            ` : ''}
+        `;
+
+        list.appendChild(card);
     });
-
-    list.innerHTML = htmlString;
 }
-
 // --- 5. VISUALS ---
 function clickMana(event) {
     // 1. DATA RETRIEVAL
@@ -1307,12 +1322,11 @@ function updateUI() {
     // --- 2. MPS DISPLAY ---
     const mpsDisplay = document.getElementById('mps-display');
     if (mpsDisplay) {
-        // Assuming calculateMPS() returns your total passive mana per second
-        mpsDisplay.innerText = `Mana Per Second: ${calculateMPS().toLocaleString()}`;
+        // We use Math.max(0, ...) just in case a calculation ever goes negative
+        mpsDisplay.innerText = `Mana Per Second: ${Math.max(0, calculateMPS()).toLocaleString()}`;
     }
 
-    // --- 3. SANCTUM (Building Upgrades) ---
-    // Instead of renderSanctum(), we just update the existing buttons
+    // --- 3. SANCTUM (Buildings) ---
     const robe = artifactPool.find(a => a.id === 'robe');
     const discount = (robe && robe.owned) ? robe.bonus : 0;
 
@@ -1320,50 +1334,51 @@ function updateUI() {
         const currentCost = Math.floor(upg.cost * (1 - discount));
         const affordable = getAffordableAmount(upg, mana, discount);
 
-        // Update Buy 1 Button
         const b1Btn = document.getElementById(`buy1-${upg.id}`);
         if (b1Btn) {
             b1Btn.disabled = (mana < currentCost);
-            // Optionally update price text here if it changes due to artifacts
             b1Btn.innerText = `Buy: ${currentCost.toLocaleString()}`;
         }
 
-        // Update Max Button
         const mxBtn = document.getElementById(`max-${upg.id}`);
         if (mxBtn) {
             mxBtn.disabled = (affordable === 0);
             mxBtn.innerText = `MAX (+${affordable})`;
         }
         
-        // Update Level Text
         const lvlTxt = document.getElementById(`level-${upg.id}`);
         if (lvlTxt) lvlTxt.innerText = `Level: ${upg.count}`;
     });
 
-    // --- 4. COMPENDIUM (Artifact Upgrades) ---
-    const ownedArtifacts = artifactPool.filter(art => art.owned);
-    ownedArtifacts.forEach(art => {
-        const upgradeCost = Math.pow(2, art.level - 1) * 10;
+    // --- 4. COMPENDIUM (Artifacts) ---
+    // Loop through ALL artifacts so locked ones don't break the UI flow
+    artifactPool.forEach(art => {
         const artBtn = document.getElementById(`upgrade-art-${art.id}`);
-        
-        if (artBtn) {
-            artBtn.disabled = (essence < upgradeCost);
-            artBtn.innerText = `Upgrade: ${upgradeCost.toLocaleString()} Essence`;
-        }
-
         const artLvlTxt = document.getElementById(`art-level-${art.id}`);
-        if (artLvlTxt) artLvlTxt.innerText = `Lv. ${art.level}`;
-        
         const artBonusTxt = document.getElementById(`art-bonus-${art.id}`);
-        if (artBonusTxt) {
-            const displayBonus = (art.bonus * 100).toFixed(0);
-            artBonusTxt.innerText = `+${displayBonus}% Bonus`;
+
+        // Only update if the artifact is actually owned and the elements exist
+        if (art.owned) {
+            const upgradeCost = Math.pow(2, art.level - 1) * 10;
+            
+            if (artBtn) {
+                artBtn.disabled = (essence < upgradeCost);
+                artBtn.innerText = `Upgrade: ${upgradeCost.toLocaleString()} Essence`;
+            }
+
+            if (artLvlTxt) artLvlTxt.innerText = `Lv. ${art.level}`;
+            
+            if (artBonusTxt) {
+                const displayBonus = (art.bonus * 100).toFixed(0);
+                artBonusTxt.innerText = `+${displayBonus}% Bonus`;
+            }
         }
     });
 
-    // --- 5. BATTLE RIFT (Monster UI) ---
-    updateMonsterUI(); 
-    updateSpellButtons();
+    // --- 5. BATTLE RIFT & SPELLS ---
+    // Ensure these functions exist to prevent Uncaught ReferenceErrors
+    if (typeof updateMonsterUI === "function") updateMonsterUI(); 
+    if (typeof updateSpellButtons === "function") updateSpellButtons();
 }
 function updateCombatUI() {
     const pct = Math.max(0, (monsterHP / monsterMaxHP) * 100);
@@ -1602,23 +1617,26 @@ window.addEventListener('keydown', (e) => {
 window.onload = function() {
     console.log("Game Initializing...");
     
-    // 1. Force Load
+    // 1. Load player data
     try {
         loadGame();
     } catch(e) {
         console.error("Failed to load save:", e);
     }
 
-    // 2. Force UI Render
+    // 2. Build the UI
+    // Note: I removed the extra 'renderArtifacts' call. 
+    // We only need renderCompendium for the artifacts tab.
     calculateMPS();
-    renderSanctum();
-    renderArtifacts();
-    renderCompendium(); // Draw it once at start
+    renderSanctum();    // Draws the Buildings
+    renderCompendium(); // Draws the Artifacts
     
     // 3. Set default tab
+    // CRITICAL: Make sure 'sanctum' is the ID of your building tab
     showTab('sanctum');
     
-    // 4. Start Loop
+    // 4. Start the game heartbeat
+    // Make sure your gameLoop() calls updateUI()!
     gameLoop();
     
     console.log("Initialization Complete.");
