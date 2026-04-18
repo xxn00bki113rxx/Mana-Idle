@@ -680,17 +680,6 @@ function calculateMPS() {
     // We use Math.max to ensure MPS never accidentally drops below 0
     globalMPS = Math.max(0, baseMPS * orbMult);
 
-    // 4. CRITICAL: Immediate UI Sync
-    // This ensures that when you buy a building or upgrade the Orb, 
-    // the "Mana Per Second" display in your top bar changes instantly.
-    const mpsDisplay = document.getElementById('mps-display');
-    if (mpsDisplay) {
-        // Formats to 1 decimal place (e.g., "12.5") for better accuracy
-        mpsDisplay.innerText = globalMPS.toLocaleString(undefined, {
-            minimumFractionDigits: 1,
-            maximumFractionDigits: 1
-        });
-    }
 	return globalMPS;
 }
 
@@ -1235,18 +1224,17 @@ function renderCompendium() {
 // --- 5. VISUALS ---
 function clickMana(event) {
     // 1. DATA RETRIEVAL
-    // Find our artifacts to calculate current click power
     const wand = artifactPool.find(a => a.id === 'wand');
     const orb = artifactPool.find(a => a.id === 'orb');
 
     // 2. POWER CALCULATION
-    // Base power starts at 1. Every Wand level adds +1 to base.
-    let basePower = 1 + (wand && wand.owned ? wand.level : 0);
-    
+    // Option B: Base power is 1, plus the wand's bonus multiplied by its level
+    let basePower = 1 + (wand && wand.owned ? (wand.level * wand.bonus) : 0);
+
     // The Orb provides a global multiplier (e.g., 1.25 for +25%)
     const multiplier = (orb && orb.owned) ? (1 + orb.bonus) : 1;
-    
-    // Calculate final gain and round down to keep integers clean
+
+    // Final Calculation (Using Math.floor to keep mana as a whole number)
     const finalPower = Math.floor(basePower * multiplier);
 
     // 3. STATE UPDATE
@@ -1258,24 +1246,20 @@ function clickMana(event) {
         p.className = 'floating-text';
         p.innerText = `+${finalPower}`;
         
-        // Pin the text to the exact mouse coordinates
-        // Using 'fixed' in CSS means we use clientX and clientY
+        // Position at mouse click
         p.style.left = event.clientX + 'px';
         p.style.top = event.clientY + 'px';
-        
-        // Centering the text horizontally relative to the click point
         p.style.transform = 'translateX(-50%)'; 
 
         document.body.appendChild(p);
 
-        // Remove the element after the animation duration (0.8s)
+        // Auto-remove after animation
         setTimeout(() => {
             p.remove();
         }, 800);
     }
 
     // 5. UI SYNC
-    // This ensures your mana bar and button colors update immediately
     updateUI();
 }
 
@@ -1326,13 +1310,18 @@ function updateUI() {
     if (mDisplay) mDisplay.innerText = Math.floor(mana).toLocaleString();
     if (eDisplay) eDisplay.innerText = Math.floor(essence).toLocaleString();
 
-    // --- 2. MPS DISPLAY ---
+    // --- 2. MPS DISPLAY (The Visual Fix) ---
     const mpsDisplay = document.getElementById('mps-display');
     if (mpsDisplay) {
-        mpsDisplay.innerText = `Mana Per Second: ${Math.max(0, calculateMPS()).toLocaleString()}`;
+        // We call the math-only version of calculateMPS here
+        const currentMPS = calculateMPS(); 
+        mpsDisplay.innerText = `Mana Flow: ${currentMPS.toLocaleString(undefined, {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1
+        })} /sec`;
     }
 
-    // --- 3. SANCTUM (Buildings) ---
+    // --- 3. SANCTUM (Buildings & Discounts) ---
     const robe = artifactPool.find(a => a.id === 'robe');
     const discount = (robe && robe.owned) ? robe.bonus : 0;
 
@@ -1356,15 +1345,14 @@ function updateUI() {
         if (lvlTxt) lvlTxt.innerText = `Level: ${upg.count}`;
     });
 
-    // --- 4. COMPENDIUM (Unified Artifact System) ---
-    // This now handles all artifact updates in one place
+    // --- 4. COMPENDIUM (Artifact Upgrades & Scaling) ---
     artifactPool.forEach(art => {
         const artBtn = document.getElementById(`upgrade-art-${art.id}`);
         const artLvlTxt = document.getElementById(`art-level-${art.id}`);
         const artBonusTxt = document.getElementById(`art-bonus-${art.id}`);
 
-        // We only try to update these if the artifact is owned
         if (art.owned) {
+            // Cost scales: 10, 20, 40, 80...
             const upgradeCost = Math.pow(2, art.level - 1) * 10;
             
             if (artBtn) {
@@ -1375,19 +1363,20 @@ function updateUI() {
             if (artLvlTxt) artLvlTxt.innerText = `Lv. ${art.level}`;
             
             if (artBonusTxt) {
-                // Formatting bonus based on type (percentage vs multiplier)
+                // Damage and Essence are multipliers (x), others are percentages (%)
                 const isMultiplier = art.type === "damage" || art.type === "essence";
-                const displayBonus = isMultiplier ? art.bonus.toFixed(1) : (art.bonus * 100).toFixed(0);
+                const displayValue = isMultiplier ? (art.bonus * art.level).toFixed(1) : (art.bonus * 100).toFixed(0);
                 const suffix = isMultiplier ? "x" : "%";
-                artBonusTxt.innerText = `+${displayBonus}${suffix} Bonus`;
+                artBonusTxt.innerText = `+${displayValue}${suffix} Bonus`;
             }
         }
     });
 
-    // --- 5. BATTLE RIFT & SPELLS ---
+    // --- 5. EXTERNAL SYSTEMS ---
     if (typeof updateMonsterUI === "function") updateMonsterUI(); 
     if (typeof updateSpellButtons === "function") updateSpellButtons();
 }
+
 function updateCombatUI() {
     const pct = Math.max(0, (monsterHP / monsterMaxHP) * 100);
     document.getElementById('hp-bar').style.width = pct + "%";
