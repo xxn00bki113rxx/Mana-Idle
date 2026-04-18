@@ -484,60 +484,75 @@ function getAffordableAmount(upg, currentMana) {
 }
 
 function renderShop() {
-    const shop = document.getElementById('shop');
-    if (!shop) return;
-    
-    let html = "";
-    upgrades.forEach((upg, index) => {
-        const robe = artifactPool.find(a => a.id === 'robe');
-        const discount = (robe && robe.owned) ? 0.9 : 1;
-        const currentCost = Math.floor(upg.cost * discount);
-        const affordable = getAffordableAmount(upg, mana);
+    const shopContainer = document.querySelector('.shop-container');
+    if (!shopContainer) return;
 
-        html += `
-            <div class="upgrade-card">
-                <div class="info">
-                    <strong>${upg.name}</strong> <br>
-                    <small>Level: ${upg.count}</small><br>
-                    <small style="color: #4ecca3">+${upg.mps} Mana/sec</small>
+    shopContainer.innerHTML = '';
+
+    const robe = artifactPool.find(a => a.id === 'robe');
+    const discount = (robe && robe.owned) ? robe.bonus : 0;
+
+    upgrades.forEach(upg => {
+        const finalCost = Math.floor(upg.cost * (1 - discount));
+        
+        const card = document.createElement('div');
+        card.className = 'upgrade-card';
+
+        // Set the description based on your array values
+        card.innerHTML = `
+            <div style="text-align: left;">
+                <div style="font-weight: bold; color: #4ecca3;">${upg.name}</div>
+                <div style="font-size: 0.8em; color: #888;">
+                    Owned: ${upg.count} | +${upg.mps} MPS
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 5px;">
-                    <button id="btn-${index}" onclick="buyUpgrade(${index})">
-                        Buy: ${currentCost.toLocaleString()}
-                    </button>
-                    
-                    <button id="max-${index}" onclick="buyMax(${index})" 
-                            style="background: #0f3460; font-size: 0.7em; color: white;">
-                        Max (+${affordable})
-                    </button>
-                </div>
-            </div>`;
+            </div>
+        `;
+
+        const buyBtn = document.createElement('button');
+        buyBtn.className = 'buy-btn'; 
+        buyBtn.style.minWidth = "110px";
+        buyBtn.innerText = `${finalCost.toLocaleString()}`;
+        
+        // Gray out if unaffordable
+        if (mana < finalCost) {
+            buyBtn.disabled = true;
+        }
+
+        buyBtn.onclick = () => buyUpgrade(upg.id);
+
+        card.appendChild(buyBtn);
+        shopContainer.appendChild(card);
     });
-    shop.innerHTML = html;
 }
 
-function buyUpgrade(index) {
-    const upg = upgrades[index];
-    
-    // Robe Logic: Apply discount to the cost before checking mana
-    const discount = getArtifactBonus("robe"); 
+function buyUpgrade(id) {
+    const upg = upgrades.find(u => u.id === id);
+    if (!upg) return;
+
+    // 1. Calculate Discount
+    const robe = artifactPool.find(a => a.id === 'robe');
+    const discount = (robe && robe.owned) ? robe.bonus : 0;
     const finalCost = Math.floor(upg.cost * (1 - discount));
 
+    // 2. Transaction Logic
     if (mana >= finalCost) {
         mana -= finalCost;
         upg.count++;
-        
-        // Increase base cost for next time (Standard 1.15x scaling)
-        upg.cost = Math.floor(upg.cost * 1.15); 
-        
-        // Restore Global MPS calculation if this was a production upgrade
-        globalMPS += upg.mps; 
 
-        updateUI();
+        // Exponential cost scaling (15% increase)
+        upg.cost = Math.ceil(upg.cost * 1.15);
+
+        // 3. Economy & UI Sync
+        calculateMPS(); 
+        updateUI(); // This will trigger renderShop() internally
+        
         if (typeof saveGame === 'function') saveGame();
     } else {
-        // Optional: Flash the button red if you want feedback here
-        console.log("Insufficient Mana for " + upg.name);
+        const log = document.getElementById('battle-log');
+        if (log) {
+            log.style.color = "#ff4d4d";
+            log.innerText = `Insufficient Mana! Need ${finalCost.toLocaleString()}.`;
+        }
     }
 }
 
@@ -561,10 +576,53 @@ function buyMax(index) {
 }
 
 function calculateMPS() {
-    let baseMPS = upgrades.reduce((total, upg) => total + (upg.count * upg.mps), 0);
+    // 1. Calculate Base Production from Buildings
+    // Standard reduce logic to sum up (count * mps) for each upgrade
+    let baseMPS = upgrades.reduce((total, upg) => {
+        return total + (upg.count * upg.mps);
+    }, 0);
+
+    // 2. Apply Artifact Multipliers
     const orb = artifactPool.find(a => a.id === 'orb');
-    let orbMult = (orb && orb.owned) ? (1 + (orb.level * 0.25)) : 1;
-    globalMPS = baseMPS * orbMult;
+    
+    // We use the art.bonus property established in the upgradeArtifact function.
+    // If the Orb is Level 1 with a 0.25 bonus, orbMult becomes 1.25.
+    let orbMult = (orb && orb.owned) ? (1 + orb.bonus) : 1;
+
+    // 3. Set Global State
+    // We use Math.max to ensure MPS never accidentally drops below 0
+    globalMPS = Math.max(0, baseMPS * orbMult);
+
+    // 4. CRITICAL: Immediate UI Sync
+    // This ensures that when you buy a building or upgrade the Orb, 
+    // the "Mana Per Second" display in your top bar changes instantly.
+    const mpsDisplay = document.getElementById('mps-display');
+    if (mpsDisplay) {
+        // Formats to 1 decimal place (e.g., "12.5") for better accuracy
+        mpsDisplay.innerText = globalMPS.toLocaleString(undefined, {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1
+        });
+    }
+}
+
+function createFloatingText(event, text, color = "#4ecca3") {
+    const floatText = document.createElement('div');
+    floatText.className = 'floating-text';
+    floatText.innerText = text;
+    floatText.style.color = color;
+
+    // Position the text at the mouse click coordinates
+    // We use clientX/Y for the position and subtract a bit to center it
+    floatText.style.left = `${event.clientX}px`;
+    floatText.style.top = `${event.clientY}px`;
+
+    document.body.appendChild(floatText);
+
+    // Remove the element after the animation (0.8s) finishes
+    setTimeout(() => {
+        floatText.remove();
+    }, 800);
 }
 
 // --- 4. COMBAT & ARTIFACTS ---
@@ -1088,18 +1146,40 @@ function renderCompendium() {
 
 // --- 5. VISUALS ---
 function clickMana(event) {
+    // 1. DYNAMIC POWER CALCULATION
+    // We check the Wand for click power and the Orb for a percentage multiplier
     const wand = artifactPool.find(a => a.id === 'wand');
-    const power = wand.owned ? (wand.level + 1) : 1;
-    mana += power;
+    const orb = artifactPool.find(a => a.id === 'orb');
 
+    // Base power (starts at 1) + Wand level bonus
+    let basePower = 1 + (wand && wand.owned ? wand.level : 0);
+    
+    // Global multiplier from the Crystal Orb (e.g., level 1 = +25% or 1.25x)
+    const multiplier = orb && orb.owned ? (1 + orb.bonus) : 1;
+    
+    const finalPower = Math.floor(basePower * multiplier);
+
+    // 2. STATE UPDATE
+    mana += finalPower;
+
+    // 3. FLOATING TEXT (Synced with your CSS)
     const p = document.createElement('div');
     p.className = 'floating-text';
-    p.innerText = `+${power}`;
-    p.style.left = event.clientX + 'px';
-    p.style.top = event.clientY + 'px';
+    p.innerText = `+${finalPower}`;
+    
+    // Position check: ensures the text is centered on the cursor
+    p.style.left = `${event.clientX}px`;
+    p.style.top = `${event.clientY}px`;
+    
     document.body.appendChild(p);
+
+    // 4. CLEANUP & SYNC
     setTimeout(() => p.remove(), 800);
-    updateUI();
+    
+    updateUI(); // Refreshes the top bar mana count
+    
+    // Optional: Save progress on click every once in a while
+    // if (mana % 10 === 0) saveGame(); 
 }
 
 function createDamagePopup(amount, isPassive) {
