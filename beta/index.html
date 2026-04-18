@@ -406,6 +406,16 @@ button {
         </div>
     </div>
 
+	<div id="artifact-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:99999; justify-content:center; align-items:center; font-family: sans-serif;">
+    	<div style="background:#1a1a2e; border:2px solid #f1c40f; padding:30px; border-radius:15px; text-align:center; max-width:350px; color:white; box-shadow: 0 0 20px #f1c40f;">
+        	<h2 style="color:#f1c40f; margin-top:0;">New Artifact Found!</h2>
+        	<img id="artifact-icon-popup" src="" style="width:80px; height:80px; margin:10px auto; display:block;">
+        	<h3 id="artifact-name-popup" style="margin:10px 0;">Item Name</h3>
+        	<p id="artifact-desc-popup" style="font-size:0.9em; color:#bdc3c7;">Description goes here.</p>
+        	<button onclick="closeArtifactPopup()" style="background:#f1c40f; color:#1a1a2e; border:none; padding:10px 20px; border-radius:5px; font-weight:bold; cursor:pointer; margin-top:15px;">Awesome!</button>
+    	</div>
+	</div>
+	
   <script>
 // --- 1. CORE VARIABLES ---
 let mana = 0;
@@ -968,29 +978,52 @@ function gainRandomArtifact() {
 
     // 4. Mark as owned
     newArtifact.owned = true;
-    newArtifact.level = 1; // Ensure it starts at level 1
+    newArtifact.level = 1; 
 
     // 5. Reset the Pity Timer
     killsSinceLastArtifact = 0;
 
-    // 6. Visual Feedback & Logging
+    // 6a. Visual Feedback - Logging
     const log = document.getElementById('battle-log');
     if (log) {
         log.innerHTML = `<span style="color: #f1c40f; font-weight: bold;">✨ DISCOVERY: You found the ${newArtifact.name}! ✨</span>`;
     }
 
+    // 6b. NEW: Visual Feedback - Modal Popup
+    showArtifactPopup(newArtifact); 
+
     // 7. CRITICAL: Update every relevant system
-    // We recalculate MPS because the new artifact might be the Crystal Ball
     if (typeof calculateMPS === 'function') calculateMPS();
-    
-    // We re-render the artifact list to show the new card
     renderArtifacts();
-    
-    // We update the UI to refresh mana prices (in case it's the Scholar's Robe)
     updateUI();
     
-    // Save the new state immediately
     if (typeof saveGame === 'function') saveGame();
+}
+
+function showArtifactPopup(artifact) {
+    const modal = document.getElementById('artifact-modal');
+    const nameTxt = document.getElementById('artifact-name-popup');
+    const descTxt = document.getElementById('artifact-desc-popup');
+    const iconImg = document.getElementById('artifact-icon-popup');
+
+    if (!modal) return;
+
+    // Fill the popup with the new artifact's data
+    nameTxt.innerText = artifact.name;
+    descTxt.innerText = artifact.description;
+    iconImg.src = artifact.icon || 'default-artifact.png'; // Fallback icon
+
+    // Make it visible
+    modal.style.display = 'flex';
+    
+    // Play a sound effect if you have one!
+    // new Audio('assets/unlock.mp3').play();
+}
+
+// Function to close it (attach this to your "Awesome!" button)
+function closeArtifactPopup() {
+    const modal = document.getElementById('artifact-modal');
+    if (modal) modal.style.display = 'none';
 }
 	  
 function renderArtifacts() {
@@ -1567,6 +1600,7 @@ window.onload = function() {
     console.log("Initialization Complete.");
 };
 </script>
+
 </body>
 </html>
 
