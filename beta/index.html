@@ -539,7 +539,7 @@ function renderSanctum() {
     // 5. Final Sync
     if (typeof updateUI === "function") updateUI();
 }
-function buyUpgrade(id) {
+function buyOne(id) {
     // 1. Find the building in your upgrades array
     const upg = upgrades.find(u => u.id === id);
     if (!upg) return;
