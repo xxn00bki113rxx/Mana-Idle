@@ -472,38 +472,28 @@ function getAffordableAmount(upg, currentMana, discount) {
 }
 
 function renderSanctum() {
-    // 1. Target the Sanctum container
-    const container = document.getElementById('sanctum-display');
+    // 1. Target the correct ID (Matches your HTML)
+    const container = document.getElementById('sanctum-container');
     if (!container) return;
 
-    // 2. Clear it out (Prevents duplicating the list every time we render)
+    // 2. Clear it out
     container.innerHTML = '';
-    container.className = 'shop-container'; // Ensures your CSS grid/flex stays active
+    // container.className is already 'shop-container' in HTML, but this reinforces it
+    container.className = 'shop-container'; 
 
-    // 3. Get the discount from the Scholar's Robe (if owned)
-    const robe = artifactPool.find(a => a.id === 'robe');
-    const discount = (robe && robe.owned) ? (robe.bonus || 0) : 0;
-
-    // 4. Create a card for every building in your upgrades list
+    // 3. Create a card for every building in your upgrades list
     upgrades.forEach(upg => {
         const card = document.createElement('div');
         card.className = 'upgrade-card';
         
         // --- TIER 2 COLOR LOGIC ---
-        // We define Tier 2 as any building with a base cost of 150,000 or higher
         const isTier2 = upg.cost >= 150000; 
-        const themeColor = isTier2 ? '#9b59b6' : '#4ecca3'; // Purple vs Green
+        const themeColor = isTier2 ? '#9b59b6' : '#4ecca3'; 
         
-        // Add specific Tier 2 styling if applicable
-        if (isTier2) {
-            card.style.borderLeft = `4px solid ${themeColor}`;
-            card.style.background = 'rgba(155, 89, 182, 0.05)';
-        } else {
-            card.style.borderLeft = `4px solid ${themeColor}`;
-            card.style.background = 'rgba(78, 204, 163, 0.05)';
-        }
+        card.style.borderLeft = `4px solid ${themeColor}`;
+        card.style.background = isTier2 ? 'rgba(155, 89, 182, 0.05)' : 'rgba(78, 204, 163, 0.05)';
 
-        // 5. Generate the HTML Structure
+        // 4. Generate the HTML Structure
         card.innerHTML = `
             <div style="font-weight: bold; color: ${themeColor}; margin-bottom: 2px;">${upg.name}</div>
             <div id="level-${upg.id}" style="font-size: 0.85em; color: #bdc3c7; margin-bottom: 5px;">Level: ${upg.count}</div>
@@ -511,11 +501,11 @@ function renderSanctum() {
                 +${upg.mps.toLocaleString()} MPS
             </div>
             
-            <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
-                <button id="buy1-${upg.id}" class="buy-btn" onclick="buyUpgrade('${upg.id}')" style="cursor: pointer;">
+            <div class="card-actions">
+                <button id="buy1-${upg.id}" class="buy-btn" onclick="buyOne('${upg.id}')">
                     Buy
                 </button>
-                <button id="max-${upg.id}" class="buy-btn max-btn" onclick="buyMax('${upg.id}')" style="cursor: pointer;">
+                <button id="max-${upg.id}" class="buy-btn" onclick="buyMax('${upg.id}')">
                     MAX
                 </button>
             </div>
@@ -524,9 +514,7 @@ function renderSanctum() {
         container.appendChild(card);
     });
 
-    // 6. Final Sync
-    // Since renderSanctum creates the buttons, we must run updateUI 
-    // immediately to fill in the costs and disable/enable buttons.
+    // 5. Final Sync
     if (typeof updateUI === "function") updateUI();
 }
 function buyUpgrade(id) {
