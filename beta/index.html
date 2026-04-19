@@ -442,14 +442,25 @@ window.showTab = function(tabName) {
 // --- 3. SHOP & ECONOMY ---
 function getAffordableAmount(upg, currentMana, discount) {
     let tempMana = currentMana;
-    let tempCost = upg.cost;
+    
+    // --- THE FIX: Start the math at the CURRENT level ---
+    // Calculate what the NEXT one will cost right now
+    let nextUnitBaseCost = upg.cost * Math.pow(1.15, upg.count);
+    
     let count = 0;
 
-    while (tempMana >= Math.floor(tempCost * (1 - discount))) {
-        tempMana -= Math.floor(tempCost * (1 - discount));
-        tempCost = Math.ceil(tempCost * 1.15);
+    // Loop until we run out of mana or hit a reasonable limit
+    while (tempMana >= Math.floor(nextUnitBaseCost * (1 - discount))) {
+        tempMana -= Math.floor(nextUnitBaseCost * (1 - discount));
+        
+        // Scale the price for the next one in the "imaginary" shopping cart
+        nextUnitBaseCost *= 1.15;
         count++;
+        
+        // Safety break to prevent infinite loops if cost is 0 or numbers break
+        if (count >= 1000) break; 
     }
+    
     return count;
 }
 
@@ -544,44 +555,54 @@ function buyUpgrade(id) {
 
 function buyMax(id) {
     const upg = upgrades.find(u => u.id === id);
-    if (!upg) return;
+    if (!upg || mana <= 0) return;
 
     const robe = artifactPool.find(a => a.id === 'robe');
     const discount = (robe && robe.owned) ? robe.bonus : 0;
 
-    // 1. Use the helper to see how many we can actually afford
-    let amountToBuy = getAffordableAmount(upg, mana, discount);
+    // 1. Calculate how many we can afford using your helper function
+    let amountToBuy = typeof getAffordableAmount === "function" ? getAffordableAmount(upg, mana, discount) : 0;
+
+    // Safety cap: prevents browser hangs if numbers get weirdly high
+    if (amountToBuy > 1000) amountToBuy = 1000;
 
     if (amountToBuy > 0) {
         let totalCost = 0;
-        let tempCost = upg.cost;
+        
+        // 2. The Fix: Calculate the cost of the NEXT building based on CURRENT level
+        // We use upg.cost (the base price) and scale it by the current count
+        let nextUnitBaseCost = upg.cost * Math.pow(1.15, upg.count);
 
-        // 2. Loop through to calculate the total cumulative cost
         for (let i = 0; i < amountToBuy; i++) {
-            const discountedPrice = Math.floor(tempCost * (1 - discount));
+            const discountedPrice = Math.floor(nextUnitBaseCost * (1 - discount));
             totalCost += discountedPrice;
-            tempCost = Math.ceil(tempCost * 1.15);
+            
+            // Scaled cost for the iteration after this one
+            nextUnitBaseCost *= 1.15; 
         }
 
-        // 3. Final safety check on mana
+        // 3. Final safety check on mana before deducting
         if (mana >= totalCost) {
             mana -= totalCost;
             upg.count += amountToBuy;
-            upg.cost = tempCost; // Set the new base cost for the next purchase
-
-            // 4. Update game state
+            
+            // 4. Update and Save
             if (typeof calculateMPS === 'function') calculateMPS();
             
-            // 5. Refresh the UI
-            renderSanctum();
+            // Refresh visuals
+            if (typeof renderSanctum === 'function') renderSanctum();
             updateUI();
-            saveGame();
             
-            console.log(`Bought ${amountToBuy} of ${upg.name}`);
+            if (typeof saveGame === 'function') saveGame();
+            
+            console.log(`Successfully bought ${amountToBuy} levels of ${upg.name} for ${Math.floor(totalCost).toLocaleString()} Mana.`);
+        } else {
+            // This fallback handles edge cases where math rounding might slightly mismatch
+            console.warn("Calculated amount was slightly too expensive. Re-syncing UI.");
+            updateUI();
         }
     }
 }
-
 function calculateMPS() {
     // 1. Calculate Base Production from Buildings
     let baseMPS = upgrades.reduce((total, upg) => {
