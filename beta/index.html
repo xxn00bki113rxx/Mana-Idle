@@ -12,343 +12,222 @@
     <meta name="theme-color" content="#1a1a2e">
     <title>Fantasy Idle: Tiered Magic</title>
     <style>
-    /* 1. GLOBAL THEME & LAYOUT */
-    body { 
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-        background: #1a1a2e; 
-        color: #fff; 
-        text-align: center; 
-        margin: 0; 
-        padding-bottom: 50px; 
-        overflow-x: hidden; 
-    }
+/* 1. GLOBAL THEME & LAYOUT */
+body { 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    background: #1a1a2e; 
+    color: #fff; 
+    text-align: center; 
+    margin: 0; 
+    padding-bottom: 50px; 
+    overflow-x: hidden; 
+    box-sizing: border-box;
+}
 
-    #mana-display { 
-        font-size: 2.5em; 
-        color: #4ecca3; 
-        margin: 10px; 
-        text-shadow: 0 0 10px rgba(78, 204, 163, 0.3);
-    }
+*, *:before, *:after {
+    box-sizing: inherit; /* Ensures all elements stay within their borders */
+}
 
-    /* 2. COMBAT SECTION & MONSTER */
-    #combat-section {
-        width: 90%;
-        max-width: 400px;
-        background: #16213e;
-        border: 2px solid #e94560;
-        padding: 20px;
-        border-radius: 20px; /* Highly rounded for modern feel */
-        margin: 20px auto;
-        position: relative;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    }
+#mana-display { 
+    font-size: 2.5em; 
+    color: #4ecca3; 
+    margin: 10px; 
+    text-shadow: 0 0 10px rgba(78, 204, 163, 0.3);
+}
 
-    #monster-sprite { 
-        font-size: clamp(60px, 18vw, 90px); 
-        transition: transform 0.1s, filter 0.2s; 
-        cursor: pointer; 
-        display: inline-block;
-        user-select: none;
-        padding: 10px;
-    }
+/* 2. TAB & GRID SYSTEM (Consolidated Fix) */
+.tab-content {
+    padding: 10px;
+    width: 100%;
+}
 
-    #monster-sprite:active {
-        transform: scale(0.9); /* Tactile "squish" on click */
-    }
-
-    /* 3. ABILITY BAR & SKILLS */
-    .ability-bar {
-        display: flex;
-        gap: 12px;
-        justify-content: center;
-        margin: 20px auto;
-        width: 95%;
-        max-width: 450px;
-    }
-
-    .skill-container {
-        position: relative;
-        flex: 1;
-        overflow: hidden;
-        border-radius: 12px;
-        height: 70px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-    }
-
-    .skill-btn {
-        width: 100%;
-        height: 100%;
-        background: #16213e;    
-        border: 2px solid #4ecca3; 
-        color: #4ecca3;         
-        font-size: 0.85em;
-        font-weight: bold;
-        cursor: pointer;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-        z-index: 1;
-        transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-
-    .skill-btn span {
-        position: relative;
-        z-index: 3; /* Keeps text above the dark tint */
-        pointer-events: none;
-    }
-
-    .skill-btn:hover:not(:disabled) {
-        background: #1f2d52;
-        transform: translateY(-2px);
-    }
-
-    .skill-btn:disabled {
-        border-color: #444;
-        color: #666;
-        cursor: not-allowed;
-        opacity: 0.7;
-    }
-
-    .cooldown-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 0%; 
-        background: rgba(0, 0, 0, 0.75); 
-        pointer-events: none; 
-        z-index: 2;
-        border-radius: 10px;
-    }
-
-    /* 4. SHOP & UPGRADE CARDS */
-    .shop-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 12px;
-        max-height: 60vh; 
-        overflow-y: auto; 
-        padding: 15px;
-    }
-
-    .upgrade-card { 
-        background: #16213e; 
-        border: 2px solid #4ecca3; 
-        padding: 15px; 
-        width: 90%; 
-        max-width: 420px; 
-        border-radius: 15px; /* Rounded corners restored */
-        display: flex; 
-        justify-content: space-between; 
-        align-items: center; 
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        transition: transform 0.2s;
-    }
-
-    .upgrade-card:hover {
-        transform: translateX(5px);
-        background: #1f2d52;
-    }
-
-	/* Apply this to both containers */
 .shop-container, .artifact-grid {
     display: grid;
-    /* This creates columns at least 150px wide, filling the space automatically */
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 15px;
-    padding: 10px;
-    justify-content: center;
-}
-
-/* Ensure cards take up the full width of their grid cell */
-.upgrade-card, .artifact-card {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    background: #1b1b2f;
-    border: 1px solid #4ecca3;
-    border-radius: 8px;
-    padding: 12px;
-    text-align: center;
-    /* Remove any fixed widths you had before so they flex */
-    width: auto; 
-}
-
-	.shop-container, .artifact-grid {
-    display: grid;
-    /* This makes columns that shrink/grow between 160px and 1fr */
+    /* responsive columns: tiles shrink to 160px then wrap */
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 12px;
     padding: 15px;
+    width: 100%;
+    max-height: 65vh; 
+    overflow-y: auto; 
+    justify-content: center;
 }
 
+/* 3. CARDS (Unified Upgrade/Artifact cards) */
 .upgrade-card, .artifact-card {
     background: #16213e;
     border: 1px solid #0f3460;
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 15px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    transition: transform 0.2s;
+    transition: transform 0.2s, border-color 0.2s;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
-.upgrade-card:hover {
+.upgrade-card:hover, .artifact-card:hover {
     border-color: #4ecca3;
     transform: translateY(-2px);
+    background: #1f2d52;
 }
 
-    /* 5. NAVIGATION */
-    .nav-btn {
-        background-color: #1a1a2e;
-        color: #4ecca3;
-        border: 2px solid #4ecca3;
-        padding: 10px 25px;
-        border-radius: 12px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: 0.3s;
-        margin: 5px;
-    }
+/* 4. COMBAT SECTION (Battle Rift) */
+#combat-section {
+    width: 100%;
+    max-width: 420px; /* Limits size on desktop */
+    background: #16213e;
+    border: 2px solid #e94560;
+    padding: 20px;
+    border-radius: 20px;
+    margin: 20px auto;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
 
-    .nav-btn.active {
-        background-color: #4ecca3;
-        color: #1a1a2e;
-        box-shadow: 0 0 15px #4ecca3;
-    }
+#monster-sprite { 
+    font-size: clamp(60px, 18vw, 90px); 
+    transition: transform 0.1s; 
+    cursor: pointer; 
+    display: inline-block;
+    user-select: none;
+    padding: 10px;
+}
 
-    /* 6. ANIMATIONS & SPECIAL EFFECTS */
-    
-    /* Monster Hit Flash */
-    .monster-pulse { animation: hitFlash 0.15s ease-out; }
-    @keyframes hitFlash {
-        0% { transform: scale(1); filter: brightness(1); }
-        50% { transform: scale(1.1); filter: brightness(2) drop-shadow(0 0 15px #e94560); }
-        100% { transform: scale(1); filter: brightness(1); }
-    }
+#monster-sprite:active {
+    transform: scale(0.9);
+}
 
-    /* Mana Storm Multi-hit */
-    .monster-storm-hit { animation: stormFlash 0.1s infinite; }
-    @keyframes stormFlash {
-        0% { filter: brightness(1); }
-        50% { filter: brightness(2.5) drop-shadow(0 0 25px #bb86fc); }
-        100% { filter: brightness(1); }
-    }
+/* 5. ABILITY BAR & BUTTONS */
+.ability-bar {
+    display: flex;
+    flex-wrap: wrap; /* Fixes mobile overflow */
+    gap: 10px;
+    justify-content: center;
+    margin: 15px auto;
+    width: 100%;
+}
 
-    /* Screen Shake */
-    .shake { animation: shakeEffect 0.4s cubic-bezier(.36,.07,.19,.97) both; }
-    @keyframes shakeEffect {
-        10%, 90% { transform: translate3d(-1px, 0, 0); }
-        20%, 80% { transform: translate3d(2px, 0, 0); }
-        30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-        40%, 60% { transform: translate3d(4px, 0, 0); }
-    }
+.skill-container {
+    position: relative;
+    flex: 1;
+    min-width: 85px; /* Ensures buttons stay readable on small screens */
+    border-radius: 12px;
+    height: 70px;
+    overflow: hidden;
+}
 
-    /* Ready Glow for Skills */
-    .skill-btn:not(:disabled) {
-        animation: glowReady 2s infinite;
-    }
-    @keyframes glowReady {
-        0% { box-shadow: 0 0 5px rgba(78, 204, 163, 0.2); }
-        50% { box-shadow: 0 0 15px rgba(78, 204, 163, 0.6); }
-        100% { box-shadow: 0 0 5px rgba(78, 204, 163, 0.2); }
-    }
-
-    /* Floating Text Popups */
-    .damage-popup { 
-        position: absolute; 
-        font-weight: bold; 
-        pointer-events: none; 
-        animation: popupFloat 0.8s ease-out forwards; 
-        z-index: 100; 
-    }
-    @keyframes popupFloat { 
-        0% { opacity: 1; transform: translateY(0) scale(1); } 
-        100% { opacity: 0; transform: translateY(-60px) scale(1.2); } 
-    }
-
-	
-
-/* This targets the main action buttons (Gather, Strike, Buy) */
-#gather-mana-btn, #strike-btn, .buy-btn {
-    border-radius: 15px; /* Matches the rounded game UI */
+/* Main Action Buttons */
+#gather-mana-btn, #strike-btn, .buy-btn, .skill-btn {
+    border-radius: 12px;
     border: 2px solid #4ecca3;
     background: #16213e;
     color: #4ecca3;
     font-weight: bold;
-    font-size: 1.1em;
-    padding: 15px;
-    width: 100%;
-    max-width: 300px;
-    margin: 10px auto;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    display: block;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
 }
 
-/* Hover effects for the rectangles that are now rounded */
-#gather-mana-btn:hover, #strike-btn:hover, .buy-btn:hover:not(:disabled) {
-    transform: translateY(-3px) scale(1.02);
-    background: #4ecca3;
-    color: #1b1b2f;
-    box-shadow: 0 8px 20px rgba(78, 204, 163, 0.4);
-}
-
-/* Specific styling for the Standard Strike to keep it "Combat Red" */
 #strike-btn {
     border-color: #e94560;
     color: #e94560;
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
 }
 
-#strike-btn:hover {
-    background: #e94560;
-    color: #fff;
-    box-shadow: 0 8px 20px rgba(233, 69, 96, 0.4);
+.skill-btn {
+    width: 100%;
+    height: 100%;
+    font-size: 0.8em;
 }
 
-/* Ensure the disabled state also respects the rounded corners */
-button:disabled, .buy-btn:disabled {
+.cooldown-overlay {
+    position: absolute;
+    bottom: 0; /* Cooldown fills from bottom up */
+    left: 0;
+    width: 100%;
+    height: 0%; 
+    background: rgba(0, 0, 0, 0.75); 
+    pointer-events: none; 
+    z-index: 2;
+}
+
+/* Hover/Active States */
+.nav-btn:hover, button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    filter: brightness(1.2);
+}
+
+button:disabled {
     border-color: #444 !important;
     color: #666 !important;
     background: #1a1a2e !important;
     cursor: not-allowed;
     transform: none !important;
-    box-shadow: none !important;
 }
 
-button {
-    border-radius: 12px !important;
-    transition: all 0.2s ease;
+/* 6. NAVIGATION */
+.nav-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.nav-btn {
+    background: #1a1a2e;
+    color: #4ecca3;
+    border: 2px solid #4ecca3;
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.nav-btn.active {
+    background: #4ecca3;
+    color: #1a1a2e;
+    box-shadow: 0 0 15px rgba(78, 204, 163, 0.5);
+}
+
+/* 7. ANIMATIONS */
+@keyframes hitFlash {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); filter: brightness(2); }
+    100% { transform: scale(1); }
+}
+.monster-pulse { animation: hitFlash 0.15s ease-out; }
+
+.damage-popup { 
+    position: absolute; 
+    font-weight: bold; 
+    color: #e94560;
+    pointer-events: none; 
+    animation: popupFloat 0.8s ease-out forwards; 
+    z-index: 100; 
+}
+
+@keyframes popupFloat { 
+    0% { opacity: 1; transform: translateY(0); } 
+    100% { opacity: 0; transform: translateY(-60px) scale(1.2); } 
 }
 
 .floating-text {
-    position: fixed; /* Ensures it uses screen coordinates from the click */
+    position: fixed;
     font-weight: bold;
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     color: #4ecca3;
     pointer-events: none;
     z-index: 10000;
-    user-select: none;
-    text-shadow: 0 0 10px rgba(0,0,0,1);
-    /* We handle the initial position in JS, so we only animate the movement */
     animation: floatAndFade 0.8s ease-out forwards;
 }
 
 @keyframes floatAndFade {
-    0% {
-        opacity: 1;
-        transform: translateY(0); /* Start at click point */
-    }
-    100% {
-        opacity: 0;
-        transform: translateY(-100px); /* Move straight up from click point */
-    }
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-100px); }
 }
 		
 </style>
@@ -382,37 +261,49 @@ button {
         <div class="shop-container" id="sanctum-display"></div>
     </div>
 
-    <div id="battle-tab" class="tab-content" style="display: none;">
-        <div id="combat-section">
-            <h2 style="color: #e94560; margin: 0;">Arcane Rift</h2>
-            <div id="monster-container" style="height: 120px; display: flex; align-items: center; justify-content: center; position: relative;">
-                <div id="monster-sprite" class="monster-pulse" onclick="attackMonster()">👿</div>
-            </div>
-            <div id="monster-name" style="font-weight: bold;">Shadow Imp</div>
-            
-            <div style="width: 100%; background: #0f3460; height: 20px; border-radius: 10px; margin: 10px 0; border: 1px solid #e94560; overflow: hidden; position: relative;">
-                <div id="hp-bar" style="width: 100%; background: #e94560; height: 100%; transition: width 0.1s;"></div>
-                <div id="hp-text" style="position: absolute; width: 100%; text-align: center; font-size: 0.8em; line-height: 20px; color: white; font-weight: bold;">HP: 50 / 50</div>
-            </div>
+    <div id="battle-tab" class="tab-content" style="display: none; padding: 10px; box-sizing: border-box;">
+    <div id="combat-section" style="
+        width: 100%; 
+        max-width: 450px; 
+        margin: 0 auto; 
+        background: #16213e; 
+        border: 2px solid #e94560; 
+        border-radius: 15px; 
+        padding: 20px; 
+        box-sizing: border-box; 
+        text-align: center;">
 
-            <button id="strike-btn" onclick="attackMonster(event)">Standard Strike</button>
+        <h2 style="color: #e94560; margin: 0 0 10px 0;">Arcane Rift</h2>
+        
+        <div id="monster-container" style="height: 120px; display: flex; align-items: center; justify-content: center; position: relative;">
+            <div id="monster-sprite" class="monster-pulse" onclick="attackMonster()" style="font-size: 50px; cursor: pointer;">👿</div>
+        </div>
+        
+        <div id="monster-name" style="font-weight: bold; color: #fff; margin-bottom: 5px;">Shadow Imp</div>
+        
+        <div style="width: 100%; background: #0f3460; height: 24px; border-radius: 12px; margin: 10px 0; border: 1px solid #e94560; overflow: hidden; position: relative; box-sizing: border-box;">
+            <div id="hp-bar" style="width: 100%; background: #e94560; height: 100%; transition: width 0.1s;"></div>
+            <div id="hp-text" style="position: absolute; width: 100%; top: 0; left: 0; text-align: center; font-size: 0.85em; line-height: 22px; color: white; font-weight: bold; text-shadow: 1px 1px 2px #000;">HP: 50 / 50</div>
+        </div>
 
-            <div class="ability-bar">
-                <div class="skill-container">
-                    <button class="skill-btn" onclick="castBlast(event)">Arcane Blast</button>
-                    <div id="cooldown-blast" class="cooldown-overlay"></div>
-                </div>
-                <div class="skill-container">
-                    <button class="skill-btn" onclick="castSiphon(event)">Mana Siphon</button>
-                    <div id="cooldown-siphon" class="cooldown-overlay"></div>
-                </div>
-                <div class="skill-container">
-                    <button class="skill-btn" onclick="castStorm(event)">Mana Storm</button>
-                    <div id="cooldown-storm" class="cooldown-overlay"></div>
-                </div>
+        <button id="strike-btn" onclick="attackMonster(event)" style="width: 100%; padding: 12px; margin-bottom: 15px; background: #e94560; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">Standard Strike</button>
+
+        <div class="ability-bar" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: 100%;">
+            <div class="skill-container" style="position: relative; flex: 1; min-width: 80px;">
+                <button class="skill-btn" onclick="castBlast(event)" style="width: 100%; font-size: 0.8em; padding: 10px 5px;">Arcane Blast</button>
+                <div id="cooldown-blast" class="cooldown-overlay"></div>
+            </div>
+            <div class="skill-container" style="position: relative; flex: 1; min-width: 80px;">
+                <button class="skill-btn" onclick="castSiphon(event)" style="width: 100%; font-size: 0.8em; padding: 10px 5px;">Mana Siphon</button>
+                <div id="cooldown-siphon" class="cooldown-overlay"></div>
+            </div>
+            <div class="skill-container" style="position: relative; flex: 1; min-width: 80px;">
+                <button class="skill-btn" onclick="castStorm(event)" style="width: 100%; font-size: 0.8em; padding: 10px 5px;">Mana Storm</button>
+                <div id="cooldown-storm" class="cooldown-overlay"></div>
             </div>
         </div>
-    </div> 
+    </div>
+</div> 
 
     <div id="compendium-tab" class="tab-content" style="display: none; padding: 20px;">
         <h2 style="color: #4ecca3;">Mystic Compendium</h2>
