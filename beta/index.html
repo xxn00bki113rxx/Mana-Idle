@@ -1198,52 +1198,53 @@ function createDamagePopup(amount, isPassive) {
 
 
 function gameLoop() {
+    // --- A. TEMPORAL CALCULATIONS ---
     const hourglass = artifactPool.find(a => a.id === 'hourglass');
     let speedMult = (hourglass && hourglass.owned) ? (1 - (hourglass.level * 0.05)) : 1;
-    
-    // Ensure the game doesn't tick faster than 20ms (50fps) to prevent CPU melting
     let tickDelay = Math.max(20, baseTickSpeed * speedMult);
 
-    // --- 1. ACCURATE PRODUCTION ---
-    // We calculate exactly how much of a "second" has passed in this tick
+    // Calculate production based on time passed (Delta Time)
     let deltaTime = tickDelay / 1000; 
     let mpsThisTick = globalMPS * deltaTime;
+    
+    // Internal values keep their decimals for accuracy
     mana += mpsThisTick;
 
-    // --- 2. COMBAT CALCULATIONS ---
+    // --- B. PASSIVE COMBAT ---
     if (monsterHP > 0) {
-        let pDmg = mpsThisTick * 0.1; // Passive damage is 10% of your MPS
+        let pDmg = mpsThisTick * 0.1; // 10% of MPS as passive damage
         monsterHP -= pDmg;
         passiveDamageBuffer += pDmg;
-        if (monsterHP <= 0) defeatMonster();
+        
+        if (monsterHP <= 0) {
+            if (typeof defeatMonster === "function") defeatMonster();
+        }
     }
 
-    // --- 3. STABLE AUTOSAVE ---
-    // Instead of random, we increment a timer. 
-    // If tickDelay is 100ms, saveTimer reaches 300 every 30 seconds.
-    saveTimer += tickDelay;
-    if (saveTimer >= 30000) { // 30,000ms = 30 seconds
-        saveGame();
-        saveTimer = 0;
-    }
-    
-    // --- 4. POPUP TIMING ---
+    // --- C. DAMAGE POPUPS (Whole Numbers) ---
     passiveTimer++;
-    if (passiveTimer >= 10) {
+    if (passiveTimer >= 10) { // Every 1 second (at 100ms ticks)
         if (passiveDamageBuffer >= 1) {
             if (typeof createDamagePopup === "function") {
-                createDamagePopup(Math.ceil(passiveDamageBuffer), true);
+                // Math.floor used here so floating text is always a whole number
+                createDamagePopup(Math.floor(passiveDamageBuffer), true);
             }
         }
         passiveDamageBuffer = 0;
         passiveTimer = 0;
     }
 
-    // --- 5. UI REFRESH ---
+    // --- D. STABLE AUTOSAVE ---
+    saveTimer += tickDelay;
+    if (saveTimer >= 30000) { // 30 Seconds
+        if (typeof saveGame === "function") saveGame();
+        saveTimer = 0;
+    }
+
+    // --- E. HEARTBEAT ---
     updateUI();
-    if (typeof updateCombatUI === "function") updateCombatUI();
     
-    // Loop the function
+    // Schedule next tick
     setTimeout(gameLoop, tickDelay);
 }
 
@@ -1253,80 +1254,69 @@ function updateUI() {
     const eDisplay = document.getElementById('essence-display');
     
     if (mDisplay) {
-        // Math.floor prevents decimal mana from looking messy
+        // Floor the mana and add commas for readability
         mDisplay.innerText = Math.floor(mana).toLocaleString();
     }
     
     if (eDisplay) {
+        // Essence is usually earned in smaller amounts, but commas still help
         eDisplay.innerText = Math.floor(essence).toLocaleString();
     }
 
-    // --- 2. GLOBAL MPS (Header) ---
+    // --- 2. GLOBAL MPS (Flow) ---
     const mpsDisplay = document.getElementById('mps-display');
     if (mpsDisplay) {
         const currentMPS = calculateMPS(); 
-        // Logic check: ensure toLocaleString uses 1 decimal for "0.5 /sec" visibility
-        mpsDisplay.innerText = `Flow: ${currentMPS.toLocaleString(undefined, {
-            minimumFractionDigits: 1,
-            maximumFractionDigits: 1
-        })} /sec`;
+        // Display MPS as a clean whole number
+        mpsDisplay.innerText = `Flow: ${Math.floor(currentMPS).toLocaleString()} /sec`;
     }
 
-    // --- 3. SANCTUM (Buildings & Discounts) ---
+    // --- 3. SANCTUM (Buildings) ---
     const robe = artifactPool.find(a => a.id === 'robe');
     const discount = (robe && robe.owned) ? (robe.bonus || 0) : 0;
 
     upgrades.forEach(upg => {
-        // Calculate the actual cost after the Scholar's Robe discount
+        // Calculate the actual cost with scaling and artifact discounts
         const currentCost = Math.floor(upg.cost * Math.pow(1.15, upg.count) * (1 - discount));
-        const affordable = typeof getAffordableAmount === "function" ? getAffordableAmount(upg, mana, discount) : 0;
-
+        
+        // Find buttons
         const b1Btn = document.getElementById(`buy1-${upg.id}`);
+        const mxBtn = document.getElementById(`max-${upg.id}`);
+        const lvlTxt = document.getElementById(`level-${upg.id}`);
+
         if (b1Btn) {
             b1Btn.disabled = (mana < currentCost);
             b1Btn.innerText = `Buy: ${currentCost.toLocaleString()}`;
         }
 
-        const mxBtn = document.getElementById(`max-${upg.id}`);
         if (mxBtn) {
-            mxBtn.disabled = (mana < currentCost); // Disabled if you can't afford at least 1
+            // Check how many the player can afford (assumes helper function exists)
+            const affordable = typeof getAffordableAmount === "function" ? getAffordableAmount(upg, mana, discount) : 0;
+            mxBtn.disabled = (mana < currentCost);
             mxBtn.innerText = `MAX (+${affordable})`;
         }
         
-        const lvlTxt = document.getElementById(`level-${upg.id}`);
         if (lvlTxt) lvlTxt.innerText = `Level: ${upg.count}`;
     });
 
-    // --- 4. COMPENDIUM (Artifact Scaling) ---
+    // --- 4. COMPENDIUM (Artifacts) ---
     artifactPool.forEach(art => {
-        const artBtn = document.getElementById(`upgrade-art-${art.id}`);
-        const artLvlTxt = document.getElementById(`art-level-${art.id}`);
-        const artBonusTxt = document.getElementById(`art-bonus-${art.id}`);
-
         if (art.owned) {
-            const upgradeCost = Math.pow(2, art.level - 1) * 10;
+            const artBtn = document.getElementById(`upgrade-art-${art.id}`);
+            const artLvlTxt = document.getElementById(`art-level-${art.id}`);
+            
+            const upgradeCost = Math.floor(Math.pow(2, art.level - 1) * 10);
             
             if (artBtn) {
                 artBtn.disabled = (essence < upgradeCost);
                 artBtn.innerText = `Upgrade: ${upgradeCost.toLocaleString()} Essence`;
             }
-
             if (artLvlTxt) artLvlTxt.innerText = `Lv. ${art.level}`;
-            
-            if (artBonusTxt) {
-                // Type check for proper formatting (Multiplier vs Percentage)
-                const isMultiplier = art.type === "damage" || art.type === "essence";
-                const displayValue = isMultiplier ? (art.bonus * art.level).toFixed(1) : (art.bonus * 100).toFixed(0);
-                const suffix = isMultiplier ? "x" : "%";
-                artBonusTxt.innerText = `+${displayValue}${suffix} Bonus`;
-            }
         }
     });
 
-    // --- 5. BATTLE RIFT & EXTERNAL SYSTEMS ---
-    // These only run if the functions exist to prevent console errors
-    if (typeof updateMonsterUI === "function") updateMonsterUI(); 
-    if (typeof updateSpellButtons === "function") updateSpellButtons();
+    // --- 5. COMBAT SYNC ---
+    if (typeof updateCombatUI === "function") updateCombatUI();
 }
 
 function updateCombatUI() {
