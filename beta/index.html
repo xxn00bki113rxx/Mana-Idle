@@ -459,46 +459,54 @@ button {
 let mana = 0;
 let essence = 0;
 let globalMPS = 0;
+
+// --- Battle Rift (Combat) ---
 let monsterHP = 50;
 let monsterMaxHP = 50;
 let monstersDefeated = 0;
+let killsSinceLastArtifact = 0;
+let isCurrentMonsterElite = false;
 let passiveDamageBuffer = 0;
 let passiveTimer = 0;
-let baseTickSpeed = 100;
-let killsSinceLastArtifact = 0;
+const PITY_THRESHOLD = 20; 
+
+// --- Combat Rewards ---
 let manaPerKill = 5;
-let isCurrentMonsterElite = false;
+
+// --- Timers & Engine Settings ---
+let baseTickSpeed = 100;
+let saveTimer = 0; 
+
+// --- Spell Systems ---
 let spellCooldowns = {
     blast: false,
     siphon: false,
     storm: false
 };
 
-	  
-const PITY_THRESHOLD = 20; 
-
+// --- 2. ARTIFACT DEFINITIONS ---
 const artifactPool = [
-    { id: "wand", name: "Ancient Wand", icon: "🪄", owned: false, level: 1, bonus: 2, type: "damage", desc: "Increases Click & Blast damage." },
+    { id: "wand", name: "Ancient Wand", icon: "🪄", owned: false, level: 1, bonus: 1.0, type: "damage", desc: "Increases Click & Blast damage by 100% per level." },
     { id: "robe", name: "Scholar's Robe", icon: "🥋", owned: false, level: 1, bonus: 0.1, type: "discount", desc: "10% discount on upgrades." },
     { id: "orb", name: "Crystal Ball", icon: "🔮", owned: false, level: 1, bonus: 0.25, type: "mps", desc: "Increases Global MPS by 25%." },
     { id: "hourglass", name: "Temporal Hourglass", icon: "⏳", owned: false, level: 1, bonus: 0.05, type: "speed", desc: "Makes the game tick 5% faster." },
-    { id: "pouch", name: "Bottomless Pouch", icon: "💰", owned: false, level: 1, bonus: 1.2, type: "essence", desc: "Monsters drop 20% more Essence." },
-    { id: "slayer", name: "Slayer's Mark", icon: "🎯", owned: false, level: 1, bonus: 2, type: "elite_damage", desc: "Deals massive bonus damage to Elite monsters." }
+    { id: "pouch", name: "Bottomless Pouch", icon: "💰", owned: false, level: 1, bonus: 0.2, type: "essence", desc: "Monsters drop 20% more Essence." },
+    { id: "slayer", name: "Slayer's Mark", icon: "🎯", owned: false, level: 1, bonus: 1.0, type: "elite_damage", desc: "Deals 100% bonus damage to Elite monsters." }
 ];
 
+// --- 3. UPGRADE DEFINITIONS ---
 const upgrades = [
-    // --- TIER 1: The Foundation ---
     { id: 'scribe', name: 'Apprentice Scribe', cost: 15, mps: 1, count: 0 },
     { id: 'well', name: 'Mana Well', cost: 125, mps: 6, count: 0 },
     { id: 'library', name: 'Arcane Library', cost: 1200, mps: 40, count: 0 },
     { id: 'tower', name: 'Wizard Tower', cost: 9500, mps: 180, count: 0 },
     { id: 'palantir', name: 'Visionary Palantir', cost: 45000, mps: 650, count: 0 },
 
-    // --- TIER 2: Ancient Structures ---
+    // Tier 2 
     { id: 'monolith', name: 'Eldritch Monolith', cost: 150000, mps: 1800, count: 0 },
     { id: 'nexus', name: 'Leyline Nexus', cost: 850000, mps: 7500, count: 0 },
     { id: 'citadel', name: 'Floating Citadel', cost: 5000000, mps: 32000, count: 0 },
-    { id: 'sanctum', name: 'Eternal Sanctum', cost: 25000000, mps: 125000, count: 0 },
+    { id: 'sanctum_bldg', name: 'Eternal Sanctum', cost: 25000000, mps: 125000, count: 0 },
     { id: 'rift_gate', name: 'Void Rift Gate', cost: 150000000, mps: 600000, count: 0 }
 ];
 
@@ -1295,31 +1303,56 @@ function createDamagePopup(amount, isPassive) {
 }
 
 // --- 6. CORE ENGINE ---
+// Add this variable at the top of your script with your other globals
+let saveTimer = 0; 
+
 function gameLoop() {
     const hourglass = artifactPool.find(a => a.id === 'hourglass');
     let speedMult = (hourglass && hourglass.owned) ? (1 - (hourglass.level * 0.05)) : 1;
+    
+    // Ensure the game doesn't tick faster than 20ms (50fps) to prevent CPU melting
     let tickDelay = Math.max(20, baseTickSpeed * speedMult);
 
-    mana += (globalMPS / 10);
+    // --- 1. ACCURATE PRODUCTION ---
+    // We calculate exactly how much of a "second" has passed in this tick
+    let deltaTime = tickDelay / 1000; 
+    let mpsThisTick = globalMPS * deltaTime;
+    mana += mpsThisTick;
+
+    // --- 2. COMBAT CALCULATIONS ---
     if (monsterHP > 0) {
-        let pDmg = (globalMPS * 0.01);
+        let pDmg = mpsThisTick * 0.1; // Passive damage is 10% of your MPS
         monsterHP -= pDmg;
         passiveDamageBuffer += pDmg;
         if (monsterHP <= 0) defeatMonster();
     }
 
-	if (Math.random() < 0.01) { // Roughly every 10 seconds at 100ms ticks
-    saveGame();
-	}
-	
+    // --- 3. STABLE AUTOSAVE ---
+    // Instead of random, we increment a timer. 
+    // If tickDelay is 100ms, saveTimer reaches 300 every 30 seconds.
+    saveTimer += tickDelay;
+    if (saveTimer >= 30000) { // 30,000ms = 30 seconds
+        saveGame();
+        saveTimer = 0;
+    }
+    
+    // --- 4. POPUP TIMING ---
     passiveTimer++;
     if (passiveTimer >= 10) {
-        if (passiveDamageBuffer >= 1) createDamagePopup(Math.ceil(passiveDamageBuffer), true);
+        if (passiveDamageBuffer >= 1) {
+            if (typeof createDamagePopup === "function") {
+                createDamagePopup(Math.ceil(passiveDamageBuffer), true);
+            }
+        }
         passiveDamageBuffer = 0;
         passiveTimer = 0;
     }
+
+    // --- 5. UI REFRESH ---
     updateUI();
-    updateCombatUI();
+    if (typeof updateCombatUI === "function") updateCombatUI();
+    
+    // Loop the function
     setTimeout(gameLoop, tickDelay);
 }
 
@@ -1417,18 +1450,32 @@ function updateCombatUI() {
 function saveGame() {
     try {
         const state = {
+            // Numbers
             mana: Number(mana),
             essence: Number(essence),
             monstersDefeated: Number(monstersDefeated),
             monsterMaxHP: Number(monsterMaxHP),
-            killsSinceLastArtifact: killsSinceLastArtifact,
-			// Map upgrades to a simple array of counts/costs
-            upgrades: upgrades.map(u => ({ count: u.count, cost: u.cost })),
-            // Map artifacts to their owned status and levels
-            artifacts: artifactPool.map(a => ({ id: a.id, owned: a.owned, level: a.level }))
+            killsSinceLastArtifact: Number(killsSinceLastArtifact),
+
+            // Map upgrades: We only NEED the count. 
+            // The cost and mps will be recalculated based on your newest balance code.
+            upgrades: upgrades.map(u => ({ 
+                id: u.id, 
+                count: u.count 
+            })),
+
+            // Map artifacts
+            artifacts: artifactPool.map(a => ({ 
+                id: a.id, 
+                owned: a.owned, 
+                level: a.level 
+            }))
         };
+
         localStorage.setItem("wizardIdle_v1", JSON.stringify(state));
-        console.log("Game Saved Successfully");
+        
+        // Optional: Visual feedback for the player
+        console.log("Game Saved Successfully at " + new Date().toLocaleTimeString());
     } catch (e) {
         console.error("Save Error:", e);
     }
@@ -1441,25 +1488,28 @@ function loadGame() {
 
         const data = JSON.parse(saved);
         
-        // Load basic resources
+        // 1. Load basic resources
         mana = Number(data.mana) || 0;
         essence = Number(data.essence) || 0;
         monstersDefeated = Number(data.monstersDefeated) || 0;
         monsterMaxHP = Number(data.monsterMaxHP) || 50;
-        monsterHP = monsterMaxHP; // Reset HP to full on load
-		killsSinceLastArtifact = Number(data.killsSinceLastArtifact) || 0;
-		
-        // Load Upgrades
+        monsterHP = monsterMaxHP; 
+        killsSinceLastArtifact = Number(data.killsSinceLastArtifact) || 0;
+        
+        // 2. Load Upgrades (Using ID matching instead of Index)
         if (data.upgrades) {
-            data.upgrades.forEach((savedUpg, i) => {
-                if (upgrades[i]) {
-                    upgrades[i].count = savedUpg.count || 0;
-                    upgrades[i].cost = savedUpg.cost || upgrades[i].cost;
+            data.upgrades.forEach(savedUpg => {
+                // Find the building in your local code that matches the saved ID
+                const upg = upgrades.find(u => u.id === savedUpg.id);
+                if (upg) {
+                    upg.count = savedUpg.count || 0;
+                    // We don't load 'cost' here anymore; 
+                    // renderSanctum/updateUI will calculate it fresh using your formulas.
                 }
             });
         }
 
-        // Load Artifacts
+        // 3. Load Artifacts
         if (data.artifacts) {
             data.artifacts.forEach(savedArt => {
                 const art = artifactPool.find(a => a.id === savedArt.id);
@@ -1470,12 +1520,17 @@ function loadGame() {
             });
         }
         
+        // 4. Refresh the Visuals
+        // This is crucial to ensure the new values show up on the buttons immediately
+        if (typeof renderSanctum === "function") renderSanctum();
+        if (typeof renderCompendium === "function") renderCompendium();
+        updateUI();
+        
         console.log("Game Loaded Successfully");
     } catch (e) {
         console.error("Load Error:", e);
     }
 }
-
 	  function exportSave() {
     try {
         // 1. Package all current game variables into one object
@@ -1614,13 +1669,48 @@ function importSave() {
 }
 
 // --- 8. ADMIN FUNCTIONS ---
-function cheatMana() { mana += 1000000; renderShop(); updateUI(); }
-function cheatEssence() { essence += 100; updateUI(); }
-function instaKill() { monsterHP = 0; defeatMonster(); }
-function unlockAllArtifacts() { artifactPool.forEach(a => a.owned = true); renderArtifacts(); renderCompendium(); }
+// --- ARCANE DEBUGGER (ADMIN CHEATS) ---
+
+function cheatMana() { 
+    mana += 1000000; 
+    // We update UI instead of rendering the whole Sanctum 
+    // because mana only affects button "enabled" states.
+    updateUI(); 
+}
+
+function cheatEssence() { 
+    essence += 100; 
+    updateUI(); 
+}
+
+function instaKill() { 
+    // Ensure monsterHP is 0 and trigger the existing defeat logic
+    monsterHP = 0; 
+    if (typeof defeatMonster === "function") {
+        defeatMonster(); 
+    } else {
+        console.error("defeatMonster function not found!");
+    }
+}
+
+function unlockAllArtifacts() { 
+    // 1. Force own all items
+    artifactPool.forEach(a => a.owned = true); 
+    
+    // 2. Refresh the Compendium list to show the newly owned cards
+    if (typeof renderCompendium === "function") renderCompendium(); 
+    
+    // 3. Refresh the Sanctum because artifacts like the Robe change building costs
+    renderSanctum(); 
+    
+    // 4. Update the Header and all button states
+    updateUI(); 
+}
+
 function deleteSave() { 
     if (confirm("Are you sure? This will wipe ALL progress and restart the game.")) { 
-        localStorage.removeItem("wizardIdle_v1"); // Must match the key in saveGame()
+        // Ensure the key "wizardIdle_v1" matches exactly what you use in your saveGame() function
+        localStorage.removeItem("wizardIdle_v1"); 
         location.reload(); 
     } 
 }
@@ -1642,27 +1732,35 @@ window.addEventListener('keydown', (e) => {
 window.onload = function() {
     console.log("Game Initializing...");
     
-    // 1. Load player data
+    // 1. Load player data FIRST
+    // This fills your arrays with the saved counts and levels
     try {
         loadGame();
     } catch(e) {
         console.error("Failed to load save:", e);
     }
 
-    // 2. Build the UI
-    // Note: I removed the extra 'renderArtifacts' call. 
-    // We only need renderCompendium for the artifacts tab.
+    // 2. Initial Math Calculation
+    // Now that levels are loaded, calculate the production values
     calculateMPS();
-    renderSanctum();    // Draws the Buildings
-    renderCompendium(); // Draws the Artifacts
+
+    // 3. Build the UI DOM Elements
+    // These create the physical buttons and cards
+    renderSanctum();     // Draws the Buildings
+    renderCompendium();  // Draws the Artifacts
     
-    // 3. Set default tab
-    // CRITICAL: Make sure 'sanctum' is the ID of your building tab
+    // 4. Set default tab
     showTab('sanctum');
+
+    // 5. Final UI Sync
+    // This fills the buttons with costs and enables/disables them based on mana
+    updateUI();
     
-    // 4. Start the game heartbeat
-    // Make sure your gameLoop() calls updateUI()!
-    gameLoop();
+    // 6. Start the game heartbeat
+    // We start the loop LAST so the UI is ready for the first tick
+    if (typeof gameLoop === "function") {
+        gameLoop();
+    }
     
     console.log("Initialization Complete.");
 };
