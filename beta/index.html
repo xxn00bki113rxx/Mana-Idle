@@ -337,15 +337,20 @@ button:disabled {
     <div id="divine-shop-container" class="shop-container"></div>
 </div>
 	
-    <div id="admin-menu" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #222; border: 2px solid #ff0055; padding: 20px; border-radius: 10px; z-index: 99999; text-align: left; box-shadow: 0 0 20px #000;">
-        <h3 style="color: #ff0055; margin: 0 0 10px 0;">Arcane Debugger</h3>
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-            <button onclick="cheatMana()">+1 Million Mana</button>
-            <button onclick="cheatEssence()">+100 Essence</button>
-            <button onclick="instaKill()">Insta-Kill</button>
-            <button onclick="unlockAllArtifacts()">Unlock All</button>
-        </div>
+    <div id="admin-menu" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #111; border: 2px solid #e94560; padding: 20px; border-radius: 12px; z-index: 99999; text-align: left; box-shadow: 0 0 25px rgba(233, 69, 96, 0.4); width: 220px;">
+    <h3 style="color: #e94560; margin: 0 0 15px 0; font-family: sans-serif; text-transform: uppercase; font-size: 0.9em; letter-spacing: 1px;">Arcane Debugger</h3>
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+        <button class="debug-btn" onclick="cheatMana()">+1M Mana</button>
+        <button class="debug-btn" onclick="cheatEssence()">+100 Essence</button>
+        <button class="debug-btn" onclick="cheatHeavenly()">+100 Heavenly (Currency Only)</button>
+        <hr style="border: 0; border-top: 1px solid #333; margin: 5px 0;">
+        <button class="debug-btn" onclick="cheatAscend()" style="border-color: #ffd700; color: #ffd700; font-weight: bold;">Force Full Ascension</button>
+        <hr style="border: 0; border-top: 1px solid #333; margin: 5px 0;">
+        <button class="debug-btn" onclick="instaKill()">Insta-Kill</button>
+        <button class="debug-btn" onclick="unlockAllArtifacts()">Unlock All</button>
+        <button class="debug-btn" onclick="deleteSave()" style="border-color: #555; color: #888; font-size: 0.75em; margin-top: 5px;">Hard Reset</button>
     </div>
+</div>
 
     <div id="artifact-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:99999; justify-content:center; align-items:center;">
         <div style="background:#1a1a2e; border:2px solid #f1c40f; padding:30px; border-radius:15px; text-align:center; max-width:350px; color:white; box-shadow: 0 0 20px #f1c40f;">
@@ -1692,59 +1697,72 @@ function importSave() {
 // --- 8. ADMIN FUNCTIONS ---
 // --- ARCANE DEBUGGER (ADMIN CHEATS) ---
 
-function cheatMana() { 
-    mana += 1000000; 
-    // We update UI instead of rendering the whole Sanctum 
-    // because mana only affects button "enabled" states.
+// --- STANDARD CHEATS ---
+window.cheatMana = function() { mana += 1000000; updateUI(); };
+window.cheatEssence = function() { essence += 100; updateUI(); };
+window.cheatHeavenly = function() { 
+    heavenlyEssence += 100; 
     updateUI(); 
-}
+};
 
-function cheatEssence() { 
-    essence += 100; 
-    updateUI(); 
-}
+// --- THE ASCENSION CHEAT ---
+window.cheatAscend = function() {
+    console.log("Cheat: Triggering Simulated Ascension...");
+    
+    // 1. Calculate Heavenly Essence (Simulating a reward for testing)
+    // In a real ascension, this would be based on your total Mana earned.
+    const reward = 50; 
+    heavenlyEssence += reward;
 
-function instaKill() { 
-    // Ensure monsterHP is 0 and trigger the existing defeat logic
+    // 2. The Reset Logic (What happens to the player)
+    mana = 0;
+    essence = 0;
+    
+    // Reset buildings/upgrades to level 0
+    upgrades.forEach(upg => upg.count = 0);
+    
+    // 3. Keep Artifacts (Standard prestige behavior)
+    // We don't wipe artifactPool here because artifacts usually persist.
+
+    // 4. Update the World
+    calculateMPS();    // Recalculate based on 0 buildings + Divine Multipliers
+    renderSanctum();   // Redraw the empty shop
+    updateUI();        // Update headers and reveal "Higher Plane"
+    
+    // 5. Switch to the Divine Realm to show success
+    if (typeof showTab === "function") showTab('prestige');
+    
+    alert(`Ascension Successful! You gained ${reward} Heavenly Essence.`);
+};
+
+// --- COMBAT & UTILITY CHEATS ---
+window.instaKill = function() { 
     monsterHP = 0; 
-    if (typeof defeatMonster === "function") {
-        defeatMonster(); 
-    } else {
-        console.error("defeatMonster function not found!");
-    }
-}
+    if (typeof defeatMonster === "function") defeatMonster(); 
+};
 
-function unlockAllArtifacts() { 
-    // 1. Force own all items
+window.unlockAllArtifacts = function() { 
     artifactPool.forEach(a => a.owned = true); 
-    
-    // 2. Refresh the Compendium list to show the newly owned cards
     if (typeof renderCompendium === "function") renderCompendium(); 
-    
-    // 3. Refresh the Sanctum because artifacts like the Robe change building costs
     renderSanctum(); 
-    
-    // 4. Update the Header and all button states
     updateUI(); 
-}
+};
 
-function deleteSave() { 
-    if (confirm("Are you sure? This will wipe ALL progress and restart the game.")) { 
-        // Ensure the key "wizardIdle_v1" matches exactly what you use in your saveGame() function
+window.deleteSave = function() { 
+    if (confirm("Wipe ALL progress and refresh?")) { 
         localStorage.removeItem("wizardIdle_v1"); 
         location.reload(); 
     } 
-}
+};
 
+// --- TOGGLE LISTENER ---
 window.addEventListener('keydown', (e) => {
-    // Check for backtick (`) or Tilde (~)
-    if (e.key === '`' || e.key === '~' || e.keyCode === 192) {
-        e.preventDefault(); // Stop the character from being typed
+    if (e.key === '`' || e.key === '~') {
+        e.preventDefault();
         const menu = document.getElementById('admin-menu');
         if (menu) {
             const isHidden = menu.style.display === 'none';
             menu.style.display = isHidden ? 'block' : 'none';
-            console.log("Admin menu toggled: " + menu.style.display);
         }
     }
 });
