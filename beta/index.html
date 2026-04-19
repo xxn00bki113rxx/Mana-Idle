@@ -79,19 +79,24 @@ body {
 
 .tab-content {
     width: 100%;
+    max-width: 100vw;
     padding: 10px;
+    display: none;
+    overflow-x: hidden;
 }
 
 /* 4. THE GRID SYSTEM (Crucial for Shop Layout) */
 .shop-container, .artifact-grid {
     display: grid !important; 
-    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
     gap: 15px;
     padding: 20px;
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
+    
     justify-content: center;
+    align-content: start; 
 }
 
 /* 5. CARDS (Standard & Divine) */
@@ -410,40 +415,57 @@ const divineUpgrades = [
 
 // --- 2. NAVIGATION LOGIC ---
 window.showTab = function(tabName) {
-    const tabs = ['sanctum', 'battle', 'compendium', 'settings']; 
+    // 1. Define all possible tabs (Added 'prestige' for your new system)
+    const tabs = ['sanctum', 'battle', 'compendium', 'settings', 'prestige']; 
     
+    // 2. Loop through and hide everything
     tabs.forEach(t => {
         const content = document.getElementById(t + '-tab');
-        const btn = document.getElementById(t + '-btn');
+        
+        // Check for both naming conventions for buttons
+        const btn = document.getElementById(t + '-btn') || document.getElementById('nav-' + t);
+
         if (content) content.style.display = 'none';
         if (btn) btn.classList.remove('active');
     });
 
+    // 3. Show the target tab
     const activeTab = document.getElementById(tabName + '-tab');
     if (activeTab) {
+        // Setting to 'block' allows the child grid to calculate its width correctly
         activeTab.style.display = 'block';
-        console.log("Showing tab: " + tabName);
     }
     
-    const activeBtn = document.getElementById(tabName + '-btn');
+    // 4. Highlight the correct button
+    const activeBtn = document.getElementById(tabName + '-btn') || document.getElementById('nav-' + tabName);
     if (activeBtn) activeBtn.classList.add('active');
 
-    // --- SECTION 4: THE FIXES ---
-    
-    // 1. Rename renderShop to renderSanctum
+    // 5. Tab-Specific Rendering with the 10ms "Grid-Fix" Delay
     if (tabName === 'sanctum') {
-        renderSanctum(); 
+        setTimeout(() => {
+            if (typeof renderSanctum === "function") renderSanctum();
+        }, 10);
     }
 
-    // 2. Remove renderArtifacts from Battle (it lives in Compendium now)
     if (tabName === 'battle') {
-        updateUI(); // Keep this to ensure the health bar is correct
+        // Combat usually needs an immediate UI sync for the health bars
+        updateUI(); 
     }
 
-    // 3. Ensure this matches your artifact render function name
     if (tabName === 'compendium') {
-        renderCompendium();
+        setTimeout(() => {
+            if (typeof renderCompendium === "function") renderCompendium();
+        }, 10);
     }
+    
+    if (tabName === 'prestige') {
+        setTimeout(() => {
+            if (typeof renderDivineShop === "function") renderDivineShop();
+        }, 10);
+    }
+
+    // Optional: Log for debugging
+    console.log(`Switched to: ${tabName}`);
 };
 
 // --- 3. SHOP & ECONOMY ---
