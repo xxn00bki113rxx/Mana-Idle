@@ -14,7 +14,7 @@
     <style>
 /* 1. GLOBAL THEME & BASE SETTINGS */
 * {
-    box-sizing: border-box; /* Standardizes sizing for all elements */
+    box-sizing: border-box;
 }
 
 body { 
@@ -33,9 +33,9 @@ body {
     flex-wrap: wrap;
     justify-content: center;
     align-items: center;
-    gap: 15px;
+    gap: 20px;
     padding: 15px;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.5);
     border-bottom: 2px solid #4ecca3;
     margin-bottom: 20px;
 }
@@ -44,11 +44,12 @@ body {
     font-size: 2.5em; 
     color: #4ecca3; 
     margin: 10px 0;
-    text-shadow: 0 0 10px rgba(78, 204, 163, 0.3);
+    text-shadow: 0 0 10px rgba(78, 204, 163, 0.4);
 }
 
+/* Currency Text Colors */
 .essence-text { color: #bb86fc; font-weight: bold; }
-.heavenly-text { color: #ffd700; font-weight: bold; text-shadow: 0 0 8px rgba(255, 214, 0, 0.4); }
+.heavenly-text { color: #ffd700; font-weight: bold; text-shadow: 0 0 8px rgba(255, 214, 0, 0.5); }
 
 /* 3. NAVIGATION & TABS */
 .nav-bar {
@@ -57,7 +58,6 @@ body {
     justify-content: center;
     gap: 10px;
     margin-bottom: 25px;
-    padding: 0 10px;
 }
 
 .nav-btn {
@@ -68,7 +68,7 @@ body {
     border-radius: 12px;
     font-weight: bold;
     cursor: pointer;
-    transition: 0.2s ease;
+    transition: 0.2s;
 }
 
 .nav-btn.active {
@@ -79,25 +79,20 @@ body {
 
 .tab-content {
     width: 100%;
-    max-width: 1000px;
-    margin: 0 auto;
     padding: 10px;
 }
 
-/* 4. SHOP & GRID SYSTEM */
+/* 4. THE GRID SYSTEM (Crucial for Shop Layout) */
 .shop-container, .artifact-grid {
-    display: grid;
+    display: grid !important; 
     grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
     gap: 15px;
     padding: 20px;
-    max-height: 65vh; 
-    overflow-y: auto; 
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
     justify-content: center;
 }
-
-/* Scrollbar Styling for Shop */
-.shop-container::-webkit-scrollbar { width: 8px; }
-.shop-container::-webkit-scrollbar-thumb { background: #4ecca3; border-radius: 10px; }
 
 /* 5. CARDS (Standard & Divine) */
 .upgrade-card, .artifact-card {
@@ -119,16 +114,40 @@ body {
     background: #1f2d52;
 }
 
-/* Special styling for Divine Cards */
+/* Heavenly Plane/Prestige Card Styling */
 .divine-card {
     border-color: #ffd700 !important;
     background: #1c1c1c;
 }
 .divine-card:hover {
     box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+    border-color: #fff !important;
 }
 
-/* 6. BATTLE RIFT (Combat Section) */
+/* 6. BUTTONS & ACTIONS */
+.card-actions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 10px;
+}
+
+.buy-btn, .skill-btn, #strike-btn, #gather-mana-btn {
+    border-radius: 12px;
+    border: 2px solid #4ecca3;
+    background: #16213e;
+    color: #4ecca3;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.buy-btn { width: 100%; padding: 8px 5px; }
+
+#strike-btn { border-color: #e94560; color: #e94560; padding: 12px; }
+
+/* 7. COMBAT SECTION (Battle Rift) */
 #combat-section {
     width: 95%;
     max-width: 420px;
@@ -137,7 +156,6 @@ body {
     padding: 25px;
     border-radius: 24px;
     margin: 20px auto;
-    position: relative;
     box-shadow: 0 10px 30px rgba(0,0,0,0.6);
 }
 
@@ -148,67 +166,7 @@ body {
     user-select: none;
 }
 
-#monster-sprite:active { transform: scale(0.9); }
-
-/* 7. ABILITY BAR & BUTTONS */
-.ability-bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    justify-content: center;
-    margin: 20px auto;
-    width: 95%;
-}
-
-.skill-container {
-    position: relative;
-    flex: 1;
-    min-width: 90px;
-    height: 75px;
-    border-radius: 14px;
-    overflow: hidden;
-}
-
-.skill-btn, .buy-btn, #strike-btn {
-    width: 100%;
-    height: 100%;
-    border-radius: 12px;
-    border: 2px solid #4ecca3;
-    background: #16213e;
-    color: #4ecca3;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-#strike-btn {
-    border-color: #e94560;
-    color: #e94560;
-    height: 50px;
-    margin-top: 15px;
-}
-
-.cooldown-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 0%; 
-    background: rgba(0, 0, 0, 0.7); 
-    pointer-events: none; 
-    z-index: 2;
-}
-
-button:disabled {
-    border-color: #444 !important;
-    color: #666 !important;
-    background: #1a1a2e !important;
-    cursor: not-allowed;
-    transform: none !important;
-    box-shadow: none !important;
-}
-
-/* 8. ANIMATIONS & EFFECTS */
+/* 8. ANIMATIONS & POPUPS */
 @keyframes hitFlash {
     0% { transform: scale(1); }
     50% { transform: scale(1.1); filter: brightness(1.8); }
@@ -226,8 +184,8 @@ button:disabled {
 }
 
 @keyframes popupFloat { 
-    0% { opacity: 1; transform: translateY(0) scale(1); } 
-    100% { opacity: 0; transform: translateY(-70px) scale(1.3); } 
+    0% { opacity: 1; transform: translateY(0); } 
+    100% { opacity: 0; transform: translateY(-70px) scale(1.2); } 
 }
 
 .floating-text {
@@ -237,7 +195,6 @@ button:disabled {
     color: #4ecca3;
     pointer-events: none;
     z-index: 10000;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
     animation: floatAndFade 0.8s ease-out forwards;
 }
 
@@ -245,6 +202,17 @@ button:disabled {
     0% { opacity: 1; transform: translateY(0); }
     100% { opacity: 0; transform: translateY(-120px); }
 }
+
+/* 9. UTILITY */
+button:disabled {
+    border-color: #444 !important;
+    color: #666 !important;
+    background: #1a1a2e !important;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.hidden { display: none !important; }
 </style>
 </head>
 <body>
@@ -277,9 +245,9 @@ button:disabled {
     </div>
 
     <div id="sanctum-tab" class="tab-content">
-        <button onclick="clickMana(event)" id="gather-mana-btn" style="width: 200px; height: 60px; margin-top: 20px; margin-bottom: 20px; cursor: pointer;">Gather Mana</button>
-        <div class="shop-container" id="sanctum-display"></div>
-    </div>
+    <button onclick="clickMana(event)" id="gather-mana-btn" style="width: 200px; height: 60px; margin-top: 20px; margin-bottom: 20px; cursor: pointer;">Gather Mana</button>
+    <div class="shop-container" id="sanctum-container"></div>
+</div>
 
     <div id="battle-tab" class="tab-content" style="display: none; padding: 10px; box-sizing: border-box;">
     <div id="combat-section" style="
@@ -352,8 +320,7 @@ button:disabled {
         <p>You have gathered <span id="heavenly-essence-display" style="font-weight: bold; color: #ffd700;">0</span> Heavenly Essence</p>
     </div>
 
-    <div id="divine-shop-container" class="shop-container">
-        </div>
+    <div id="divine-shop-container" class="shop-container"></div>
 </div>
 	
     <div id="admin-menu" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #222; border: 2px solid #ff0055; padding: 20px; border-radius: 10px; z-index: 99999; text-align: left; box-shadow: 0 0 20px #000;">
