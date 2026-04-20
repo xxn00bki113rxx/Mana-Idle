@@ -525,6 +525,62 @@ function getAffordableAmount(upg, currentMana, discount) {
     return count;
 }
 
+// ==========================================
+// 1. THE SHOP FUNCTIONS
+// ==========================================
+
+function buyOne(id) {
+    const upg = upgrades.find(u => u.id === id);
+    if (!upg) return;
+    
+    // Calculate cost with Divine Discount
+    const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
+    const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
+    const currentCost = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
+
+    if (mana >= currentCost) {
+        mana -= currentCost;
+        upg.count++;
+        
+        if (typeof calculateMPS === 'function') calculateMPS();
+        renderSanctum();
+        updateUI();
+        if (typeof saveGame === 'function') saveGame();
+    }
+}
+
+function buyMax(id) {
+    const upg = upgrades.find(u => u.id === id);
+    if (!upg) return;
+
+    const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
+    const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
+
+    let totalCost = 0;
+    let amountToBuy = 0;
+
+    while (true) {
+        let nextPrice = Math.floor((upg.baseCost * Math.pow(1.15, upg.count + amountToBuy)) * discount);
+        if (mana >= totalCost + nextPrice) {
+            totalCost += nextPrice;
+            amountToBuy++;
+        } else {
+            break;
+        }
+        if (amountToBuy >= 1000) break; 
+    }
+
+    if (amountToBuy > 0) {
+        mana -= totalCost;
+        upg.count += amountToBuy;
+        
+        if (typeof calculateMPS === 'function') calculateMPS();
+        renderSanctum();
+        updateUI();
+        if (typeof saveGame === 'function') saveGame();
+    }
+}
+
 function renderSanctum() {
     const container = document.getElementById('sanctum-container');
     if (!container) return;
@@ -535,31 +591,36 @@ function renderSanctum() {
         const card = document.createElement('div');
         card.className = 'upgrade-card';
 
-        // 1. Calculate Cost and Affordability
-        // Use current cost, or fallback to baseCost if current is missing/NaN
-        const currentCost = (isNaN(upg.cost) || upg.cost === undefined) ? (upg.baseCost || 0) : upg.cost;
-        const canAfford = mana >= currentCost;
+        // Calculate current price for display
+        const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
+        const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
+        const displayCost = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
+        
+        const canAfford = mana >= displayCost;
         const btnClass = canAfford ? 'buy-btn' : 'buy-btn disabled';
 
-        // 2. Build the Card
-        // Note: I included 'upg.desc' as a backup for 'upg.description'
         card.innerHTML = `
             <div class="upgrade-info">
                 <span class="upgrade-icon" style="font-size: 1.5em;">${upg.icon || '📜'}</span>
                 <div class="upgrade-texts">
-                    <div class="upgrade-name" style="font-weight: bold;">${upg.name || 'Unknown Upgrade'}</div>
-                    <div class="upgrade-desc" style="font-size: 0.8em; color: #aaa;">
-                        ${upg.description || upg.desc || 'Increases mana production.'}
-                    </div>
+                    <div class="upgrade-name" style="font-weight: bold;">${upg.name || 'Unknown'}</div>
+                    <div class="upgrade-desc" style="font-size: 0.8em; color: #aaa;">${upg.description || upg.desc || ''}</div>
                 </div>
             </div>
             <div class="upgrade-stats" style="margin-top: 10px; text-align: center;">
-                <div class="upgrade-level" style="color: #bdc3c7;">Lv. ${upg.count || 0}</div>
+                <div class="upgrade-level" style="color: #bdc3c7; margin-bottom: 5px;">Lv. ${upg.count || 0}</div>
+                
                 <button class="${btnClass}" 
-                    onclick="buyUpgrade('${upg.id}')" 
+                    onclick="buyOne('${upg.id}')" 
                     ${!canAfford ? 'disabled' : ''}
-                    style="width: 100%; margin-top: 5px; padding: 10px; cursor: pointer;">
-                    ${Math.floor(currentCost).toLocaleString()} Mana
+                    style="width: 100%; padding: 10px; cursor: pointer; margin-bottom: 5px; border-radius: 4px; font-weight: bold;">
+                    Buy: ${displayCost.toLocaleString()} Mana
+                </button>
+
+                <button class="buy-max-btn" 
+                    onclick="buyMax('${upg.id}')" 
+                    style="width: 100%; padding: 6px; cursor: pointer; font-size: 0.75em; background: #2c3e50; color: #fff; border: 1px solid #34495e; border-radius: 4px;">
+                    Buy Max
                 </button>
             </div>
         `;
@@ -567,64 +628,12 @@ function renderSanctum() {
     });
 }
 
-
-function buyOne(id) {
-    const upg = upgrades.find(u => u.id === id);
-    
-    // 1. Calculate cost using the 1.15 multiplier
-    let baseCost = Math.floor(upg.baseCost * Math.pow(1.15, upg.count));
-    
-    // 2. Apply the Divine Discount (Ethereal Wisdom)
-    const wisdom = divineUpgrades.find(d => d.id === 'ethereal_wisdom');
-    const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
-    const finalCost = Math.floor(baseCost * discount);
-
-    // 3. Purchase Logic
-    if (mana >= finalCost) {
-        mana -= finalCost;
-        upg.count++;
-        
-        calculateMPS(); // Recalculate your production
-        updateUI();     // Refresh the buttons and text
-        saveGame();     // Lock in the progress
-    }
-}
-
-function buyMax(id) {
-    const upg = upgrades.find(u => u.id === id);
-    if (!upg) return;
-
-    const wisdom = divineUpgrades.find(d => d.id === 'ethereal_wisdom');
-    const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
-
-    let totalCost = 0;
-    let amountToBuy = 0;
-
-    // Loop to see how many we can afford with the discount applied
-    while (true) {
-        let nextPrice = Math.floor((upg.baseCost * Math.pow(1.15, upg.count + amountToBuy)) * discount);
-        
-        if (mana >= totalCost + nextPrice) {
-            totalCost += nextPrice;
-            amountToBuy++;
-        } else {
-            break;
-        }
-        
-        // Safety break to prevent infinite loops
-        if (amountToBuy >= 1000) break; 
-    }
-
-    if (amountToBuy > 0) {
-        mana -= totalCost;
-        upg.count += amountToBuy;
-        
-        calculateMPS();
-        updateUI();
-        saveGame();
-        console.log(`Bulk purchase successful: Bought ${amountToBuy} ${upg.name}s.`);
-    }
-}
+// ==========================================
+// 2. EXPORT TO GLOBAL (The Searchable Part)
+// ==========================================
+window.buyOne = buyOne;
+window.buyMax = buyMax;
+window.renderSanctum = renderSanctum;
 
 function getBuildingCost(upg) {
     // 1. Calculate the standard price
