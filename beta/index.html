@@ -972,31 +972,34 @@ function defeatMonster() {
     ];
 
     // 2. CALCULATE REWARDS
-    const eliteMult = isCurrentMonsterElite ? 3 : 1;
+    // Ensure all variables exist; default to 0/1 if they are undefined
+    const eliteMult = (typeof isCurrentMonsterElite !== 'undefined' && isCurrentMonsterElite) ? 3 : 1;
     const wandBonus = (typeof getArtifactBonus === 'function') ? getArtifactBonus("wand") : 0;
     const pouchBonus = (typeof getArtifactBonus === 'function') ? getArtifactBonus("pouch") : 1; 
 
-    manaPerKill = Math.floor((5 + wandBonus) * (1 + monstersDefeated * 0.1)) * eliteMult;
-    const essenceGained = Math.floor(1 * pouchBonus) * eliteMult;
+    // Math check: base mana + wand bonus, scaled by 10% per kill, then tripled for elites
+    const currentManaReward = Math.floor((5 + wandBonus) * (1 + (monstersDefeated || 0) * 0.1)) * eliteMult;
+    const currentEssenceReward = Math.floor(1 * pouchBonus) * eliteMult;
 
-    // 3. APPLY REWARDS
-    mana += manaPerKill;
-    essence += essenceGained;
+    // 3. APPLY REWARDS TO GLOBAL VARIABLES
+    // We add them directly to the global mana and essence variables
+    mana += currentManaReward;
+    essence += currentEssenceReward;
     monstersDefeated++;
 
-    // 4. ARTIFACT DROP LOGIC
+    // 4. ARTIFACT DROP LOGIC (Pity Timer at 20 kills)
     killsSinceLastArtifact++;
-    const dropChance = isCurrentMonsterElite ? 0.20 : 0.10; 
+    const dropChance = eliteMult > 1 ? 0.20 : 0.10; 
     if (Math.random() < dropChance || killsSinceLastArtifact >= 20) {
         if (typeof gainRandomArtifact === 'function') gainRandomArtifact();
         killsSinceLastArtifact = 0; 
     }
 
-    // 5. SPAWN NEXT MONSTER
+    // 5. ROLL STATUS FOR THE NEXT MONSTER
     isCurrentMonsterElite = Math.random() < 0.10; 
     const nextEliteMult = isCurrentMonsterElite ? 3 : 1;
 
-    // Scaling health: starts at 50, grows by 12% per kill
+    // Scaling health: 50 base, 12% growth per kill
     monsterMaxHP = Math.floor(50 * Math.pow(1.12, monstersDefeated)) * nextEliteMult;
     monsterHP = monsterMaxHP;
 
@@ -1013,15 +1016,18 @@ function defeatMonster() {
     
     if (spriteEl) {
         spriteEl.innerText = roll.icon;
+        // Visual feedback for Elite status
         spriteEl.style.transform = isCurrentMonsterElite ? "scale(1.4)" : "scale(1.0)";
         spriteEl.style.filter = isCurrentMonsterElite ? "drop-shadow(0 0 15px #f1c40f)" : "none";
     }
 
     if (log) {
         log.style.color = isCurrentMonsterElite ? "#f1c40f" : "#fff";
-        log.innerText = `Victory! +${manaPerKill.toLocaleString()} Mana, +${essenceGained} Ess.`;
+        log.innerText = `Victory! +${currentManaReward.toLocaleString()} Mana, +${currentEssenceReward} Essence`;
     }
 
+    // 7. HEARTBEAT SYNC
+    // This pushes the new essence/mana values to the header immediately
     updateUI();
     if (typeof saveGame === 'function') saveGame();
 }
@@ -1464,34 +1470,29 @@ function updateCombatUI() {
     const hpLabel = document.getElementById('hp-text');
     const attackBtn = document.getElementById('attack-btn');
 
-    // 1. Calculate percentage accurately
     const pct = Math.max(0, (monsterHP / monsterMaxHP) * 100);
 
-    // 2. Update the Fill Bar width and color
     if (hpFill) {
         hpFill.style.width = pct + "%";
         
-        // Visual Feedback: Green -> Yellow -> Red
-        if (pct < 25) {
-            hpFill.style.backgroundColor = "#ff4d4d"; 
-        } else if (pct < 50) {
-            hpFill.style.backgroundColor = "#f1c40f"; 
+        // COLOR FLOW: Green -> Yellow -> Red
+        if (pct > 50) {
+            hpFill.style.backgroundColor = "#4ecca3"; // Healthy Green
+        } else if (pct > 25) {
+            hpFill.style.backgroundColor = "#f1c40f"; // Warning Yellow
         } else {
-            hpFill.style.backgroundColor = "#e94560"; // Matches your HTML theme
+            hpFill.style.backgroundColor = "#ff4d4d"; // Danger Red
         }
     }
 
-    // 3. Update the Text (Using floor so players see progress)
     if (hpLabel) {
         hpLabel.innerText = `HP: ${Math.floor(monsterHP).toLocaleString()} / ${Math.floor(monsterMaxHP).toLocaleString()}`;
     }
 
-    // 4. Attack Button State
     if (attackBtn) {
         const canAfford = (mana >= 10);
         attackBtn.disabled = !canAfford;
         attackBtn.style.opacity = canAfford ? "1" : "0.5";
-        attackBtn.style.cursor = canAfford ? "pointer" : "not-allowed";
     }
 }
 
