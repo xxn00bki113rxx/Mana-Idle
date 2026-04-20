@@ -480,7 +480,7 @@ window.showTab = function(tabName) {
 
     console.log("Navigating to tab:", tabName);
 
-    // 2. Tab list - ensure all your tab IDs are here
+    // 2. Tab list
     const tabs = ['sanctum', 'battle', 'compendium', 'settings', 'prestige']; 
     
     // 3. Hide all content and deactivate buttons
@@ -504,7 +504,7 @@ window.showTab = function(tabName) {
         return; 
     }
 
-    // 6. Special Handling for Divine Shop (The Retry Loop)
+    // 6. Special Handling for Divine Shop
     if (tabName === 'prestige') {
         let attempts = 0;
         const forceRender = () => {
@@ -512,7 +512,6 @@ window.showTab = function(tabName) {
             if (container) {
                 renderDivineShop();
                 updateUI();
-                console.log("Divine Shop rendered.");
             } else if (attempts < 10) {
                 attempts++;
                 setTimeout(forceRender, 30);
@@ -521,9 +520,16 @@ window.showTab = function(tabName) {
         forceRender();
     }
 
-    // 7. General Rendering for other tabs
+    // 7. General Rendering for Sanctum
     if (tabName === 'sanctum') {
         setTimeout(() => { if (typeof renderSanctum === "function") renderSanctum(); }, 10);
+    }
+
+
+    if (tabName === 'compendium') {
+        setTimeout(() => { 
+            if (typeof renderArtifacts === "function") renderCompendium(); 
+        }, 10);
     }
     
     // 8. Global UI Sync
@@ -1083,45 +1089,6 @@ function closeArtifactPopup() {
     const modal = document.getElementById('artifact-modal');
     if (modal) modal.style.display = 'none';
 }
-	  
-function renderArtifacts() {
-    const container = document.getElementById('artifact-display') || document.querySelector('.artifact-grid');
-    if (!container) return;
-
-    // Clear and set to Grid
-    container.innerHTML = '';
-    container.className = 'artifact-grid';
-
-    // Only show owned artifacts
-    const owned = artifactPool.filter(art => art.owned);
-
-    if (owned.length === 0) {
-        container.innerHTML = `<p style="color: #666; font-style: italic; grid-column: 1/-1;">No artifacts discovered yet. Defeat monsters in the Rift to find them.</p>`;
-        return;
-    }
-
-    owned.forEach(art => {
-        const card = document.createElement('div');
-        card.className = 'artifact-card';
-
-        // Calculate display bonus (e.g., 0.1 becomes 10%)
-        const displayBonus = (art.bonus * 100).toFixed(0);
-
-        card.innerHTML = `
-            <img src="${art.icon || 'default-art.png'}" style="width: 50px; height: 50px; margin-bottom: 5px;">
-            <div style="font-weight: bold; font-size: 0.9em; color: #f1c40f;">${art.name}</div>
-            <div style="font-size: 0.75em; color: #aaa;">Lv. ${art.level}</div>
-            <div style="font-size: 0.8em; color: #4ecca3; margin: 5px 0;">+${displayBonus}% Bonus</div>
-            
-            <button class="upgrade-art-btn" onclick="upgradeArtifact('${art.id}')" 
-                style="width: 100%; font-size: 0.7em; background: #0f3460; border: 1px solid #4ecca3; color: white; cursor: pointer; padding: 4px; border-radius: 4px;">
-                Upgrade (Essence)
-            </button>
-        `;
-
-        container.appendChild(card);
-    });
-}
 
 function upgradeArtifact(id) {
     // 1. Find the specific artifact in your pool
@@ -1409,25 +1376,37 @@ function gameLoop() {
 }
 
 function updateUI() {
-    // 1. Update Standard Displays
-    document.getElementById('mana-count').textContent = Math.floor(mana).toLocaleString();
-    document.getElementById('essence-count').textContent = Math.floor(essence).toLocaleString();
-    document.getElementById('mps-display').textContent = globalMPS.toLocaleString();
+    // 1. Core Currency (with Safety Rails)
+    const manaEl = document.getElementById('mana-count');
+    if (manaEl) manaEl.textContent = Math.floor(mana).toLocaleString();
 
-    // 2. Update Prestige Displays
+    const essenceEl = document.getElementById('essence-count');
+    if (essenceEl) essenceEl.textContent = Math.floor(essence).toLocaleString();
+
+    // 2. Production & Records
+    // Added back: Record display and Flow display
+    const recordEl = document.getElementById('mana-record');
+    if (recordEl) recordEl.textContent = Math.floor(totalManaAllTime).toLocaleString();
+
+    const flowEl = document.getElementById('mps-display');
+    if (flowEl) flowEl.textContent = globalMPS.toLocaleString();
+
+    // 3. Heavenly Essence Display
     const heavenlyCount = document.getElementById('heavenly-count');
-    if (heavenlyCount) heavenlyCount.textContent = Math.floor(heavenlyEssence).toLocaleString();
+    if (heavenlyCount) {
+        heavenlyCount.textContent = Math.floor(heavenlyEssence).toLocaleString();
+    }
 
-    // 3. Ascension Visibility & Math
+    // 4. Ascension Visibility Logic
     const ascendBox = document.getElementById('ascension-container');
     const potentialText = document.getElementById('potential-essence-text');
 
     if (ascendBox) {
-        // HIDE button until 1 million mana earned ALL-TIME (or if they've already ascended)
+        // Only show if player has reached 1M mana or has already ascended
         if (totalManaAllTime >= 1000000 || totalHeavenlyEarned > 0) {
             ascendBox.style.display = 'block';
             
-            // Calculate potential gain for the display
+            // Re-calculate potential gain for the label
             let totalTarget = Math.floor(Math.sqrt(totalManaAllTime / 1000000));
             let potentialGain = Math.max(0, totalTarget - totalHeavenlyEarned);
             
@@ -1439,7 +1418,12 @@ function updateUI() {
         }
     }
 
-    // 4. Update Header Visibility (Higher Plane button)
+    // 5. Header/Navigation Visibility
+    const heavenlyWrapper = document.getElementById('heavenly-display-wrapper');
+    if (heavenlyWrapper) {
+        heavenlyWrapper.style.display = (totalHeavenlyEarned > 0) ? 'block' : 'none';
+    }
+
     const navPrestige = document.getElementById('nav-prestige');
     if (navPrestige) {
         navPrestige.style.display = (totalHeavenlyEarned > 0) ? 'inline-block' : 'none';
