@@ -359,7 +359,7 @@ button:disabled {
         </div>
     </div>
 
-<button id="nav-prestige" class="nav-btn" onclick="showTab('prestige-tab')" style="display: none; border-color: #ffd700; color: #ffd700;">Higher Plane</button>
+<button id="nav-prestige" class="nav-btn" onclick="showTab('prestige')" style="display: none; border-color: #ffd700; color: #ffd700;">Higher Plane</button>
 
 <div id="prestige-tab" class="tab-content" style="display: none;">
     <div class="prestige-header" style="margin-bottom: 20px;">
@@ -467,8 +467,17 @@ const divineUpgrades = [
 
 // --- 2. NAVIGATION LOGIC ---
 window.showTab = function(tabName) {
+    // 1. Safety: Strip '-tab' if passed by mistake
+    if (tabName.endsWith('-tab')) {
+        tabName = tabName.replace('-tab', '');
+    }
+
+    console.log("Navigating to tab:", tabName);
+
+    // 2. Tab list - ensure all your tab IDs are here
     const tabs = ['sanctum', 'battle', 'compendium', 'settings', 'prestige']; 
     
+    // 3. Hide all content and deactivate buttons
     tabs.forEach(t => {
         const content = document.getElementById(t + '-tab');
         const btn = document.getElementById(t + '-btn') || document.getElementById('nav-' + t);
@@ -476,49 +485,45 @@ window.showTab = function(tabName) {
         if (btn) btn.classList.remove('active');
     });
 
+    // 4. Find the target elements
     const activeTab = document.getElementById(tabName + '-tab');
+    const activeBtn = document.getElementById(tabName + '-btn') || document.getElementById('nav-' + tabName);
+
+    // 5. Show target tab
     if (activeTab) {
         activeTab.style.display = 'block';
+        if (activeBtn) activeBtn.classList.add('active');
+    } else {
+        console.error("Critical Error: Tab content not found for " + tabName);
+        return; 
     }
-    
-    const activeBtn = document.getElementById(tabName + '-btn') || document.getElementById('nav-' + tabName);
-    if (activeBtn) activeBtn.classList.add('active');
 
-    // TAB SPECIFIC RENDERING
-    if (tabName === 'sanctum') {
-        setTimeout(() => { if (typeof renderSanctum === "function") renderSanctum(); }, 10);
-    }
-    if (tabName === 'battle') {
-        updateUI(); 
-    }
-    if (tabName === 'compendium') {
-        setTimeout(() => { if (typeof renderCompendium === "function") renderCompendium(); }, 10);
-    }
-    
+    // 6. Special Handling for Divine Shop (The Retry Loop)
     if (tabName === 'prestige') {
-        // 1. Force the tab to be visible immediately
-        activeTab.style.display = 'block';
-
-        // 2. Use a "Retry" loop to ensure the container is ready
         let attempts = 0;
         const forceRender = () => {
             const container = document.getElementById('divine-shop-container');
-            
             if (container) {
                 renderDivineShop();
                 updateUI();
-                console.log("Divine Shop successfully reloaded.");
-            } else if (attempts < 5) {
+                console.log("Divine Shop rendered.");
+            } else if (attempts < 10) {
                 attempts++;
-                setTimeout(forceRender, 50); // Try again in 50ms if not found
+                setTimeout(forceRender, 30);
             }
         };
-
         forceRender();
     }
-	updateUI();
-}
 
+    // 7. General Rendering for other tabs
+    if (tabName === 'sanctum') {
+        setTimeout(() => { if (typeof renderSanctum === "function") renderSanctum(); }, 10);
+    }
+    
+    // 8. Global UI Sync
+    updateUI();
+};
+	  
 // --- 3. SHOP & ECONOMY ---
 function getAffordableAmount(upg, currentMana, discount) {
     let tempMana = currentMana;
