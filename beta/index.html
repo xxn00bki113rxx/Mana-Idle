@@ -533,7 +533,6 @@ function buyOne(id) {
     const upg = upgrades.find(u => u.id === id);
     if (!upg) return;
     
-    // Calculate cost with Divine Discount
     const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
     const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
     const currentCost = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
@@ -591,13 +590,34 @@ function renderSanctum() {
         const card = document.createElement('div');
         card.className = 'upgrade-card';
 
-        // Calculate current price for display
+        // 1. Calculate Discount
         const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
         const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
-        const displayCost = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
         
-        const canAfford = mana >= displayCost;
-        const btnClass = canAfford ? 'buy-btn' : 'buy-btn disabled';
+        // 2. Calculate "Buy One" Cost
+        const displayCost = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
+        const canAffordOne = mana >= displayCost;
+        const btnClass = canAffordOne ? 'buy-btn' : 'buy-btn disabled';
+
+        // 3. Calculate "Buy Max" Potential
+        let tempTotalCost = 0;
+        let amountToBuy = 0;
+        let tempCount = upg.count;
+
+        while (true) {
+            let nextPrice = Math.floor((upg.baseCost * Math.pow(1.15, tempCount)) * discount);
+            if (mana >= tempTotalCost + nextPrice) {
+                tempTotalCost += nextPrice;
+                amountToBuy++;
+                tempCount++;
+            } else {
+                break;
+            }
+            if (amountToBuy >= 1000) break;
+        }
+
+        const maxBtnText = amountToBuy > 0 ? `Buy Max (+${amountToBuy})` : "Buy Max (0)";
+        const maxBtnDisabled = amountToBuy === 0 ? 'disabled' : '';
 
         card.innerHTML = `
             <div class="upgrade-info">
@@ -612,15 +632,16 @@ function renderSanctum() {
                 
                 <button class="${btnClass}" 
                     onclick="buyOne('${upg.id}')" 
-                    ${!canAfford ? 'disabled' : ''}
-                    style="width: 100%; padding: 10px; cursor: pointer; margin-bottom: 5px; border-radius: 4px; font-weight: bold;">
+                    ${!canAffordOne ? 'disabled' : ''}
+                    style="width: 100%; padding: 10px; cursor: pointer; margin-bottom: 8px; border-radius: 8px; font-weight: bold; border: none;">
                     Buy: ${displayCost.toLocaleString()} Mana
                 </button>
 
                 <button class="buy-max-btn" 
                     onclick="buyMax('${upg.id}')" 
-                    style="width: 100%; padding: 6px; cursor: pointer; font-size: 0.75em; background: #2c3e50; color: #fff; border: 1px solid #34495e; border-radius: 4px;">
-                    Buy Max
+                    ${maxBtnDisabled}
+                    style="width: 100%; padding: 8px; cursor: pointer; font-size: 0.75em; background: #2c3e50; color: #fff; border: 1px solid #34495e; border-radius: 8px; opacity: ${amountToBuy > 0 ? 1 : 0.5}; transition: 0.2s;">
+                    ${maxBtnText}
                 </button>
             </div>
         `;
@@ -629,7 +650,7 @@ function renderSanctum() {
 }
 
 // ==========================================
-// 2. EXPORT TO GLOBAL (The Searchable Part)
+// 2. EXPORT TO GLOBAL
 // ==========================================
 window.buyOne = buyOne;
 window.buyMax = buyMax;
