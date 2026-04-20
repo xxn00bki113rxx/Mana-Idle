@@ -1714,32 +1714,43 @@ function calculateOfflineProgress(lastSaveTime) {
     }
 }
 
-	  function exportSave() {
+	 function exportSave() {
     try {
         // 1. Package all current game variables into one object
         const saveState = {
+            // Standard Currencies & Progress
             mana: typeof mana !== 'undefined' ? mana : 0,
             essence: typeof essence !== 'undefined' ? essence : 0,
             monstersDefeated: typeof monstersDefeated !== 'undefined' ? monstersDefeated : 0,
             monsterMaxHP: typeof monsterMaxHP !== 'undefined' ? monsterMaxHP : 50,
-            killsSinceLastArtifact: killsSinceLastArtifact,
-				
+            killsSinceLastArtifact: typeof killsSinceLastArtifact !== 'undefined' ? killsSinceLastArtifact : 0,
+            
+            // --- NEW: PRESTIGE & ASCENSION DATA ---
+            heavenlyEssence: typeof heavenlyEssence !== 'undefined' ? heavenlyEssence : 0,
+            totalHeavenlyEarned: typeof totalHeavenlyEarned !== 'undefined' ? totalHeavenlyEarned : 0,
+            
             // Map the upgrades to a clean array
             upgrades: upgrades.map(u => ({ 
                 count: u.count, 
                 cost: u.cost 
             })),
             
-            // Map the artifacts to ensure we only save what's necessary
+            // Map the artifacts
             artifacts: artifactPool.map(a => ({ 
                 id: a.id, 
                 owned: a.owned, 
                 level: a.level || 1 
             })),
+
+            // --- NEW: MAP DIVINE UPGRADES ---
+            divineUpgrades: divineUpgrades.map(d => ({
+                id: d.id,
+                level: d.level
+            })),
             
-            // Add a timestamp so you know when the save was made
+            // Metadata
             timestamp: Date.now(),
-            version: "1.0.0"
+            version: "1.1.0" // Incremented version for the Prestige Update
         };
 
         // 2. Convert object to JSON string, then to Base64
@@ -1759,7 +1770,6 @@ function calculateOfflineProgress(lastSaveTime) {
             navigator.clipboard.writeText(encodedSave).then(() => {
                 handleExportFeedback();
             }).catch(err => {
-                // Fallback if Clipboard API fails
                 document.execCommand('copy');
                 handleExportFeedback();
             });
@@ -1768,12 +1778,13 @@ function calculateOfflineProgress(lastSaveTime) {
             handleExportFeedback();
         }
 
+        console.log("Ascension data bundled into save string!");
+
     } catch (e) {
         console.error("Export Error:", e);
         alert("Wizard Council Error: Could not enchant save string.");
     }
 }
-
 // Helper function to show the user it worked
 function handleExportFeedback() {
     const exportBtn = document.querySelector("button[onclick='exportSave()']");
@@ -1808,12 +1819,13 @@ function importSave() {
         essence = saveState.essence || 0;
         monstersDefeated = saveState.monstersDefeated || 0;
         monsterMaxHP = saveState.monsterMaxHP || 50;
-
-        // 3. Restore the Artifact Pity Counter
-        // The "|| 0" ensures it works even for saves from the older version
         killsSinceLastArtifact = saveState.killsSinceLastArtifact || 0;
 
-        // 4. Restore Upgrades (Mapping back to the live array)
+        // --- NEW: Restore Divine/Ascension Status ---
+        heavenlyEssence = saveState.heavenlyEssence || 0;
+        totalHeavenlyEarned = saveState.totalHeavenlyEarned || 0;
+
+        // 3. Restore Upgrades (Standard Buildings)
         if (saveState.upgrades) {
             saveState.upgrades.forEach((savedUp, index) => {
                 if (upgrades[index]) {
@@ -1823,7 +1835,7 @@ function importSave() {
             });
         }
 
-        // 5. Restore Artifacts
+        // 4. Restore Artifacts
         if (saveState.artifacts) {
             saveState.artifacts.forEach(savedArt => {
                 const realArt = artifactPool.find(a => a.id === savedArt.id);
@@ -1834,15 +1846,25 @@ function importSave() {
             });
         }
 
-        // 6. Force a save to LocalStorage so progress persists
+        // --- NEW: Restore Divine Upgrades ---
+        if (saveState.divineUpgrades) {
+            saveState.divineUpgrades.forEach(savedDiv => {
+                const realDiv = divineUpgrades.find(d => d.id === savedDiv.id);
+                if (realDiv) {
+                    realDiv.level = savedDiv.level || 0;
+                }
+            });
+        }
+
+        // 5. Force a save to LocalStorage so progress persists
+        // We re-stringity our new saveState to ensure it includes the divine data
         const finalSave = JSON.stringify(saveState);
         localStorage.setItem("wizardIdle_save", finalSave);
 
-        // 7. Refresh the UI and provide feedback
+        // 6. Refresh the UI and provide feedback
         alert("✨ Save Successfully Imported! ✨");
         
-        // Reloading the page is the safest way to ensure all game 
-        // loops and logic restart with the new data.
+        // Reloading is the best way to ensure MPS and multipliers recalculate
         location.reload();
 
     } catch (e) {
@@ -1850,7 +1872,6 @@ function importSave() {
         alert("Failed to read the save code. It may be corrupted or from an incompatible version.");
     }
 }
-
 // --- 8. ADMIN FUNCTIONS ---
 // --- ARCANE DEBUGGER (ADMIN CHEATS) ---
 
