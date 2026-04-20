@@ -542,7 +542,7 @@ function buyOne(id) {
         upg.count++;
         
         if (typeof calculateMPS === 'function') calculateMPS();
-        renderSanctum(); // Refresh shop to update affordabilities
+        renderSanctum(); 
         updateUI();
         if (typeof saveGame === 'function') saveGame();
     }
@@ -574,7 +574,7 @@ function buyMax(id) {
         upg.count += amountToBuy;
         
         if (typeof calculateMPS === 'function') calculateMPS();
-        renderSanctum(); // Refresh shop to update levels and +X text
+        renderSanctum();
         updateUI();
         if (typeof saveGame === 'function') saveGame();
     }
@@ -590,13 +590,12 @@ function renderSanctum() {
         const card = document.createElement('div');
         card.className = 'upgrade-card';
 
-        // 1. Tier Distinction Logic
-        // Buildings with baseCost >= 5000 or specific IDs are treated as Tier 2
-        const isTier2 = upg.baseCost >= 5000 || upg.tier === 2;
-        const tierColor = isTier2 ? '#9b59b6' : '#4ecca3'; // Purple for T2, Green/Blue for T1
+        // 1. FIXED TIER LOGIC: Tier 2 starts at Eldritch Monolith (150k cost)
+        // Everything 150k and above is Tier 2 (Purple)
+        const isTier2 = upg.baseCost >= 150000;
+        const tierColor = isTier2 ? '#9b59b6' : '#4ecca3'; 
         const tierGlow = isTier2 ? 'rgba(155, 89, 182, 0.2)' : 'rgba(78, 204, 163, 0.1)';
 
-        // 2. Discount & Cost Calculation
         const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
         const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
         const displayCost = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
@@ -604,7 +603,7 @@ function renderSanctum() {
         const canAffordOne = mana >= displayCost;
         const btnClass = canAffordOne ? 'buy-btn' : 'buy-btn disabled';
 
-        // 3. Buy Max Potential Calculation
+        // Calculate Buy Max Potential
         let tempTotalCost = 0;
         let amountToBuy = 0;
         let tempCount = upg.count;
@@ -652,9 +651,7 @@ function renderSanctum() {
     });
 }
 
-// ==========================================
 // 2. EXPORT TO GLOBAL
-// ==========================================
 window.buyOne = buyOne;
 window.buyMax = buyMax;
 window.renderSanctum = renderSanctum;
