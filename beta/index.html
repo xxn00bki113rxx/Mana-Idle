@@ -1240,67 +1240,40 @@ function renderCompendium() {
 //Higher Plane Upgrade Shop Functions
 
 function renderDivineShop() {
-    // 1. Debug Logs (Optional: Remove these once the shop stays visible)
-    console.log("Attempting to render Divine Shop...");
-    
     const container = document.getElementById('divine-shop-container');
-    
-    // 2. Check for the Container
-    if (!container) {
-        console.warn("Divine Shop Container NOT FOUND!");
-        return;
-    }
+    if (!container) return;
 
-    // 3. Check for the Data (Prevents crashes if upgrades aren't loaded)
-    if (!divineUpgrades || divineUpgrades.length === 0) {
-        console.error("Divine Upgrades data is missing or empty.");
-        container.innerHTML = '<p style="color: #666; margin: 20px;">No divine upgrades found...</p>';
-        return;
-    }
-
-    // 4. Clear the container to prevent duplicate cards
     container.innerHTML = '';
 
-    // 5. Build the Shop Cards
     divineUpgrades.forEach(upg => {
         const card = document.createElement('div');
         card.className = 'upgrade-card divine-card'; 
 
+        // Use || 0 to prevent NaN if cost is missing
+        const displayCost = (upg.cost || 0).toLocaleString();
+
         card.innerHTML = `
             <div style="font-size: 2.2em; margin-bottom: 8px;">${upg.icon}</div>
-            
-            <div style="color: #ffd700; font-weight: bold; font-size: 1.1em; margin-bottom: 5px;">
-                ${upg.name}
-            </div>
-            
-            <div style="font-size: 0.85em; margin-bottom: 12px; min-height: 45px; color: #ecf0f1; line-height: 1.4;">
+            <div style="color: #ffd700; font-weight: bold; font-size: 1.1em;">${upg.name}</div>
+            <div style="font-size: 0.85em; margin: 10px 0; min-height: 45px; color: #ecf0f1;">
                 ${upg.description}
             </div>
-            
-            <div id="divine-lvl-${upg.id}" style="font-size: 0.85em; color: #bdc3c7; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 4px;">
+            <div id="divine-lvl-${upg.id}" style="font-size: 0.85em; color: #bdc3c7;">
                 Level: ${upg.level} / ${upg.maxLevel}
             </div>
-            
             <div class="card-actions" style="width: 100%;">
                 <button id="buy-divine-${upg.id}" class="buy-btn" 
                     onclick="buyDivineUpgrade('${upg.id}')" 
-                    style="border-color: #ffd700; color: #ffd700; width: 100%; margin-top: 12px; padding: 10px; font-weight: bold; cursor: pointer;">
-                    Buy: ${upg.cost} 🌟
+                    style="border-color: #ffd700; color: #ffd700; width: 100%; margin-top: 12px; padding: 10px;">
+                    Buy: ${displayCost} 🌟
                 </button>
             </div>
         `;
         container.appendChild(card);
     });
 
-    // 6. Sync logic for button enabling/disabling
-    if (typeof updateDivineUI === "function") {
-        updateDivineUI();
-    } else {
-        // Fallback: If updateDivineUI isn't written yet, use standard updateUI
-        updateUI();
-    }
+    if (typeof updateDivineUI === "function") updateDivineUI();
 }
-
 function buyDivineUpgrade(id) {
     const upg = divineUpgrades.find(u => u.id === id);
     
@@ -1715,53 +1688,79 @@ function calculateOfflineProgress(lastSaveTime) {
 
 function exportSave() {
     try {
+        // 1. Package all current game variables into one object
         const saveState = {
-            mana: mana,
-            essence: essence,
-            monstersDefeated: monstersDefeated,
-            monsterMaxHP: monsterMaxHP,
-            killsSinceLastArtifact: killsSinceLastArtifact,
+            // Core Progress
+            mana: typeof mana !== 'undefined' ? mana : 0,
+            essence: typeof essence !== 'undefined' ? essence : 0,
+            monstersDefeated: typeof monstersDefeated !== 'undefined' ? monstersDefeated : 0,
+            monsterMaxHP: typeof monsterMaxHP !== 'undefined' ? monsterMaxHP : 50,
+            killsSinceLastArtifact: typeof killsSinceLastArtifact !== 'undefined' ? killsSinceLastArtifact : 0,
             
-            // Prestige Data
-            heavenlyEssence: heavenlyEssence,
-            totalHeavenlyEarned: totalHeavenlyEarned,
-            totalManaAllTime: totalManaAllTime,
-            divinityLevel: divinityLevel,
+            // --- PRESTIGE & DIVINE DATA ---
+            heavenlyEssence: typeof heavenlyEssence !== 'undefined' ? heavenlyEssence : 0,
+            totalHeavenlyEarned: typeof totalHeavenlyEarned !== 'undefined' ? totalHeavenlyEarned : 0,
+            totalManaAllTime: typeof totalManaAllTime !== 'undefined' ? totalManaAllTime : 0,
+            divinityLevel: typeof divinityLevel !== 'undefined' ? divinityLevel : 0,
 
-            // Standard Upgrades (Must include ID)
+            // Standard Building Upgrades (Maps the ID + Count)
             upgrades: upgrades.map(u => ({ 
                 id: u.id, 
                 count: u.count, 
                 cost: u.cost 
             })),
             
+            // Artifacts
             artifacts: artifactPool.map(a => ({ 
                 id: a.id, 
                 owned: a.owned, 
                 level: a.level || 1 
             })),
 
+            // --- THE FIX: DIVINE UPGRADES DATA ---
+            // We map the ID and Level so the import function can "Merge" them 
+            // without losing the Cost or Icon data on the phone side.
             divineUpgrades: divineUpgrades.map(d => ({
                 id: d.id,
-                level: d.level,
-                cost: d.cost
+                level: d.level
             })),
             
+            // Metadata for Offline Progress & Versioning
             lastSaveTime: Date.now(),
             version: "1.1.0"
         };
 
-        const encodedSave = btoa(JSON.stringify(saveState));
+        // 2. Convert object to JSON string, then to Base64
+        const jsonStr = JSON.stringify(saveState);
+        const encodedSave = btoa(jsonStr);
+
+        // 3. Display the code in the UI
         const saveBox = document.getElementById('save-box');
         if (saveBox) {
             saveBox.value = encodedSave;
+            saveBox.focus();
             saveBox.select();
         }
-        navigator.clipboard.writeText(encodedSave);
-        alert("Save code copied to clipboard!");
+
+        // 4. Copy to Clipboard logic
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(encodedSave).then(() => {
+                if (typeof handleExportFeedback === "function") handleExportFeedback();
+                else alert("Save code copied to clipboard!");
+            }).catch(err => {
+                document.execCommand('copy');
+                alert("Save code copied to clipboard!");
+            });
+        } else {
+            document.execCommand('copy');
+            alert("Save code copied to clipboard!");
+        }
+
+        console.log("Export Successful: Divine progress bundled.");
 
     } catch (e) {
         console.error("Export Error:", e);
+        alert("Wizard Council Error: Could not enchant save string.");
     }
 }
 // Helper function to show the user it worked
@@ -1784,14 +1783,28 @@ function importSave() {
         const saveBox = document.getElementById('save-box');
         const encodedData = saveBox.value.trim();
 
-        if (!encodedData) return;
+        if (!encodedData) {
+            alert("The scroll is empty!");
+            return;
+        }
 
         const jsonStr = atob(encodedData);
         const saveState = JSON.parse(jsonStr);
 
-        // Standardize the key to match loadGame()
-        const finalSave = JSON.stringify(saveState);
-        localStorage.setItem("wizardIdle_v1", finalSave); 
+        // Standardize the key to match your loadGame()
+        localStorage.setItem("wizardIdle_v1", JSON.stringify(saveState)); 
+
+        // CRITICAL: Merge Divine Upgrades instead of overwriting
+        if (saveState.divineUpgrades) {
+            saveState.divineUpgrades.forEach(savedDiv => {
+                const realDiv = divineUpgrades.find(d => d.id === savedDiv.id);
+                if (realDiv) {
+                    // We only take the level from the save. 
+                    // This keeps the 'cost' and 'icon' intact from your local code.
+                    realDiv.level = savedDiv.level || 0;
+                }
+            });
+        }
 
         alert("✨ Save Successfully Imported! ✨");
         location.reload(); 
