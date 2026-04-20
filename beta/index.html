@@ -394,7 +394,9 @@ let spellCooldowns = { blast: false, siphon: false, storm: false };
 let heavenlyEssence = 0;      
 let totalManaThisRun = 0;     
 let divinityLevel = 0;       
-let divineMultiplier = 1;     
+let divineMultiplier = 1; 
+let totalManaAllTime = 0;      
+let totalHeavenlyEarned = 0;    
 
 // --- 2. ARTIFACT DEFINITIONS ---
 const artifactPool = [
@@ -422,9 +424,12 @@ const upgrades = [
 
 // --- 4. DIVINE UPGRADES (The Higher Plane) ---
 const divineUpgrades = [
-    { id: 'holy_flow', name: 'Holy Flow', icon: "🌟", cost: 1, level: 0, maxLevel: 50, desc: 'Permanent +20% MPS boost per level.' },
-    { id: 'angelic_bargain', name: 'Angelic Bargain', icon: "🕊️", cost: 5, level: 0, maxLevel: 10, desc: 'Buildings are 5% cheaper per level.' },
-    { id: 'godly_strike', name: 'Godly Strike', icon: "⚡", cost: 3, level: 0, maxLevel: 20, desc: 'Click damage increased by 100% per level.' }
+    { id: 'holy_flow', name: 'Holy Flow', icon: '✨', type: 'production', description: 'Permanent +20% Mana production per level.', level: 0, maxLevel: 50, cost: 10 },
+    { id: 'divine_strike', name: 'Divine Strike', icon: '⚔️', type: 'click', description: 'Permanent +5 Mana per click per level.', level: 0, maxLevel: 50, cost: 5 },
+    { id: 'spirit_projection', name: 'Spirit Projection', icon: '👻', type: 'utility', description: 'Increases soul efficiency while away. (+10% Offline Efficiency per level)', level: 0, maxLevel: 5, cost: 5 },
+    { id: 'soul_siphon', name: 'Soul Siphon', icon: '💎', type: 'combat', description: 'Gain +25% more Battle Essence from monsters per level.', level: 0, maxLevel: 20, cost: 8 },
+    { id: 'ethereal_wisdom', name: 'Ethereal Wisdom', icon: '📜', type: 'cost', description: 'Permanently reduces building costs by 5% per level.', level: 0, maxLevel: 10, cost: 20 },
+    { id: 'astral_speed', name: 'Astral Speed', icon: '⏳', type: 'time', description: 'Increases the speed of the game clock by 2% per level.', level: 0, maxLevel: 25, cost: 15 }
 ];
 
 // --- 2. NAVIGATION LOGIC ---
@@ -555,32 +560,23 @@ function renderSanctum() {
 }
 function buyOne(id) {
     const upg = upgrades.find(u => u.id === id);
-    if (!upg) return;
-
-    // Calculate Discounts
-    const robe = artifactPool.find(a => a.id === 'robe');
-    const artDiscount = (robe && robe.owned) ? (robe.bonus || 0) : 0;
     
-    const bargain = divineUpgrades.find(u => u.id === 'angelic_bargain');
-    const divineDiscount = bargain ? (bargain.level * 0.05) : 0;
+    // 1. Calculate cost using the 1.15 multiplier
+    let baseCost = Math.floor(upg.baseCost * Math.pow(1.15, upg.count));
     
-    const totalDiscount = artDiscount + divineDiscount;
+    // 2. Apply the Divine Discount (Ethereal Wisdom)
+    const wisdom = divineUpgrades.find(d => d.id === 'ethereal_wisdom');
+    const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
+    const finalCost = Math.floor(baseCost * discount);
 
-    // Calculate current cost: Base * (1.15^count) * (1 - discount)
-    const currentCost = Math.floor(upg.cost * Math.pow(1.15, upg.count) * (1 - totalDiscount));
-
-    if (mana >= currentCost) {
-        mana -= currentCost;
+    // 3. Purchase Logic
+    if (mana >= finalCost) {
+        mana -= finalCost;
         upg.count++;
         
-        // Recalculate MPS and Refresh UI
-        calculateMPS();
-        updateUI();
-        
-        // Optional: Save game on purchase
-        // saveGame(); 
-    } else {
-        console.log("Not enough mana!");
+        calculateMPS(); // Recalculate your production
+        updateUI();     // Refresh the buttons and text
+        saveGame();     // Lock in the progress
     }
 }
 
@@ -588,57 +584,74 @@ function buyMax(id) {
     const upg = upgrades.find(u => u.id === id);
     if (!upg) return;
 
-    const robe = artifactPool.find(a => a.id === 'robe');
-    const artDiscount = (robe && robe.owned) ? (robe.bonus || 0) : 0;
-    const bargain = divineUpgrades.find(u => u.id === 'angelic_bargain');
-    const divineDiscount = bargain ? (bargain.level * 0.05) : 0;
-    const totalDiscount = artDiscount + divineDiscount;
+    const wisdom = divineUpgrades.find(d => d.id === 'ethereal_wisdom');
+    const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
 
-    // Loop while we can afford the next one
-    let boughtAny = false;
+    let totalCost = 0;
+    let amountToBuy = 0;
+
+    // Loop to see how many we can afford with the discount applied
     while (true) {
-        const nextCost = Math.floor(upg.cost * Math.pow(1.15, upg.count) * (1 - totalDiscount));
-        if (mana >= nextCost) {
-            mana -= nextCost;
-            upg.count++;
-            boughtAny = true;
+        let nextPrice = Math.floor((upg.baseCost * Math.pow(1.15, upg.count + amountToBuy)) * discount);
+        
+        if (mana >= totalCost + nextPrice) {
+            totalCost += nextPrice;
+            amountToBuy++;
         } else {
             break;
         }
+        
+        // Safety break to prevent infinite loops
+        if (amountToBuy >= 1000) break; 
     }
 
-    if (boughtAny) {
+    if (amountToBuy > 0) {
+        mana -= totalCost;
+        upg.count += amountToBuy;
+        
         calculateMPS();
         updateUI();
+        saveGame();
+        console.log(`Bulk purchase successful: Bought ${amountToBuy} ${upg.name}s.`);
     }
 }
+
+function getBuildingCost(upg) {
+    // 1. Calculate the standard price
+    let price = Math.floor(upg.baseCost * Math.pow(1.15, upg.count));
+
+    // 2. Apply Ethereal Wisdom (The Divine Discount)
+    const wisdom = divineUpgrades.find(d => d.id === 'ethereal_wisdom');
+    const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
+
+    // 3. Return the discounted price
+    return Math.floor(price * discount);
+}
+	  
 function calculateMPS() {
     let baseMPS = 0;
-
-    // 1. Calculate Base Production from Buildings
+    
+    // Sum up building production
     upgrades.forEach(upg => {
-        baseMPS += (upg.mps * upg.count);
+        baseMPS += upg.count * upg.mps;
     });
 
-    // 2. Calculate Artifact Multipliers
-    const orb = artifactPool.find(a => a.id === 'orb');
-    let artifactMult = (orb && orb.owned) ? (1 + (orb.level * orb.bonus)) : 1;
-
-    // 3. Calculate Heavenly Essence (Divine) Multipliers
-    // We check if the holy_flow upgrade exists and what its level is
+    // 1. Apply Holy Flow (+20% per level)
     const holyFlow = divineUpgrades.find(u => u.id === 'holy_flow');
-    let divineMult = 1;
-    if (holyFlow) {
-        divineMult += (holyFlow.level * 0.20); // +20% per level
+    const flowMult = holyFlow ? (1 + (holyFlow.level * 0.20)) : 1;
+
+    // 2. Apply Ethereal Wisdom (Building Cost Reduction)
+    // Note: We don't change MPS here, but this is a reminder to 
+    // check etherealWisdom.level in your buyBuilding function!
+
+    globalMPS = baseMPS * flowMult;
+    
+    // 3. Update Game Speed (Astral Speed)
+    const astral = divineUpgrades.find(u => u.id === 'astral_speed');
+    // baseTickSpeed is usually 100ms. We reduce it (making it faster) by 2% per level.
+    if (astral) {
+        currentTickDelay = 100 * (1 - (astral.level * 0.02));
     }
-
-    // 4. Final Calculation
-    // We multiply the base by all multipliers discovered
-    globalMPS = baseMPS * artifactMult * divineMult;
-
-    // 5. Update the Global Passive Damage
-    // This ensures your Battle Rift damage scales instantly when you buy a building
-    passiveDamageBuffer = globalMPS * 0.1; 
 
     return globalMPS;
 }
@@ -1188,89 +1201,90 @@ function renderCompendium() {
 function renderDivineShop() {
     const container = document.getElementById('divine-shop-container');
     if (!container) return;
-    
-    container.innerHTML = ''; // Clear current view
+
+    // 1. Clear the container ONLY when we first open the tab
+    container.innerHTML = '';
 
     divineUpgrades.forEach(upg => {
         const card = document.createElement('div');
-        card.className = 'upgrade-card';
-        card.style.borderColor = '#ffd700'; // Gold border for divine items
-        
-        const canAfford = heavenlyEssence >= upg.cost;
-        const isMaxed = upg.level >= upg.maxLevel;
+        // We use the 'divine-card' class we added to the CSS earlier
+        card.className = 'upgrade-card divine-card'; 
 
         card.innerHTML = `
-            <div style="font-size: 2em;">${upg.icon}</div>
-            <div style="font-weight: bold; color: #ffd700;">${upg.name}</div>
-            <div style="font-size: 0.8em; margin: 5px 0;">${upg.desc}</div>
-            <div style="font-size: 0.9em; color: #4ecca3;">Level: ${upg.level} / ${upg.maxLevel}</div>
-            <button 
-                onclick="buyDivineUpgrade('${upg.id}')" 
-                class="buy-btn" 
-                ${(!canAfford || isMaxed) ? 'disabled' : ''}
-                style="margin-top: 10px; border-color: #ffd700; color: #ffd700;">
-                ${isMaxed ? 'MAXED' : `Cost: ${upg.cost} Essence`}
-            </button>
+            <div style="color: #ffd700; font-weight: bold; margin-bottom: 5px;">${upg.name}</div>
+            <div style="font-size: 0.8em; margin-bottom: 10px; min-height: 30px;">${upg.description}</div>
+            <div id="divine-lvl-${upg.id}" style="font-size: 0.85em; color: #aaa;">Level: ${upg.level}</div>
+            
+            <div class="card-actions">
+                <button id="buy-divine-${upg.id}" class="buy-btn" 
+                    onclick="buyDivineUpgrade('${upg.id}')" 
+                    style="border-color: #ffd700; color: #ffd700;">
+                    Buy: ${upg.cost} 🌟
+                </button>
+            </div>
         `;
         container.appendChild(card);
     });
+
+    // 2. Immediately call the update function to set the button states
+    updateDivineUI();
 }
 
 function buyDivineUpgrade(id) {
     const upg = divineUpgrades.find(u => u.id === id);
-    if (!upg || heavenlyEssence < upg.cost || upg.level >= upg.maxLevel) return;
+    
+    // 1. Basic Validation
+    if (!upg) return;
+    if (heavenlyEssence < upg.cost) {
+        console.log("Not enough Heavenly Essence!");
+        return;
+    }
+    if (upg.level >= upg.maxLevel) {
+        console.log("Already at maximum level.");
+        return;
+    }
 
+    // 2. Process Purchase
     heavenlyEssence -= upg.cost;
     upg.level++;
 
-    // Recalculate stats immediately
+    // 3. Dynamic Cost Scaling (Optional: If you want costs to go up)
+    upg.cost = Math.floor(upg.cost * 1.5); 
+
+    // 4. Logic Updates
     calculateMPS();
     
-    // Update the UI
-    renderDivineShop();
-    updateUI(); 
+    // 5. UI Updates (The "No-Flicker" Way)
+    // Instead of rendering the whole shop, we just update the text/labels
+    if (typeof updateDivineUI === "function") {
+        updateDivineUI();
+    }
+    
+    updateUI(); // Updates the top header mana/essence displays
     saveGame();
 }
 
+window.buyDivineUpgrade = buyDivineUpgrade;
+
 // --- 5. VISUALS ---
 function clickMana(event) {
-    // 1. DATA RETRIEVAL
     const wand = artifactPool.find(a => a.id === 'wand');
-    const orb = artifactPool.find(a => a.id === 'orb');
+    const strike = divineUpgrades.find(u => u.id === 'divine_strike');
+    const holyFlow = divineUpgrades.find(u => u.id === 'holy_flow');
 
-    // 2. POWER CALCULATION
-    // Option B: Base power is 1, plus the wand's bonus multiplied by its level
-    let basePower = 1 + (wand && wand.owned ? (wand.level * wand.bonus) : 0);
+    // Base + Wand + Divine Strike (+5 per level)
+    let power = 1;
+    if (wand && wand.owned) power += (wand.level * wand.bonus);
+    if (strike) power += (strike.level * 5);
 
-    // The Orb provides a global multiplier (e.g., 1.25 for +25%)
-    const multiplier = (orb && orb.owned) ? (1 + orb.bonus) : 1;
+    // Apply Global Production Multiplier to clicks too
+    const flowMult = holyFlow ? (1 + (holyFlow.level * 0.20)) : 1;
+    const finalPower = Math.floor(power * flowMult);
 
-    // Final Calculation (Using Math.floor to keep mana as a whole number)
-    const finalPower = Math.floor(basePower * multiplier);
-
-    // 3. STATE UPDATE
     mana += finalPower;
+    totalManaAllTime += finalPower;
 
-    // 4. FLOATING TEXT LOGIC
-    if (event) {
-        const p = document.createElement('div');
-        p.className = 'floating-text';
-        p.innerText = `+${finalPower}`;
-        
-        // Position at mouse click
-        p.style.left = event.clientX + 'px';
-        p.style.top = event.clientY + 'px';
-        p.style.transform = 'translateX(-50%)'; 
-
-        document.body.appendChild(p);
-
-        // Auto-remove after animation
-        setTimeout(() => {
-            p.remove();
-        }, 800);
-    }
-
-    // 5. UI SYNC
+    if (event) createFloatingText(event.clientX, event.clientY, `+${finalPower}`);
     updateUI();
 }
 
@@ -1302,6 +1316,10 @@ function gameLoop() {
     // Internal values keep their decimals for accuracy
     mana += mpsThisTick;
 
+    // NEW: Trackers for Ascension Rewards
+    totalManaThisRun += mpsThisTick;
+    totalManaAllTime += mpsThisTick;
+
     // --- B. PASSIVE COMBAT ---
     if (monsterHP > 0) {
         let pDmg = mpsThisTick * 0.1; // 10% of MPS as passive damage
@@ -1315,10 +1333,9 @@ function gameLoop() {
 
     // --- C. DAMAGE POPUPS (Whole Numbers) ---
     passiveTimer++;
-    if (passiveTimer >= 10) { // Every 1 second (at 100ms ticks)
+    if (passiveTimer >= (1000 / tickDelay)) { // Adjusted to sync with tick speed
         if (passiveDamageBuffer >= 1) {
             if (typeof createDamagePopup === "function") {
-                // Math.floor used here so floating text is always a whole number
                 createDamagePopup(Math.floor(passiveDamageBuffer), true);
             }
         }
@@ -1341,89 +1358,40 @@ function gameLoop() {
 }
 
 function updateUI() {
-    // --- 1. GLOBAL CURRENCIES (Header) ---
-    const mDisplay = document.getElementById('mana-display');
-    const eDisplay = document.getElementById('essence-display');
-    const hWrapper = document.getElementById('heavenly-display-wrapper');
-    const hDisplay = document.getElementById('heavenly-essence-header');
+    // A. Update Top-Level Currencies
+    document.getElementById('mana-display').innerText = Math.floor(mana).toLocaleString();
+    document.getElementById('essence-display').innerText = Math.floor(essence).toLocaleString();
     
-    if (mDisplay) mDisplay.innerText = Math.floor(mana).toLocaleString();
-    if (eDisplay) eDisplay.innerText = Math.floor(essence).toLocaleString();
-
-    // Heavenly Essence visibility: only shows once the player has ascended
-    if (heavenlyEssence > 0) {
-        if (hWrapper) hWrapper.style.display = 'inline-block';
-        if (hDisplay) hDisplay.innerText = Math.floor(heavenlyEssence).toLocaleString();
-        
-        // Reveal the "Higher Plane" navigation button permanently
-        const prestigeBtn = document.getElementById('nav-prestige');
-        if (prestigeBtn) prestigeBtn.style.display = 'inline-block';
+    // B. Update Ascension Tracking
+    // Showing the player their "Lifetime Record" makes the new system clear
+    const recordEl = document.getElementById('mana-record-display');
+    if (recordEl) {
+        recordEl.innerText = `All-Time Record: ${Math.floor(totalManaAllTime).toLocaleString()}`;
     }
 
-    // --- 2. GLOBAL MPS (Flow) ---
-    const mpsDisplay = document.getElementById('mps-display');
-    if (mpsDisplay) {
-        const currentMPS = calculateMPS(); 
-        mpsDisplay.innerText = `Flow: ${Math.floor(currentMPS).toLocaleString()} /sec`;
-    }
-
-    // --- 3. SANCTUM (Buildings) ---
-    // Check for Robe discount AND Divine Angelic Bargain discount
-    const robe = artifactPool.find(a => a.id === 'robe');
-    const artDiscount = (robe && robe.owned) ? (robe.bonus || 0) : 0;
-    
-    const bargain = divineUpgrades.find(u => u.id === 'angelic_bargain');
-    const divineDiscount = bargain ? (bargain.level * 0.05) : 0;
-    
-    const totalDiscount = artDiscount + divineDiscount;
+    // C. Update Building Buttons
+    const wisdom = divineUpgrades.find(d => d.id === 'ethereal_wisdom');
+    const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
 
     upgrades.forEach(upg => {
-        const currentCost = Math.floor(upg.cost * Math.pow(1.15, upg.count) * (1 - totalDiscount));
+        // Calculate the discounted price for the UI
+        let currentPrice = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
         
-        const b1Btn = document.getElementById(`buy1-${upg.id}`);
-        const mxBtn = document.getElementById(`max-${upg.id}`);
-        const lvlTxt = document.getElementById(`level-${upg.id}`);
-
-        if (b1Btn) {
-            b1Btn.disabled = (mana < currentCost);
-            b1Btn.innerText = `Buy: ${currentCost.toLocaleString()}`;
-        }
-
-        if (mxBtn) {
-            const affordable = typeof getAffordableAmount === "function" ? getAffordableAmount(upg, mana, totalDiscount) : 0;
-            mxBtn.disabled = (mana < currentCost);
-            mxBtn.innerText = `MAX (+${affordable})`;
-        }
+        const btn = document.getElementById(`buy-${upg.id}`);
+        const countLabel = document.getElementById(`count-${upg.id}`);
         
-        if (lvlTxt) lvlTxt.innerText = `Level: ${upg.count}`;
-    });
-
-    // --- 4. COMPENDIUM (Artifacts) ---
-    artifactPool.forEach(art => {
-        if (art.owned) {
-            const artBtn = document.getElementById(`upgrade-art-${art.id}`);
-            const artLvlTxt = document.getElementById(`art-level-${art.id}`);
-            const upgradeCost = Math.floor(Math.pow(2, art.level - 1) * 10);
-            
-            if (artBtn) {
-                artBtn.disabled = (essence < upgradeCost);
-                artBtn.innerText = `Upgrade: ${upgradeCost.toLocaleString()} Essence`;
-            }
-            if (artLvlTxt) artLvlTxt.innerText = `Lv. ${art.level}`;
+        if (btn) {
+            btn.innerText = `Buy 1 (${currentPrice.toLocaleString()} Mana)`;
+            btn.disabled = mana < currentPrice;
+        }
+        if (countLabel) {
+            countLabel.innerText = upg.count;
         }
     });
 
-    // --- 5. THE HIGHER PLANE (Divine Shop) ---
-    // We only refresh the Divine Shop numbers if that tab is actually open to save performance
-    const prestigeTab = document.getElementById('prestige-tab');
-    if (prestigeTab && prestigeTab.style.display !== 'none') {
-        renderDivineShop(); 
-    }
-
-    // --- 6. COMBAT SYNC ---
-    if (typeof updateCombatUI === "function") updateCombatUI();
+    // D. Update Global MPS Display
+    document.getElementById('mps-display').innerText = globalMPS.toFixed(1);
 }
-
 function updateCombatUI() {
     const pct = Math.max(0, (monsterHP / monsterMaxHP) * 100);
     document.getElementById('hp-bar').style.width = pct + "%";
@@ -1433,130 +1401,192 @@ function updateCombatUI() {
 }
 
 function ascend() {
-    // Formula: 1 Essence for the first 1M, scaling up from there
-    let potentialEssence = Math.floor(Math.sqrt(totalManaThisRun / 1000000));
+    // Math: Total lifetime essence should be sqrt(Total Mana / 1M)
+    // Example: 100M lifetime mana = 10 total essence ever earned.
+    let totalTarget = Math.floor(Math.sqrt(totalManaAllTime / 1000000));
     
-    if (potentialEssence < 1) {
-        alert("You have not yet gathered enough mana to reach a Higher Plane. (Need 1,000,000 Total Mana)");
+    // We only give them the essence they haven't earned yet
+    let potentialGain = totalTarget - totalHeavenlyEarned;
+
+    if (potentialGain < 1) {
+        // Calculate how much more mana they need for +1 Essence
+        let nextTargetMana = Math.pow(totalHeavenlyEarned + 1, 2) * 1000000;
+        let remaining = Math.ceil(nextTargetMana - totalManaAllTime);
+        
+        alert(`Your soul hasn't surpassed its previous limits yet. \nGenerate ${remaining.toLocaleString()} more Mana to earn your next Heavenly Essence.`);
         return;
     }
 
-    const message = `Do you wish to shed your mortal form? 
-    You will lose your buildings and current mana, but you will transcend with ${potentialEssence} Heavenly Essence.`;
+    const message = `Do you wish to transcend? \n\n` +
+                    `You will gain ${potentialGain} Heavenly Essence. \n` +
+                    `(This is based on your all-time record of ${Math.floor(totalManaAllTime).toLocaleString()} Mana!)`;
 
     if (confirm(message)) {
-        heavenlyEssence += potentialEssence;
+        // 1. Grant Rewards
+        heavenlyEssence += potentialGain;
+        totalHeavenlyEarned += potentialGain; // Mark these as "claimed"
         divinityLevel++;
         
-        // --- THE GREAT RESET ---
+        // 2. THE GREAT RESET
         mana = 0;
-        essence = 0; // The battle essence usually resets too
-        totalManaThisRun = 0;
-        
-        // Reset all building counts to 0
+        essence = 0;
+        totalManaThisRun = 0; // Reset the run counter, but NOT the All-Time counter
         upgrades.forEach(upg => upg.count = 0);
 
-        // Calculate new permanent multiplier (Example: +10% per Essence)
-        // You can also let them spend it in a shop instead
-        calculateDivineStats(); 
-
-        saveGame();
+        calculateMPS(); 
         
-        // Optional: Visual flourish before reload
-        document.body.style.transition = "filter 2s, background 2s";
-        document.body.style.filter = "brightness(5) white-out";
+        // 3. Visual Flourish
+        document.body.style.transition = "filter 1s ease-in";
+        document.body.style.filter = "brightness(10) blur(10px)";
         
         setTimeout(() => {
-            location.reload(); 
+            saveGame();
+            document.body.style.filter = "none";
+            showTab('prestige'); 
+            renderSanctum();
+            renderDivineShop();
+            updateUI();
         }, 1000);
     }
+}
+	  
+function updateDivineUI() {
+    // Only update if the Higher Plane tab is actually visible
+    const prestigeTab = document.getElementById('prestige-tab');
+    if (!prestigeTab || prestigeTab.style.display === 'none') return;
+
+    divineUpgrades.forEach(upg => {
+        const btn = document.getElementById(`buy-divine-${upg.id}`);
+        const lvlTxt = document.getElementById(`divine-lvl-${upg.id}`);
+        
+        if (btn) {
+            btn.disabled = (heavenlyEssence < upg.cost);
+            btn.innerText = `Buy: ${Math.floor(upg.cost).toLocaleString()} 🌟`;
+        }
+        if (lvlTxt) {
+            lvlTxt.innerText = `Level: ${upg.level}`;
+        }
+    });
+    
+    // Also update the main display in the prestige header
+    const hDisplay = document.getElementById('heavenly-essence-display');
+    if (hDisplay) hDisplay.innerText = Math.floor(heavenlyEssence).toLocaleString();
 }
 
 // --- 7. SAVE SYSTEM ---
 function saveGame() {
-    try {
-        const state = {
-            // Numbers
-            mana: Number(mana),
-            essence: Number(essence),
-            monstersDefeated: Number(monstersDefeated),
-            monsterMaxHP: Number(monsterMaxHP),
-            killsSinceLastArtifact: Number(killsSinceLastArtifact),
-
-            // Map upgrades: We only NEED the count. 
-            // The cost and mps will be recalculated based on your newest balance code.
-            upgrades: upgrades.map(u => ({ 
-                id: u.id, 
-                count: u.count 
-            })),
-
-            // Map artifacts
-            artifacts: artifactPool.map(a => ({ 
-                id: a.id, 
-                owned: a.owned, 
-                level: a.level 
-            }))
-        };
-
-        localStorage.setItem("wizardIdle_v1", JSON.stringify(state));
+    const saveData = {
+        // Core Currencies
+        mana: mana,
+        essence: essence,
+        heavenlyEssence: heavenlyEssence,
         
-        // Optional: Visual feedback for the player
-        console.log("Game Saved Successfully at " + new Date().toLocaleTimeString());
-    } catch (e) {
-        console.error("Save Error:", e);
-    }
+        // Ascension & Record Tracking
+        totalManaAllTime: totalManaAllTime,
+        totalManaThisRun: totalManaThisRun,
+        totalHeavenlyEarned: totalHeavenlyEarned,
+        divinityLevel: divinityLevel,
+        
+        // Progression
+        upgrades: upgrades.map(u => ({ id: u.id, count: u.count })),
+        divineUpgrades: divineUpgrades.map(du => ({ id: du.id, level: du.level, cost: du.cost })),
+        artifacts: artifactPool.map(a => ({ id: a.id, owned: a.owned, level: a.level })),
+        
+        // The "Exit Timestamp"
+        lastSaveTime: Date.now() 
+    };
+
+    localStorage.setItem("wizardIdle_v1", JSON.stringify(saveData));
+    console.log("Progress saved safely to the ethereal scrolls.");
 }
 
 function loadGame() {
-    try {
-        const saved = localStorage.getItem("wizardIdle_v1");
-        if (!saved) return;
+    const rawData = localStorage.getItem("wizardIdle_v1");
+    if (!rawData) return;
 
-        const data = JSON.parse(saved);
-        
-        // 1. Load basic resources
-        mana = Number(data.mana) || 0;
-        essence = Number(data.essence) || 0;
-        monstersDefeated = Number(data.monstersDefeated) || 0;
-        monsterMaxHP = Number(data.monsterMaxHP) || 50;
-        monsterHP = monsterMaxHP; 
-        killsSinceLastArtifact = Number(data.killsSinceLastArtifact) || 0;
-        
-        // 2. Load Upgrades (Using ID matching instead of Index)
-        if (data.upgrades) {
-            data.upgrades.forEach(savedUpg => {
-                // Find the building in your local code that matches the saved ID
-                const upg = upgrades.find(u => u.id === savedUpg.id);
-                if (upg) {
-                    upg.count = savedUpg.count || 0;
-                    // We don't load 'cost' here anymore; 
-                    // renderSanctum/updateUI will calculate it fresh using your formulas.
-                }
-            });
-        }
+    const savedData = JSON.parse(rawData);
 
-        // 3. Load Artifacts
-        if (data.artifacts) {
-            data.artifacts.forEach(savedArt => {
-                const art = artifactPool.find(a => a.id === savedArt.id);
-                if (art) {
-                    art.owned = savedArt.owned;
-                    art.level = savedArt.level || 1;
-                }
-            });
-        }
+    // 1. Restore Currencies
+    mana = savedData.mana || 0;
+    essence = savedData.essence || 0;
+    heavenlyEssence = savedData.heavenlyEssence || 0;
+
+    // 2. Restore Records
+    totalManaAllTime = savedData.totalManaAllTime || 0;
+    totalManaThisRun = savedData.totalManaThisRun || 0;
+    totalHeavenlyEarned = savedData.totalHeavenlyEarned || 0;
+    divinityLevel = savedData.divinityLevel || 0;
+
+    // 3. Restore Building Counts
+    if (savedData.upgrades) {
+        savedData.upgrades.forEach(savedUpg => {
+            const actualUpg = upgrades.find(u => u.id === savedUpg.id);
+            if (actualUpg) actualUpg.count = savedUpg.count;
+        });
+    }
+
+    // 4. Restore Divine Upgrades
+    if (savedData.divineUpgrades) {
+        savedData.divineUpgrades.forEach(savedDiv => {
+            const actualDiv = divineUpgrades.find(d => d.id === savedDiv.id);
+            if (actualDiv) {
+                actualDiv.level = savedDiv.level;
+                actualDiv.cost = savedDiv.cost;
+            }
+        });
+    }
+
+    // 5. Restore Artifacts
+    if (savedData.artifacts) {
+        savedData.artifacts.forEach(savedArt => {
+            const actualArt = artifactPool.find(a => a.id === savedArt.id);
+            if (actualArt) {
+                actualArt.owned = savedArt.owned;
+                actualArt.level = savedArt.level;
+            }
+        });
+    }
+
+    // --- CRITICAL: OFFLINE CALCULATION ---
+    // We must calculate MPS first so the offline math knows the current rate
+    calculateMPS(); 
+
+    if (savedData.lastSaveTime) {
+        calculateOfflineProgress(savedData.lastSaveTime);
+    }
+
+    // Refresh UI to show the loaded state
+    updateUI();
+    renderSanctum();
+    console.log("Welcome back, Archmage. Your progress has been restored.");
+}
+	  
+function calculateOfflineProgress(lastSaveTime) {
+    const secondsOffline = (Date.now() - lastSaveTime) / 1000;
+    const effectiveSeconds = Math.min(secondsOffline, 43200); // 12h cap
+
+    if (effectiveSeconds > 60) {
+        const mps = calculateMPS();
         
-        // 4. Refresh the Visuals
-        // This is crucial to ensure the new values show up on the buttons immediately
-        if (typeof renderSanctum === "function") renderSanctum();
-        if (typeof renderCompendium === "function") renderCompendium();
-        updateUI();
+        // A. Spirit Projection (Efficiency)
+        const spirit = divineUpgrades.find(u => u.id === 'spirit_projection');
+        const efficiency = 0.5 + (spirit ? (spirit.level * 0.1) : 0);
         
-        console.log("Game Loaded Successfully");
-    } catch (e) {
-        console.error("Load Error:", e);
+        // B. Soul Siphon (Essence Multiplier)
+        const siphon = divineUpgrades.find(u => u.id === 'soul_siphon');
+        const siphonMult = siphon ? (1 + (siphon.level * 0.25)) : 1;
+
+        const gainedMana = mps * effectiveSeconds * efficiency;
+        const gainedEssence = (mps * 0.1) * effectiveSeconds * efficiency * siphonMult;
+
+        mana += gainedMana;
+        totalManaAllTime += gainedMana;
+        essence += gainedEssence;
+
+        alert(`While away, you gathered ${Math.floor(gainedMana).toLocaleString()} Mana and ${Math.floor(gainedEssence).toLocaleString()} Essence at ${(efficiency * 100)}% efficiency.`);
     }
 }
+
 	  function exportSave() {
     try {
         // 1. Package all current game variables into one object
@@ -1772,7 +1802,7 @@ window.onload = function() {
     console.log("Game Initializing...");
     
     // 1. Load player data FIRST
-    // This fills your arrays with the saved counts and levels
+    // This fills your arrays with saved counts, levels, and the LAST SAVE TIMESTAMP
     try {
         loadGame();
     } catch(e) {
@@ -1783,25 +1813,36 @@ window.onload = function() {
     // Now that levels are loaded, calculate the production values
     calculateMPS();
 
-    // 3. Build the UI DOM Elements
+    // 3. OFFLINE PROGRESS CHECK (New Section)
+    // We do this AFTER calculateMPS so the math uses your current production power.
+    // We access the timestamp directly from the saved data in localStorage.
+    const rawData = localStorage.getItem("wizardIdle_v1");
+    if (rawData) {
+        const savedData = JSON.parse(rawData);
+        if (savedData.lastSaveTime && typeof calculateOfflineProgress === "function") {
+            calculateOfflineProgress(savedData.lastSaveTime);
+        }
+    }
+
+    // 4. Build the UI DOM Elements
     // These create the physical buttons and cards
     renderSanctum();     // Draws the Buildings
     renderCompendium();  // Draws the Artifacts
     
-    // 4. Set default tab
+    // 5. Set default tab
     showTab('sanctum');
 
-    // 5. Final UI Sync
-    // This fills the buttons with costs and enables/disables them based on mana
+    // 6. Final UI Sync
+    // This fills the buttons with costs and enables/disables them
     updateUI();
     
-    // 6. Start the game heartbeat
+    // 7. Start the game heartbeat
     // We start the loop LAST so the UI is ready for the first tick
     if (typeof gameLoop === "function") {
         gameLoop();
     }
     
-    console.log("Initialization Complete.");
+    console.log("Initialization Complete. Welcome back, Archmage.");
 };
 </script>
 
