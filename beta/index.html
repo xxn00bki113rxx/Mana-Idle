@@ -398,7 +398,6 @@ button:disabled {
 	
   <script>
 // --- 1. CORE VARIABLES ---
-// --- 1. CORE VARIABLES ---
 let mana = 0;
 let essence = 0;
 let globalMPS = 0;
@@ -1714,75 +1713,55 @@ function calculateOfflineProgress(lastSaveTime) {
     }
 }
 
-	 function exportSave() {
+function exportSave() {
     try {
-        // 1. Package all current game variables into one object
         const saveState = {
-            // Standard Currencies & Progress
-            mana: typeof mana !== 'undefined' ? mana : 0,
-            essence: typeof essence !== 'undefined' ? essence : 0,
-            monstersDefeated: typeof monstersDefeated !== 'undefined' ? monstersDefeated : 0,
-            monsterMaxHP: typeof monsterMaxHP !== 'undefined' ? monsterMaxHP : 50,
-            killsSinceLastArtifact: typeof killsSinceLastArtifact !== 'undefined' ? killsSinceLastArtifact : 0,
+            mana: mana,
+            essence: essence,
+            monstersDefeated: monstersDefeated,
+            monsterMaxHP: monsterMaxHP,
+            killsSinceLastArtifact: killsSinceLastArtifact,
             
-            // --- NEW: PRESTIGE & ASCENSION DATA ---
-            heavenlyEssence: typeof heavenlyEssence !== 'undefined' ? heavenlyEssence : 0,
-            totalHeavenlyEarned: typeof totalHeavenlyEarned !== 'undefined' ? totalHeavenlyEarned : 0,
-            
-            // Map the upgrades to a clean array
+            // Prestige Data
+            heavenlyEssence: heavenlyEssence,
+            totalHeavenlyEarned: totalHeavenlyEarned,
+            totalManaAllTime: totalManaAllTime,
+            divinityLevel: divinityLevel,
+
+            // Standard Upgrades (Must include ID)
             upgrades: upgrades.map(u => ({ 
+                id: u.id, 
                 count: u.count, 
                 cost: u.cost 
             })),
             
-            // Map the artifacts
             artifacts: artifactPool.map(a => ({ 
                 id: a.id, 
                 owned: a.owned, 
                 level: a.level || 1 
             })),
 
-            // --- NEW: MAP DIVINE UPGRADES ---
             divineUpgrades: divineUpgrades.map(d => ({
                 id: d.id,
-                level: d.level
+                level: d.level,
+                cost: d.cost
             })),
             
-            // Metadata
-            timestamp: Date.now(),
-            version: "1.1.0" // Incremented version for the Prestige Update
+            lastSaveTime: Date.now(),
+            version: "1.1.0"
         };
 
-        // 2. Convert object to JSON string, then to Base64
-        const jsonStr = JSON.stringify(saveState);
-        const encodedSave = btoa(jsonStr);
-
-        // 3. Display the code in the textarea
+        const encodedSave = btoa(JSON.stringify(saveState));
         const saveBox = document.getElementById('save-box');
         if (saveBox) {
             saveBox.value = encodedSave;
-            saveBox.focus();
             saveBox.select();
         }
-
-        // 4. Attempt to copy to clipboard
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(encodedSave).then(() => {
-                handleExportFeedback();
-            }).catch(err => {
-                document.execCommand('copy');
-                handleExportFeedback();
-            });
-        } else {
-            document.execCommand('copy');
-            handleExportFeedback();
-        }
-
-        console.log("Ascension data bundled into save string!");
+        navigator.clipboard.writeText(encodedSave);
+        alert("Save code copied to clipboard!");
 
     } catch (e) {
         console.error("Export Error:", e);
-        alert("Wizard Council Error: Could not enchant save string.");
     }
 }
 // Helper function to show the user it worked
@@ -1805,71 +1784,21 @@ function importSave() {
         const saveBox = document.getElementById('save-box');
         const encodedData = saveBox.value.trim();
 
-        if (!encodedData) {
-            alert("The scroll is empty! Please paste a save code.");
-            return;
-        }
+        if (!encodedData) return;
 
-        // 1. Decode the Base64 string back into JSON
         const jsonStr = atob(encodedData);
         const saveState = JSON.parse(jsonStr);
 
-        // 2. Restore core variables
-        mana = saveState.mana || 0;
-        essence = saveState.essence || 0;
-        monstersDefeated = saveState.monstersDefeated || 0;
-        monsterMaxHP = saveState.monsterMaxHP || 50;
-        killsSinceLastArtifact = saveState.killsSinceLastArtifact || 0;
-
-        // --- NEW: Restore Divine/Ascension Status ---
-        heavenlyEssence = saveState.heavenlyEssence || 0;
-        totalHeavenlyEarned = saveState.totalHeavenlyEarned || 0;
-
-        // 3. Restore Upgrades (Standard Buildings)
-        if (saveState.upgrades) {
-            saveState.upgrades.forEach((savedUp, index) => {
-                if (upgrades[index]) {
-                    upgrades[index].count = savedUp.count;
-                    upgrades[index].cost = savedUp.cost;
-                }
-            });
-        }
-
-        // 4. Restore Artifacts
-        if (saveState.artifacts) {
-            saveState.artifacts.forEach(savedArt => {
-                const realArt = artifactPool.find(a => a.id === savedArt.id);
-                if (realArt) {
-                    realArt.owned = savedArt.owned;
-                    realArt.level = savedArt.level || 1;
-                }
-            });
-        }
-
-        // --- NEW: Restore Divine Upgrades ---
-        if (saveState.divineUpgrades) {
-            saveState.divineUpgrades.forEach(savedDiv => {
-                const realDiv = divineUpgrades.find(d => d.id === savedDiv.id);
-                if (realDiv) {
-                    realDiv.level = savedDiv.level || 0;
-                }
-            });
-        }
-
-        // 5. Force a save to LocalStorage so progress persists
-        // We re-stringity our new saveState to ensure it includes the divine data
+        // Standardize the key to match loadGame()
         const finalSave = JSON.stringify(saveState);
-        localStorage.setItem("wizardIdle_save", finalSave);
+        localStorage.setItem("wizardIdle_v1", finalSave); 
 
-        // 6. Refresh the UI and provide feedback
         alert("✨ Save Successfully Imported! ✨");
-        
-        // Reloading is the best way to ensure MPS and multipliers recalculate
-        location.reload();
+        location.reload(); 
 
     } catch (e) {
         console.error("Import Error:", e);
-        alert("Failed to read the save code. It may be corrupted or from an incompatible version.");
+        alert("Failed to read the save code.");
     }
 }
 // --- 8. ADMIN FUNCTIONS ---
