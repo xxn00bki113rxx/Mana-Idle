@@ -364,7 +364,7 @@ button:disabled {
 <div id="prestige-tab" class="tab-content" style="display: none;">
     <div class="prestige-header" style="margin-bottom: 20px;">
         <h2 style="color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);">The Divine Realm</h2>
-        <p>You have gathered <span id="heavenly-essence-display" style="font-weight: bold; color: #ffd700;">0</span> Heavenly Essence</p>
+        <p>You have gathered <span id="heavenly-essence-header" style="font-weight: bold; color: #ffd700;">0</span> Heavenly Essence</p>
     </div>
 
     <div id="divine-shop-container" class="shop-container"></div>
@@ -467,59 +467,43 @@ const divineUpgrades = [
 
 // --- 2. NAVIGATION LOGIC ---
 window.showTab = function(tabName) {
-    // 1. Define all possible tabs in your game
     const tabs = ['sanctum', 'battle', 'compendium', 'settings', 'prestige']; 
     
-    // 2. Hide all tab content and remove 'active' state from buttons
     tabs.forEach(t => {
         const content = document.getElementById(t + '-tab');
         const btn = document.getElementById(t + '-btn') || document.getElementById('nav-' + t);
-
         if (content) content.style.display = 'none';
         if (btn) btn.classList.remove('active');
     });
 
-    // 3. Show the target tab content
     const activeTab = document.getElementById(tabName + '-tab');
     if (activeTab) {
-        // 'block' is used here so child elements (like grids) can calculate their geometry
         activeTab.style.display = 'block';
     }
     
-    // 4. Highlight the navigation button for the current tab
     const activeBtn = document.getElementById(tabName + '-btn') || document.getElementById('nav-' + tabName);
     if (activeBtn) activeBtn.classList.add('active');
 
-    // 5. Tab-Specific Rendering (with 10ms "Reflow" Delay)
+    // TAB SPECIFIC RENDERING
     if (tabName === 'sanctum') {
-        setTimeout(() => {
-            if (typeof renderSanctum === "function") renderSanctum();
-        }, 10);
+        setTimeout(() => { if (typeof renderSanctum === "function") renderSanctum(); }, 10);
     }
-
     if (tabName === 'battle') {
-        // Immediate UI update to ensure health bars are current
         updateUI(); 
     }
-
     if (tabName === 'compendium') {
-        setTimeout(() => {
-            if (typeof renderCompendium === "function") renderCompendium();
-        }, 10);
+        setTimeout(() => { if (typeof renderCompendium === "function") renderCompendium(); }, 10);
     }
     
+    // FIXED PRESTIGE BLOCK
     if (tabName === 'prestige') {
         setTimeout(() => {
             if (typeof renderDivineShop === "function") renderDivineShop();
-        }, 10);
-    }
+            updateUI();
+        }, 20);
+    } 
 
-    // 6. GLOBAL SYNC
-    // This ensures that conditionally visible items (like the Prestige nav button)
-    // are re-evaluated immediately after the tab switch.
     updateUI();
-
-    console.log(`Switched to: ${tabName}`);
 };
 
 // --- 3. SHOP & ECONOMY ---
@@ -664,24 +648,17 @@ function getBuildingCost(upg) {
 function calculateMPS() {
     let baseMPS = 0;
     
-    // Sum up building production
     upgrades.forEach(upg => {
         baseMPS += upg.count * upg.mps;
     });
 
-    // 1. Apply Holy Flow (+20% per level)
     const holyFlow = divineUpgrades.find(u => u.id === 'holy_flow');
     const flowMult = holyFlow ? (1 + (holyFlow.level * 0.20)) : 1;
 
-    // 2. Apply Ethereal Wisdom (Building Cost Reduction)
-    // Note: We don't change MPS here, but this is a reminder to 
-    // check etherealWisdom.level in your buyBuilding function!
-
-    globalMPS = baseMPS * flowMult;
+    // Wrap the final result in Math.floor
+    globalMPS = Math.floor(baseMPS * flowMult);
     
-    // 3. Update Game Speed (Astral Speed)
     const astral = divineUpgrades.find(u => u.id === 'astral_speed');
-    // baseTickSpeed is usually 100ms. We reduce it (making it faster) by 2% per level.
     if (astral) {
         currentTickDelay = 100 * (1 - (astral.level * 0.02));
     }
@@ -1492,10 +1469,13 @@ function updateUI() {
         updateCombatUI();
     }
 
-    const mpsEl = document.getElementById('mps-display');
-    if (mpsEl) mpsEl.innerText = globalMPS.toFixed(1);
+   
+const mpsEl = document.getElementById('mps-display');
+if (mpsEl) {
+    mpsEl.innerText = Math.floor(globalMPS).toLocaleString();
+	}
 }
-	  
+
 function updateCombatUI() {
     const pct = Math.max(0, (monsterHP / monsterMaxHP) * 100);
     document.getElementById('hp-bar').style.width = pct + "%";
