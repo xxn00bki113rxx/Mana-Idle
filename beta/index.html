@@ -179,6 +179,24 @@ body {
     user-select: none;
 }
 
+.cooldown-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 0%; 
+    background: rgba(0, 0, 0, 0.6); 
+    pointer-events: none; 
+    border-radius: inherit; 
+    z-index: 2;
+}
+
+.skill-btn {
+    position: relative; 
+    overflow: hidden;   
+    z-index: 1;
+}
+
 /* 8. ANIMATIONS & POPUPS */
 @keyframes hitFlash {
     0% { transform: scale(1); }
@@ -449,32 +467,30 @@ const divineUpgrades = [
 
 // --- 2. NAVIGATION LOGIC ---
 window.showTab = function(tabName) {
-    // 1. Define all possible tabs (Added 'prestige' for your new system)
+    // 1. Define all possible tabs in your game
     const tabs = ['sanctum', 'battle', 'compendium', 'settings', 'prestige']; 
     
-    // 2. Loop through and hide everything
+    // 2. Hide all tab content and remove 'active' state from buttons
     tabs.forEach(t => {
         const content = document.getElementById(t + '-tab');
-        
-        // Check for both naming conventions for buttons
         const btn = document.getElementById(t + '-btn') || document.getElementById('nav-' + t);
 
         if (content) content.style.display = 'none';
         if (btn) btn.classList.remove('active');
     });
 
-    // 3. Show the target tab
+    // 3. Show the target tab content
     const activeTab = document.getElementById(tabName + '-tab');
     if (activeTab) {
-        // Setting to 'block' allows the child grid to calculate its width correctly
+        // 'block' is used here so child elements (like grids) can calculate their geometry
         activeTab.style.display = 'block';
     }
     
-    // 4. Highlight the correct button
+    // 4. Highlight the navigation button for the current tab
     const activeBtn = document.getElementById(tabName + '-btn') || document.getElementById('nav-' + tabName);
     if (activeBtn) activeBtn.classList.add('active');
 
-    // 5. Tab-Specific Rendering with the 10ms "Grid-Fix" Delay
+    // 5. Tab-Specific Rendering (with 10ms "Reflow" Delay)
     if (tabName === 'sanctum') {
         setTimeout(() => {
             if (typeof renderSanctum === "function") renderSanctum();
@@ -482,7 +498,7 @@ window.showTab = function(tabName) {
     }
 
     if (tabName === 'battle') {
-        // Combat usually needs an immediate UI sync for the health bars
+        // Immediate UI update to ensure health bars are current
         updateUI(); 
     }
 
@@ -498,7 +514,11 @@ window.showTab = function(tabName) {
         }, 10);
     }
 
-    // Optional: Log for debugging
+    // 6. GLOBAL SYNC
+    // This ensures that conditionally visible items (like the Prestige nav button)
+    // are re-evaluated immediately after the tab switch.
+    updateUI();
+
     console.log(`Switched to: ${tabName}`);
 };
 
@@ -1395,6 +1415,21 @@ function gameLoop() {
 }
 
 function updateUI() {
+    // --- 1. VISIBILITY & NAVIGATION LOGIC ---
+    const heavenlyWrapper = document.getElementById('heavenly-display-wrapper');
+    const prestigeNavBtn = document.getElementById('prestige-btn') || document.getElementById('nav-prestige');
+    
+    // Check if the player has unlocked the Higher Plane (Ascended at least once)
+    const isAscended = (heavenlyEssence > 0 || totalHeavenlyEarned > 0);
+    
+    if (heavenlyWrapper) {
+        heavenlyWrapper.style.display = isAscended ? 'block' : 'none';
+    }
+    if (prestigeNavBtn) {
+        prestigeNavBtn.style.display = isAscended ? 'inline-block' : 'none';
+    }
+
+    // --- 2. GLOBAL CURRENCY DISPLAYS ---
     const manaEl = document.getElementById('mana-display');
     const essenceEl = document.getElementById('essence-display');
     const recordEl = document.getElementById('mana-record-display');
@@ -1405,9 +1440,11 @@ function updateUI() {
     if (recordEl) recordEl.innerText = `Record: ${Math.floor(totalManaAllTime).toLocaleString()}`;
     if (heavenlyEl) heavenlyEl.innerText = Math.floor(heavenlyEssence).toLocaleString();
 
+    // --- 3. PRICE CALCULATIONS (Divine Discounts) ---
     const wisdom = divineUpgrades.find(d => d.id === 'ethereal_wisdom');
     const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
 
+    // --- 4. BUILDING SHOP LOOP ---
     upgrades.forEach(upg => {
         let currentPrice = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
         
@@ -1415,21 +1452,24 @@ function updateUI() {
         const countLabel = document.getElementById(`count-${upg.id}`);
         const maxBtn = document.getElementById(`buyMax-${upg.id}`);
 
+        // Update Single Buy Button
         if (btn) {
             btn.innerText = `Buy 1 (${currentPrice.toLocaleString()})`;
             btn.disabled = mana < currentPrice;
         }
+
+        // Update Level Counter
         if (countLabel) {
             countLabel.innerText = upg.count;
         }
 
-        // --- MAX AFFORDABLE CALCULATION ---
+        // Calculate Max Affordable (+X) Preview
         if (maxBtn) {
             let tempMana = mana;
             let affordableCount = 0;
             let tempBuildingCount = upg.count;
             
-            // Loop to see how many we can afford right now
+            // Simulation loop to find total affordable
             while (true) {
                 let nextCost = Math.floor((upg.baseCost * Math.pow(1.15, tempBuildingCount)) * discount);
                 if (tempMana >= nextCost) {
@@ -1439,7 +1479,7 @@ function updateUI() {
                 } else {
                     break;
                 }
-                if (affordableCount >= 1000) break; // Performance safety cap
+                if (affordableCount >= 1000) break; // Performance safeguard
             }
 
             maxBtn.innerText = `MAX (+${affordableCount})`;
@@ -1447,7 +1487,10 @@ function updateUI() {
         }
     });
 
-    if (typeof updateCombatUI === "function") updateCombatUI();
+    // --- 5. SUBSYSTEM SYNC ---
+    if (typeof updateCombatUI === "function") {
+        updateCombatUI();
+    }
 
     const mpsEl = document.getElementById('mps-display');
     if (mpsEl) mpsEl.innerText = globalMPS.toFixed(1);
