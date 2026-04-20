@@ -303,22 +303,22 @@ button:disabled {
             <div id="hp-text" style="position: absolute; width: 100%; top: 0; left: 0; text-align: center; font-size: 0.85em; line-height: 22px; color: white; font-weight: bold; text-shadow: 1px 1px 2px #000;">HP: 50 / 50</div>
         </div>
 
-        <button id="strike-btn" onclick="attackMonster(event)" style="width: 100%; padding: 12px; margin-bottom: 15px; background: #e94560; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">Standard Strike</button>
+      <button id="attack-btn" onclick="attackMonster(event)" style="width: 100%; padding: 12px; margin-bottom: 15px; background: #e94560; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">Standard Strike</button>
 
-        <div class="ability-bar" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: 100%;">
-            <div class="skill-container" style="position: relative; flex: 1; min-width: 80px;">
-                <button class="skill-btn" onclick="castBlast(event)" style="width: 100%; font-size: 0.8em; padding: 10px 5px;">Arcane Blast</button>
-                <div id="cooldown-blast" class="cooldown-overlay"></div>
-            </div>
-            <div class="skill-container" style="position: relative; flex: 1; min-width: 80px;">
-                <button class="skill-btn" onclick="castSiphon(event)" style="width: 100%; font-size: 0.8em; padding: 10px 5px;">Mana Siphon</button>
-                <div id="cooldown-siphon" class="cooldown-overlay"></div>
-            </div>
-            <div class="skill-container" style="position: relative; flex: 1; min-width: 80px;">
-                <button class="skill-btn" onclick="castStorm(event)" style="width: 100%; font-size: 0.8em; padding: 10px 5px;">Mana Storm</button>
-                <div id="cooldown-storm" class="cooldown-overlay"></div>
-            </div>
-        </div>
+<div class="ability-bar" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: 100%;">
+    <div class="skill-container" style="position: relative; flex: 1; min-width: 80px;">
+        <button id="skill-blast" class="skill-btn" onclick="castBlast(event)" style="width: 100%; font-size: 0.8em; padding: 10px 5px;">Arcane Blast</button>
+        <div id="cooldown-blast" class="cooldown-overlay"></div>
+    </div>
+    <div class="skill-container" style="position: relative; flex: 1; min-width: 80px;">
+        <button id="skill-siphon" class="skill-btn" onclick="castSiphon(event)" style="width: 100%; font-size: 0.8em; padding: 10px 5px;">Mana Siphon</button>
+        <div id="cooldown-siphon" class="cooldown-overlay"></div>
+    </div>
+    <div class="skill-container" style="position: relative; flex: 1; min-width: 80px;">
+        <button id="skill-storm" class="skill-btn" onclick="castStorm(event)" style="width: 100%; font-size: 0.8em; padding: 10px 5px;">Mana Storm</button>
+        <div id="cooldown-storm" class="cooldown-overlay"></div>
+    </div>
+</div>
     </div>
 </div> 
 
@@ -538,7 +538,8 @@ function renderSanctum() {
         const card = document.createElement('div');
         card.className = 'upgrade-card';
         
-        const isTier2 = upg.cost >= 150000; 
+        // FIXED: Using baseCost instead of cost for theme logic
+        const isTier2 = upg.baseCost >= 150000; 
         const themeColor = isTier2 ? '#9b59b6' : '#4ecca3'; 
         
         card.style.borderLeft = `4px solid ${themeColor}`;
@@ -555,7 +556,7 @@ function renderSanctum() {
             
             <div class="card-actions">
                 <button id="buy-${upg.id}" class="buy-btn" onclick="buyOne('${upg.id}')">
-                    Buy
+                    Buy 1
                 </button>
                 <button id="buyMax-${upg.id}" class="buy-btn" onclick="buyMax('${upg.id}')">
                     MAX
@@ -846,33 +847,47 @@ function checkMonsterDeath() {
 }
 function triggerCooldown(skillId, ms) {
     const btn = document.getElementById(skillId);
-    // Get the overlay ID (e.g., 'skill-blast' -> 'cooldown-blast')
+    // This turns 'skill-blast' into 'cooldown-blast'
     const overlayId = skillId.replace('skill-', 'cooldown-');
     const overlay = document.getElementById(overlayId);
     
-    if (!btn || !overlay) return;
+    if (!btn || !overlay) {
+        console.warn(`Cooldown elements not found for: ${skillId}`);
+        return;
+    }
 
-    // 1. Lock the button and reset the overlay
+    // Lock button and reset overlay to full height
     btn.disabled = true;
     overlay.style.transition = "none"; 
-    overlay.style.height = "100%";     
+    overlay.style.height = "100%";      
 
-    // 2. Start the CSS animation
+    // Start the sliding down animation
     setTimeout(() => {
         overlay.style.transition = `height ${ms}ms linear`;
         overlay.style.height = "0%"; 
     }, 50);
 
-    // 3. Re-enable and Sync UI when finished
+    // Re-enable button after time is up
     setTimeout(() => {
         btn.disabled = false;
-        
-        // CRITICAL: Refresh the UI state. 
-        // This ensures the button's opacity/color resets correctly based on current mana.
         updateUI(); 
-        
-        console.log(`${skillId} is ready again!`);
     }, ms);
+}
+
+	function startCooldown(skill, seconds) {
+    // 1. Logic: Prevent the spell from being cast again immediately
+    if (!window.spellCooldowns) window.spellCooldowns = {}; 
+    spellCooldowns[skill] = true;
+    
+    // 2. Visuals: Run the bar animation (using milliseconds)
+    triggerCooldown(`skill-${skill}`, seconds * 1000);
+    
+    // 3. Reset: Unlock the spell after the timer ends
+    setTimeout(() => {
+        spellCooldowns[skill] = false;
+        // Check if we can afford spells now that cooldown is over
+        updateUI(); 
+    }, seconds * 1000);
 }
 
 	function spawnDamageText(event, text, color) {
@@ -1380,20 +1395,19 @@ function gameLoop() {
 }
 
 function updateUI() {
-    // 1. Core Currencies
     const manaEl = document.getElementById('mana-display');
     const essenceEl = document.getElementById('essence-display');
     const recordEl = document.getElementById('mana-record-display');
+    const heavenlyEl = document.getElementById('heavenly-essence-header');
 
     if (manaEl) manaEl.innerText = Math.floor(mana).toLocaleString();
     if (essenceEl) essenceEl.innerText = Math.floor(essence).toLocaleString();
-    if (recordEl) recordEl.innerText = `All-Time Record: ${Math.floor(totalManaAllTime).toLocaleString()}`;
+    if (recordEl) recordEl.innerText = `Record: ${Math.floor(totalManaAllTime).toLocaleString()}`;
+    if (heavenlyEl) heavenlyEl.innerText = Math.floor(heavenlyEssence).toLocaleString();
 
-    // 2. Divine Discount Math
     const wisdom = divineUpgrades.find(d => d.id === 'ethereal_wisdom');
     const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
 
-    // 3. Shop Buttons
     upgrades.forEach(upg => {
         let currentPrice = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
         
@@ -1408,13 +1422,33 @@ function updateUI() {
         if (countLabel) {
             countLabel.innerText = upg.count;
         }
+
+        // --- MAX AFFORDABLE CALCULATION ---
         if (maxBtn) {
-            // MAX buttons are disabled if you can't even afford one
-            maxBtn.disabled = mana < currentPrice;
+            let tempMana = mana;
+            let affordableCount = 0;
+            let tempBuildingCount = upg.count;
+            
+            // Loop to see how many we can afford right now
+            while (true) {
+                let nextCost = Math.floor((upg.baseCost * Math.pow(1.15, tempBuildingCount)) * discount);
+                if (tempMana >= nextCost) {
+                    tempMana -= nextCost;
+                    affordableCount++;
+                    tempBuildingCount++;
+                } else {
+                    break;
+                }
+                if (affordableCount >= 1000) break; // Performance safety cap
+            }
+
+            maxBtn.innerText = `MAX (+${affordableCount})`;
+            maxBtn.disabled = affordableCount === 0;
         }
     });
 
-    // 4. Global MPS
+    if (typeof updateCombatUI === "function") updateCombatUI();
+
     const mpsEl = document.getElementById('mps-display');
     if (mpsEl) mpsEl.innerText = globalMPS.toFixed(1);
 }
