@@ -542,7 +542,7 @@ function buyOne(id) {
         upg.count++;
         
         if (typeof calculateMPS === 'function') calculateMPS();
-        renderSanctum();
+        renderSanctum(); // Refresh shop to update affordabilities
         updateUI();
         if (typeof saveGame === 'function') saveGame();
     }
@@ -574,7 +574,7 @@ function buyMax(id) {
         upg.count += amountToBuy;
         
         if (typeof calculateMPS === 'function') calculateMPS();
-        renderSanctum();
+        renderSanctum(); // Refresh shop to update levels and +X text
         updateUI();
         if (typeof saveGame === 'function') saveGame();
     }
@@ -590,40 +590,39 @@ function renderSanctum() {
         const card = document.createElement('div');
         card.className = 'upgrade-card';
 
-        // 1. Calculate Discount
+        // 1. Tier Distinction Logic
+        // Buildings with baseCost >= 5000 or specific IDs are treated as Tier 2
+        const isTier2 = upg.baseCost >= 5000 || upg.tier === 2;
+        const tierColor = isTier2 ? '#9b59b6' : '#4ecca3'; // Purple for T2, Green/Blue for T1
+        const tierGlow = isTier2 ? 'rgba(155, 89, 182, 0.2)' : 'rgba(78, 204, 163, 0.1)';
+
+        // 2. Discount & Cost Calculation
         const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
         const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
-        
-        // 2. Calculate "Buy One" Cost
         const displayCost = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
+        
         const canAffordOne = mana >= displayCost;
         const btnClass = canAffordOne ? 'buy-btn' : 'buy-btn disabled';
 
-        // 3. Calculate "Buy Max" Potential
+        // 3. Buy Max Potential Calculation
         let tempTotalCost = 0;
         let amountToBuy = 0;
         let tempCount = upg.count;
-
         while (true) {
             let nextPrice = Math.floor((upg.baseCost * Math.pow(1.15, tempCount)) * discount);
             if (mana >= tempTotalCost + nextPrice) {
                 tempTotalCost += nextPrice;
                 amountToBuy++;
                 tempCount++;
-            } else {
-                break;
-            }
+            } else { break; }
             if (amountToBuy >= 1000) break;
         }
 
-        const maxBtnText = amountToBuy > 0 ? `Buy Max (+${amountToBuy})` : "Buy Max (0)";
-        const maxBtnDisabled = amountToBuy === 0 ? 'disabled' : '';
-
         card.innerHTML = `
-            <div class="upgrade-info">
+            <div class="upgrade-info" style="border-left: 4px solid ${tierColor}; padding-left: 10px;">
                 <span class="upgrade-icon" style="font-size: 1.5em;">${upg.icon || '📜'}</span>
                 <div class="upgrade-texts">
-                    <div class="upgrade-name" style="font-weight: bold;">${upg.name || 'Unknown'}</div>
+                    <div class="upgrade-name" style="font-weight: bold; color: ${tierColor};">${upg.name || 'Unknown'}</div>
                     <div class="upgrade-desc" style="font-size: 0.8em; color: #aaa;">${upg.description || upg.desc || ''}</div>
                 </div>
             </div>
@@ -633,15 +632,19 @@ function renderSanctum() {
                 <button class="${btnClass}" 
                     onclick="buyOne('${upg.id}')" 
                     ${!canAffordOne ? 'disabled' : ''}
-                    style="width: 100%; padding: 10px; cursor: pointer; margin-bottom: 8px; border-radius: 8px; font-weight: bold; border: none;">
-                    Buy: ${displayCost.toLocaleString()} Mana
+                    style="width: 100%; padding: 10px; cursor: pointer; margin-bottom: 8px; border-radius: 8px; font-weight: bold; 
+                    background: ${canAffordOne ? tierColor : '#333'}; 
+                    border: 2px solid ${tierColor};
+                    color: white;
+                    box-shadow: 0 0 10px ${tierGlow};">
+                    Buy: ${displayCost.toLocaleString()}
                 </button>
 
                 <button class="buy-max-btn" 
                     onclick="buyMax('${upg.id}')" 
-                    ${maxBtnDisabled}
-                    style="width: 100%; padding: 8px; cursor: pointer; font-size: 0.75em; background: #2c3e50; color: #fff; border: 1px solid #34495e; border-radius: 8px; opacity: ${amountToBuy > 0 ? 1 : 0.5}; transition: 0.2s;">
-                    ${maxBtnText}
+                    ${amountToBuy === 0 ? 'disabled' : ''}
+                    style="width: 100%; padding: 8px; cursor: pointer; font-size: 0.75em; background: #2c3e50; color: #fff; border: 1px solid #34495e; border-radius: 8px; opacity: ${amountToBuy > 0 ? 1 : 0.5};">
+                    Buy Max (+${amountToBuy})
                 </button>
             </div>
         `;
@@ -655,6 +658,7 @@ function renderSanctum() {
 window.buyOne = buyOne;
 window.buyMax = buyMax;
 window.renderSanctum = renderSanctum;
+
 
 function getBuildingCost(upg) {
     // 1. Calculate the standard price
