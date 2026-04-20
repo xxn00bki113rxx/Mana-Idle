@@ -425,16 +425,16 @@ const artifactPool = [
 
 // --- 3. UPGRADE DEFINITIONS (Sanctum) ---
 const upgrades = [
-    { id: 'scribe', name: 'Apprentice Scribe', cost: 15, mps: 1, count: 0 },
-    { id: 'well', name: 'Mana Well', cost: 125, mps: 6, count: 0 },
-    { id: 'library', name: 'Arcane Library', cost: 1200, mps: 40, count: 0 },
-    { id: 'tower', name: 'Wizard Tower', cost: 9500, mps: 180, count: 0 },
-    { id: 'palantir', name: 'Visionary Palantir', cost: 45000, mps: 650, count: 0 },
-    { id: 'monolith', name: 'Eldritch Monolith', cost: 150000, mps: 1800, count: 0 },
-    { id: 'nexus', name: 'Leyline Nexus', cost: 850000, mps: 7500, count: 0 },
-    { id: 'citadel', name: 'Floating Citadel', cost: 5000000, mps: 32000, count: 0 },
-    { id: 'sanctum_bldg', name: 'Eternal Sanctum', cost: 25000000, mps: 125000, count: 0 },
-    { id: 'rift_gate', name: 'Void Rift Gate', cost: 150000000, mps: 600000, count: 0 }
+    { id: 'scribe', name: 'Apprentice Scribe', baseCost: 15, mps: 1, count: 0 },
+    { id: 'well', name: 'Mana Well', baseCost: 125, mps: 6, count: 0 },
+    { id: 'library', name: 'Arcane Library', baseCost: 1200, mps: 40, count: 0 },
+    { id: 'tower', name: 'Wizard Tower', baseCost: 9500, mps: 180, count: 0 },
+    { id: 'palantir', name: 'Visionary Palantir', baseCost: 45000, mps: 650, count: 0 },
+    { id: 'monolith', name: 'Eldritch Monolith', baseCost: 150000, mps: 1800, count: 0 },
+    { id: 'nexus', name: 'Leyline Nexus', baseCost: 850000, mps: 7500, count: 0 },
+    { id: 'citadel', name: 'Floating Citadel', baseCost: 5000000, mps: 32000, count: 0 },
+    { id: 'sanctum_bldg', name: 'Eternal Sanctum', baseCost: 25000000, mps: 125000, count: 0 },
+    { id: 'rift_gate', name: 'Void Rift Gate', baseCost: 150000000, mps: 600000, count: 0 }
 ];
 
 // --- 4. DIVINE UPGRADES (The Higher Plane) ---
@@ -1214,23 +1214,31 @@ function renderDivineShop() {
     const container = document.getElementById('divine-shop-container');
     if (!container) return;
 
-    // 1. Clear the container ONLY when we first open the tab
+    // 1. Clear the container
     container.innerHTML = '';
 
     divineUpgrades.forEach(upg => {
         const card = document.createElement('div');
-        // We use the 'divine-card' class we added to the CSS earlier
         card.className = 'upgrade-card divine-card'; 
 
+        // 2. The Polished HTML Structure
         card.innerHTML = `
+            <div style="font-size: 2em; margin-bottom: 5px;">${upg.icon}</div>
+            
             <div style="color: #ffd700; font-weight: bold; margin-bottom: 5px;">${upg.name}</div>
-            <div style="font-size: 0.8em; margin-bottom: 10px; min-height: 30px;">${upg.description}</div>
-            <div id="divine-lvl-${upg.id}" style="font-size: 0.85em; color: #aaa;">Level: ${upg.level}</div>
+            
+            <div style="font-size: 0.8em; margin-bottom: 10px; min-height: 40px; color: #eee; line-height: 1.4;">
+                ${upg.description}
+            </div>
+            
+            <div id="divine-lvl-${upg.id}" style="font-size: 0.85em; color: #aaa;">
+                Level: ${upg.level} / ${upg.maxLevel}
+            </div>
             
             <div class="card-actions">
                 <button id="buy-divine-${upg.id}" class="buy-btn" 
                     onclick="buyDivineUpgrade('${upg.id}')" 
-                    style="border-color: #ffd700; color: #ffd700;">
+                    style="border-color: #ffd700; color: #ffd700; width: 100%; margin-top: 10px; padding: 8px;">
                     Buy: ${upg.cost} 🌟
                 </button>
             </div>
@@ -1238,8 +1246,10 @@ function renderDivineShop() {
         container.appendChild(card);
     });
 
-    // 2. Immediately call the update function to set the button states
-    updateDivineUI();
+    // 3. Immediately sync the button states (enabled/disabled)
+    if (typeof updateDivineUI === "function") {
+        updateDivineUI();
+    }
 }
 
 function buyDivineUpgrade(id) {
