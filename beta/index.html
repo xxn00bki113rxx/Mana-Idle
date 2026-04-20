@@ -656,7 +656,33 @@ window.buyOne = buyOne;
 window.buyMax = buyMax;
 window.renderSanctum = renderSanctum;
 
-
+function updateShopAffordability() {
+    const buyButtons = document.querySelectorAll('.buy-btn');
+    
+    upgrades.forEach((upg, index) => {
+        const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
+        const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
+        const currentCost = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
+        
+        const btn = buyButtons[index];
+        if (btn) {
+            if (mana >= currentCost) {
+                btn.classList.remove('disabled');
+                btn.disabled = false;
+                // Match the tier colors we set up
+                const isTier2 = upg.baseCost >= 150000;
+                btn.style.background = isTier2 ? '#9b59b6' : '#4ecca3';
+                btn.style.opacity = "1";
+            } else {
+                btn.classList.add('disabled');
+                btn.disabled = true;
+                btn.style.background = '#333';
+                btn.style.opacity = "0.5";
+            }
+        }
+    });
+}
+	  
 function getBuildingCost(upg) {
     // 1. Calculate the standard price
     let price = Math.floor(upg.baseCost * Math.pow(1.15, upg.count));
@@ -1325,16 +1351,15 @@ function gameLoop() {
     let deltaTime = tickDelay / 1000; 
     let mpsThisTick = globalMPS * deltaTime;
     
-    // Internal values keep their decimals for accuracy
     mana += mpsThisTick;
 
-    // NEW: Trackers for Ascension Rewards
+    // Trackers for Ascension Rewards
     totalManaThisRun += mpsThisTick;
     totalManaAllTime += mpsThisTick;
 
     // --- B. PASSIVE COMBAT ---
     if (monsterHP > 0) {
-        let pDmg = mpsThisTick * 0.1; // 10% of MPS as passive damage
+        let pDmg = mpsThisTick * 0.1; 
         monsterHP -= pDmg;
         passiveDamageBuffer += pDmg;
         
@@ -1343,9 +1368,9 @@ function gameLoop() {
         }
     }
 
-    // --- C. DAMAGE POPUPS (Whole Numbers) ---
+    // --- C. DAMAGE POPUPS ---
     passiveTimer++;
-    if (passiveTimer >= (1000 / tickDelay)) { // Adjusted to sync with tick speed
+    if (passiveTimer >= (1000 / tickDelay)) {
         if (passiveDamageBuffer >= 1) {
             if (typeof createDamagePopup === "function") {
                 createDamagePopup(Math.floor(passiveDamageBuffer), true);
@@ -1357,18 +1382,22 @@ function gameLoop() {
 
     // --- D. STABLE AUTOSAVE ---
     saveTimer += tickDelay;
-    if (saveTimer >= 30000) { // 30 Seconds
+    if (saveTimer >= 30000) { 
         if (typeof saveGame === "function") saveGame();
         saveTimer = 0;
     }
 
-    // --- E. HEARTBEAT ---
+    // --- E. HEARTBEAT & LIVE UPDATES ---
     updateUI();
+    
+    // NEW: Live check for shop buttons
+    if (typeof updateShopAffordability === "function") {
+        updateShopAffordability();
+    }
     
     // Schedule next tick
     setTimeout(gameLoop, tickDelay);
 }
-
 function updateUI() {
     // 1. Core Currencies
     const manaEl = document.getElementById('mana-count');
