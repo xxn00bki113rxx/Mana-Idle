@@ -47,6 +47,14 @@ body {
     text-shadow: 0 0 10px rgba(78, 204, 163, 0.4);
 }
 
+#mana-record-display {
+    font-family: 'Courier New', Courier, monospace;
+    letter-spacing: 1px;
+    border-bottom: 1px solid rgba(78, 204, 163, 0.2);
+    display: inline-block;
+    padding-bottom: 2px;
+}
+
 /* Currency Text Colors */
 .essence-text { color: #bb86fc; font-weight: bold; }
 .heavenly-text { color: #ffd700; font-weight: bold; text-shadow: 0 0 8px rgba(255, 214, 0, 0.5); }
@@ -232,22 +240,29 @@ button:disabled {
 <body>
     <div id="game-header" style="position: sticky; top: 0; background: #16213e; border-bottom: 2px solid #4ecca3; padding: 15px; display: flex; justify-content: space-around; align-items: center; z-index: 1000; width: 100%; box-sizing: border-box; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
         
-        <div style="text-align: center;">
-            <div style="font-size: 0.7em; color: #4ecca3; text-transform: uppercase; letter-spacing: 1px;">Mana Reservoir</div>
-            <div id="mana-display" style="font-size: 1.4em; font-weight: bold; color: #fff;">0</div>
-            <div id="mps-display" style="font-size: 0.8em; color: #888;">Flow: 0.0 /sec</div>
+    <div style="text-align: center;">
+        <div style="font-size: 0.7em; color: #4ecca3; text-transform: uppercase; letter-spacing: 1px;">Mana Reservoir</div>
+        <div id="mana-display" style="font-size: 1.4em; font-weight: bold; color: #fff;">0</div>
+        
+        <div id="mana-record-display" style="font-size: 0.65em; color: #bdc3c7; font-style: italic; margin-top: 2px;">
+            Record: 0
         </div>
 
-        <div style="text-align: center; border-left: 1px solid #333; padding-left: 20px;">
-            <div style="font-size: 0.7em; color: #9b59b6; text-transform: uppercase; letter-spacing: 1px;">Pure Essence</div>
-            <div id="essence-display" style="font-size: 1.4em; font-weight: bold; color: #fff;">0</div>
+        <div style="font-size: 0.8em; color: #888; margin-top: 4px;">
+            Flow: <span id="mps-display">0.0</span> /sec
         </div>
-
-		<div id="heavenly-display-wrapper" style="display: none; margin: 0 10px;">
-    		<span style="color: #ffd700; font-weight: bold;">🌟 Heavenly Essence: </span>
-    		<span id="heavenly-essence-header" style="color: #ffd700; font-weight: bold;">0</span>
-		</div>
     </div>
+
+    <div style="text-align: center; border-left: 1px solid #333; padding-left: 20px;">
+        <div style="font-size: 0.7em; color: #9b59b6; text-transform: uppercase; letter-spacing: 1px;">Pure Essence</div>
+        <div id="essence-display" style="font-size: 1.4em; font-weight: bold; color: #fff;">0</div>
+    </div>
+
+    <div id="heavenly-display-wrapper" style="display: none; text-align: center; border-left: 1px solid #333; padding-left: 20px;">
+        <div style="font-size: 0.7em; color: #ffd700; text-transform: uppercase; letter-spacing: 1px;">Heavenly Essence</div>
+        <div id="heavenly-essence-header" style="font-size: 1.4em; font-weight: bold; color: #ffd700;">0</div>
+    </div>
+</div>
 
     <h1>Mana Sanctum</h1>
     
@@ -513,40 +528,36 @@ function getAffordableAmount(upg, currentMana, discount) {
 }
 
 function renderSanctum() {
-    // 1. Target the correct ID (Matches your HTML)
     const container = document.getElementById('sanctum-container');
     if (!container) return;
 
-    // 2. Clear it out
     container.innerHTML = '';
-    // container.className is already 'shop-container' in HTML, but this reinforces it
     container.className = 'shop-container'; 
 
-    // 3. Create a card for every building in your upgrades list
     upgrades.forEach(upg => {
         const card = document.createElement('div');
         card.className = 'upgrade-card';
         
-        // --- TIER 2 COLOR LOGIC ---
         const isTier2 = upg.cost >= 150000; 
         const themeColor = isTier2 ? '#9b59b6' : '#4ecca3'; 
         
         card.style.borderLeft = `4px solid ${themeColor}`;
         card.style.background = isTier2 ? 'rgba(155, 89, 182, 0.05)' : 'rgba(78, 204, 163, 0.05)';
 
-        // 4. Generate the HTML Structure
         card.innerHTML = `
             <div style="font-weight: bold; color: ${themeColor}; margin-bottom: 2px;">${upg.name}</div>
-            <div id="level-${upg.id}" style="font-size: 0.85em; color: #bdc3c7; margin-bottom: 5px;">Level: ${upg.count}</div>
+            <div style="font-size: 0.85em; color: #bdc3c7; margin-bottom: 5px;">
+                Level: <span id="count-${upg.id}">${upg.count}</span>
+            </div>
             <div style="font-size: 0.8em; color: ${themeColor}; font-style: italic; margin-bottom: 12px;">
                 +${upg.mps.toLocaleString()} MPS
             </div>
             
             <div class="card-actions">
-                <button id="buy1-${upg.id}" class="buy-btn" onclick="buyOne('${upg.id}')">
+                <button id="buy-${upg.id}" class="buy-btn" onclick="buyOne('${upg.id}')">
                     Buy
                 </button>
-                <button id="max-${upg.id}" class="buy-btn" onclick="buyMax('${upg.id}')">
+                <button id="buyMax-${upg.id}" class="buy-btn" onclick="buyMax('${upg.id}')">
                     MAX
                 </button>
             </div>
@@ -555,9 +566,10 @@ function renderSanctum() {
         container.appendChild(card);
     });
 
-    // 5. Final Sync
     if (typeof updateUI === "function") updateUI();
 }
+
+
 function buyOne(id) {
     const upg = upgrades.find(u => u.id === id);
     
@@ -1358,40 +1370,45 @@ function gameLoop() {
 }
 
 function updateUI() {
-    // A. Update Top-Level Currencies
-    document.getElementById('mana-display').innerText = Math.floor(mana).toLocaleString();
-    document.getElementById('essence-display').innerText = Math.floor(essence).toLocaleString();
-    
-    // B. Update Ascension Tracking
-    // Showing the player their "Lifetime Record" makes the new system clear
+    // 1. Core Currencies
+    const manaEl = document.getElementById('mana-display');
+    const essenceEl = document.getElementById('essence-display');
     const recordEl = document.getElementById('mana-record-display');
-    if (recordEl) {
-        recordEl.innerText = `All-Time Record: ${Math.floor(totalManaAllTime).toLocaleString()}`;
-    }
 
-    // C. Update Building Buttons
+    if (manaEl) manaEl.innerText = Math.floor(mana).toLocaleString();
+    if (essenceEl) essenceEl.innerText = Math.floor(essence).toLocaleString();
+    if (recordEl) recordEl.innerText = `All-Time Record: ${Math.floor(totalManaAllTime).toLocaleString()}`;
+
+    // 2. Divine Discount Math
     const wisdom = divineUpgrades.find(d => d.id === 'ethereal_wisdom');
     const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
 
+    // 3. Shop Buttons
     upgrades.forEach(upg => {
-        // Calculate the discounted price for the UI
         let currentPrice = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
         
         const btn = document.getElementById(`buy-${upg.id}`);
         const countLabel = document.getElementById(`count-${upg.id}`);
-        
+        const maxBtn = document.getElementById(`buyMax-${upg.id}`);
+
         if (btn) {
-            btn.innerText = `Buy 1 (${currentPrice.toLocaleString()} Mana)`;
+            btn.innerText = `Buy 1 (${currentPrice.toLocaleString()})`;
             btn.disabled = mana < currentPrice;
         }
         if (countLabel) {
             countLabel.innerText = upg.count;
         }
+        if (maxBtn) {
+            // MAX buttons are disabled if you can't even afford one
+            maxBtn.disabled = mana < currentPrice;
+        }
     });
 
-    // D. Update Global MPS Display
-    document.getElementById('mps-display').innerText = globalMPS.toFixed(1);
+    // 4. Global MPS
+    const mpsEl = document.getElementById('mps-display');
+    if (mpsEl) mpsEl.innerText = globalMPS.toFixed(1);
 }
+	  
 function updateCombatUI() {
     const pct = Math.max(0, (monsterHP / monsterMaxHP) * 100);
     document.getElementById('hp-bar').style.width = pct + "%";
@@ -1401,18 +1418,12 @@ function updateCombatUI() {
 }
 
 function ascend() {
-    // Math: Total lifetime essence should be sqrt(Total Mana / 1M)
-    // Example: 100M lifetime mana = 10 total essence ever earned.
     let totalTarget = Math.floor(Math.sqrt(totalManaAllTime / 1000000));
-    
-    // We only give them the essence they haven't earned yet
     let potentialGain = totalTarget - totalHeavenlyEarned;
 
     if (potentialGain < 1) {
-        // Calculate how much more mana they need for +1 Essence
         let nextTargetMana = Math.pow(totalHeavenlyEarned + 1, 2) * 1000000;
         let remaining = Math.ceil(nextTargetMana - totalManaAllTime);
-        
         alert(`Your soul hasn't surpassed its previous limits yet. \nGenerate ${remaining.toLocaleString()} more Mana to earn your next Heavenly Essence.`);
         return;
     }
@@ -1424,14 +1435,19 @@ function ascend() {
     if (confirm(message)) {
         // 1. Grant Rewards
         heavenlyEssence += potentialGain;
-        totalHeavenlyEarned += potentialGain; // Mark these as "claimed"
+        totalHeavenlyEarned += potentialGain;
         divinityLevel++;
         
         // 2. THE GREAT RESET
         mana = 0;
         essence = 0;
-        totalManaThisRun = 0; // Reset the run counter, but NOT the All-Time counter
+        totalManaThisRun = 0; 
         upgrades.forEach(upg => upg.count = 0);
+
+        // --- NEW: Reset the Offline Timer ---
+        // We set the timestamp to "now" so they don't get free offline mana for the time 
+        // they spent playing the PREVIOUS run.
+        lastSaveTime = Date.now();
 
         calculateMPS(); 
         
@@ -1440,12 +1456,18 @@ function ascend() {
         document.body.style.filter = "brightness(10) blur(10px)";
         
         setTimeout(() => {
+            // --- NEW: Update UI Visibility ---
+            // Ensure the Heavenly Essence counter is visible in the header
+            const heavenlyHeader = document.getElementById('heavenly-display-wrapper');
+            if (heavenlyHeader) heavenlyHeader.style.display = 'block';
+
             saveGame();
             document.body.style.filter = "none";
+            
             showTab('prestige'); 
-            renderSanctum();
-            renderDivineShop();
-            updateUI();
+            renderSanctum();     // Redraw empty shop
+            renderDivineShop();  // Redraw the Higher Plane shop
+            updateUI();          // Update all numbers (including the new Record display)
         }, 1000);
     }
 }
