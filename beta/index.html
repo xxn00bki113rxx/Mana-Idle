@@ -292,9 +292,16 @@ button:disabled {
     </div>
 
     <div id="sanctum-tab" class="tab-content">
-    <button onclick="clickMana(event)" id="gather-mana-btn" style="width: 200px; height: 60px; margin-top: 20px; margin-bottom: 20px; cursor: pointer;">Gather Mana</button>
-    <div class="shop-container" id="sanctum-container"></div>
-</div>
+    	<button onclick="clickMana(event)" id="gather-mana-btn" style="width: 200px; height: 60px; margin-top: 20px; margin-bottom: 20px; cursor: pointer;">Gather Mana</button>
+    	<div class="shop-container" id="sanctum-container"></div>
+		<div id="ascension-container" style="margin-top: 40px; padding: 20px; border: 2px dashed #ffd700; background: rgba(0,0,0,0.3); border-radius: 10px; text-align: center;">
+    		<h3 style="color: #ffd700; margin-top: 0;">Ritual of Transcendence</h3>
+    		<p style="font-size: 0.9em; color: #aaa;">Sacrifice your mortal progress to touch the Higher Plane.</p>
+    		<button onclick="ascend()" class="prestige-btn" style="padding: 12px 24px; background: #ffd700; color: #000; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; text-transform: uppercase;">
+        	Ascend to Divine Realm
+    		</button>
+		</div>
+	</div>
 
     <div id="battle-tab" class="tab-content" style="display: none; padding: 10px; box-sizing: border-box;">
     <div id="combat-section" style="
@@ -1402,88 +1409,41 @@ function gameLoop() {
 }
 
 function updateUI() {
-    // --- 1. VISIBILITY & NAVIGATION LOGIC ---
-    const heavenlyWrapper = document.getElementById('heavenly-display-wrapper');
-    const prestigeNavBtn = document.getElementById('prestige-btn') || document.getElementById('nav-prestige');
-    
-    // Check if the player has unlocked the Higher Plane (Ascended at least once)
-    const isAscended = (heavenlyEssence > 0 || totalHeavenlyEarned > 0);
-    
-    if (heavenlyWrapper) {
-        heavenlyWrapper.style.display = isAscended ? 'block' : 'none';
-    }
-    if (prestigeNavBtn) {
-        prestigeNavBtn.style.display = isAscended ? 'inline-block' : 'none';
-    }
+    // 1. Update Standard Displays
+    document.getElementById('mana-count').textContent = Math.floor(mana).toLocaleString();
+    document.getElementById('essence-count').textContent = Math.floor(essence).toLocaleString();
+    document.getElementById('mps-display').textContent = globalMPS.toLocaleString();
 
-    // --- 2. GLOBAL CURRENCY DISPLAYS ---
-    const manaEl = document.getElementById('mana-display');
-    const essenceEl = document.getElementById('essence-display');
-    const recordEl = document.getElementById('mana-record-display');
-    const heavenlyEl = document.getElementById('heavenly-essence-header');
+    // 2. Update Prestige Displays
+    const heavenlyCount = document.getElementById('heavenly-count');
+    if (heavenlyCount) heavenlyCount.textContent = Math.floor(heavenlyEssence).toLocaleString();
 
-    if (manaEl) manaEl.innerText = Math.floor(mana).toLocaleString();
-    if (essenceEl) essenceEl.innerText = Math.floor(essence).toLocaleString();
-    if (recordEl) recordEl.innerText = `Record: ${Math.floor(totalManaAllTime).toLocaleString()}`;
-    if (heavenlyEl) heavenlyEl.innerText = Math.floor(heavenlyEssence).toLocaleString();
+    // 3. Ascension Visibility & Math
+    const ascendBox = document.getElementById('ascension-container');
+    const potentialText = document.getElementById('potential-essence-text');
 
-    // --- 3. PRICE CALCULATIONS (Divine Discounts) ---
-    const wisdom = divineUpgrades.find(d => d.id === 'ethereal_wisdom');
-    const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
-
-    // --- 4. BUILDING SHOP LOOP ---
-    upgrades.forEach(upg => {
-        let currentPrice = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
-        
-        const btn = document.getElementById(`buy-${upg.id}`);
-        const countLabel = document.getElementById(`count-${upg.id}`);
-        const maxBtn = document.getElementById(`buyMax-${upg.id}`);
-
-        // Update Single Buy Button
-        if (btn) {
-            btn.innerText = `Buy 1 (${currentPrice.toLocaleString()})`;
-            btn.disabled = mana < currentPrice;
-        }
-
-        // Update Level Counter
-        if (countLabel) {
-            countLabel.innerText = upg.count;
-        }
-
-        // Calculate Max Affordable (+X) Preview
-        if (maxBtn) {
-            let tempMana = mana;
-            let affordableCount = 0;
-            let tempBuildingCount = upg.count;
+    if (ascendBox) {
+        // HIDE button until 1 million mana earned ALL-TIME (or if they've already ascended)
+        if (totalManaAllTime >= 1000000 || totalHeavenlyEarned > 0) {
+            ascendBox.style.display = 'block';
             
-            // Simulation loop to find total affordable
-            while (true) {
-                let nextCost = Math.floor((upg.baseCost * Math.pow(1.15, tempBuildingCount)) * discount);
-                if (tempMana >= nextCost) {
-                    tempMana -= nextCost;
-                    affordableCount++;
-                    tempBuildingCount++;
-                } else {
-                    break;
-                }
-                if (affordableCount >= 1000) break; // Performance safeguard
+            // Calculate potential gain for the display
+            let totalTarget = Math.floor(Math.sqrt(totalManaAllTime / 1000000));
+            let potentialGain = Math.max(0, totalTarget - totalHeavenlyEarned);
+            
+            if (potentialText) {
+                potentialText.textContent = `Current Potential: ${potentialGain} 🌟`;
             }
-
-            maxBtn.innerText = `MAX (+${affordableCount})`;
-            maxBtn.disabled = affordableCount === 0;
+        } else {
+            ascendBox.style.display = 'none';
         }
-    });
-
-    // --- 5. SUBSYSTEM SYNC ---
-    if (typeof updateCombatUI === "function") {
-        updateCombatUI();
     }
 
-   
-const mpsEl = document.getElementById('mps-display');
-if (mpsEl) {
-    mpsEl.innerText = Math.floor(globalMPS).toLocaleString();
-	}
+    // 4. Update Header Visibility (Higher Plane button)
+    const navPrestige = document.getElementById('nav-prestige');
+    if (navPrestige) {
+        navPrestige.style.display = (totalHeavenlyEarned > 0) ? 'inline-block' : 'none';
+    }
 }
 
 function updateCombatUI() {
@@ -1495,56 +1455,63 @@ function updateCombatUI() {
 }
 
 function ascend() {
+    // 1. Calculate Potential
     let totalTarget = Math.floor(Math.sqrt(totalManaAllTime / 1000000));
     let potentialGain = totalTarget - totalHeavenlyEarned;
 
+    // 2. Requirement Check
     if (potentialGain < 1) {
         let nextTargetMana = Math.pow(totalHeavenlyEarned + 1, 2) * 1000000;
         let remaining = Math.ceil(nextTargetMana - totalManaAllTime);
-        alert(`Your soul hasn't surpassed its previous limits yet. \nGenerate ${remaining.toLocaleString()} more Mana to earn your next Heavenly Essence.`);
+        alert(`Your soul hasn't surpassed its previous limits yet. \n\nGenerate ${remaining.toLocaleString()} more Mana to earn your next Heavenly Essence.`);
         return;
     }
 
+    // 3. Confirmation
     const message = `Do you wish to transcend? \n\n` +
                     `You will gain ${potentialGain} Heavenly Essence. \n` +
-                    `(This is based on your all-time record of ${Math.floor(totalManaAllTime).toLocaleString()} Mana!)`;
+                    `(Based on all-time record of ${Math.floor(totalManaAllTime).toLocaleString()} Mana!)`;
 
     if (confirm(message)) {
-        // 1. Grant Rewards
+        // 4. Grant Permanent Rewards
         heavenlyEssence += potentialGain;
         totalHeavenlyEarned += potentialGain;
         divinityLevel++;
         
-        // 2. THE GREAT RESET
+        // 5. THE GREAT RESET
         mana = 0;
         essence = 0;
         totalManaThisRun = 0; 
-        upgrades.forEach(upg => upg.count = 0);
 
-        // --- NEW: Reset the Offline Timer ---
-        // We set the timestamp to "now" so they don't get free offline mana for the time 
-        // they spent playing the PREVIOUS run.
+        // Reset building counts and restore original costs
+        upgrades.forEach(upg => {
+            upg.count = 0;
+            if (upg.baseCost) {
+                upg.cost = upg.baseCost;
+            }
+        });
+
+        // Update the save timestamp to prevent "ghost" offline progress
         lastSaveTime = Date.now();
-
-        calculateMPS(); 
         
-        // 3. Visual Flourish
+        // 6. Visual Transition
         document.body.style.transition = "filter 1s ease-in";
         document.body.style.filter = "brightness(10) blur(10px)";
         
         setTimeout(() => {
-            // --- NEW: Update UI Visibility ---
-            // Ensure the Heavenly Essence counter is visible in the header
-            const heavenlyHeader = document.getElementById('heavenly-display-wrapper');
-            if (heavenlyHeader) heavenlyHeader.style.display = 'block';
-
+            // Recalculate and Save the reset state
+            calculateMPS(); 
             saveGame();
+
             document.body.style.filter = "none";
             
+            // Re-render and Switch Tabs
             showTab('prestige'); 
-            renderSanctum();     // Redraw empty shop
-            renderDivineShop();  // Redraw the Higher Plane shop
-            updateUI();          // Update all numbers (including the new Record display)
+            renderSanctum();     
+            renderDivineShop();  
+            updateUI();
+            
+            alert("✨ You have been reborn in the Higher Plane! ✨");
         }, 1000);
     }
 }
