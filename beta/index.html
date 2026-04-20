@@ -892,6 +892,7 @@ function checkMonsterDeath() {
         defeatMonster(); // Your function that handles essence gain/new monster
     }
 }
+	  
 function triggerCooldown(skillId, ms) {
     const btn = document.getElementById(skillId);
     // This turns 'skill-blast' into 'cooldown-blast'
@@ -963,7 +964,6 @@ function triggerCooldown(skillId, ms) {
 }
 	  
 function defeatMonster() {
-    // 1. MONSTER POOL
     const monsters = [
         { name: "Shadow Imp", icon: "👿" },
         { name: "Void Wraith", icon: "👻" },
@@ -973,53 +973,48 @@ function defeatMonster() {
 
     // 2. CALCULATE REWARDS
     const eliteMult = isCurrentMonsterElite ? 3 : 1;
-    const wandBonus = (typeof getArtifactBonus === 'function') ? getArtifactBonus("wand") : 0;
-    const pouchBonus = (typeof getArtifactBonus === 'function') ? getArtifactBonus("pouch") : 1; 
+    const wandBonus = Number(getArtifactBonus("wand") || 0);
+    const pouchBonus = Number(getArtifactBonus("pouch") || 1); // Default to 1x multiplier
 
-    // Ensure reward is at least 1 so it's never stuck at 0
-    let mReward = Math.floor((5 + wandBonus) * (1 + monstersDefeated * 0.1)) * eliteMult;
-    let eReward = Math.max(1, Math.floor(1 * pouchBonus)) * eliteMult;
+    // Math.max(1, ...) prevents essence from ever being 0 or NaN
+    let mReward = Math.floor((5 + wandBonus) * (1 + (monstersDefeated || 0) * 0.1)) * eliteMult;
+    let eReward = Math.max(1, Math.floor(1 * (pouchBonus || 1))) * eliteMult;
 
-    // 3. APPLY REWARDS TO GLOBAL VARIABLES
-    mana += mReward;
-    essence += eReward; 
+    // 3. APPLY REWARDS
+    // We explicitly check for NaN before adding
+    if (!isNaN(mReward)) mana += mReward;
+    if (!isNaN(eReward)) essence += eReward;
     monstersDefeated++;
 
-    console.log(`Defeated monster! Gained ${eReward} Essence. Total Essence now: ${essence}`);
-
-    // 4. ARTIFACT DROP LOGIC
-    killsSinceLastArtifact++;
-    const dropChance = isCurrentMonsterElite ? 0.20 : 0.10; 
-    if (Math.random() < dropChance || killsSinceLastArtifact >= PITY_THRESHOLD) {
-        if (typeof gainRandomArtifact === 'function') gainRandomArtifact();
-        killsSinceLastArtifact = 0; 
-    }
-
-    // 5. SPAWN NEXT MONSTER
+    // 4. SPAWN NEXT (Do this BEFORE UI so scaling is current)
     isCurrentMonsterElite = Math.random() < 0.10; 
     const nextEliteMult = isCurrentMonsterElite ? 3 : 1;
     monsterMaxHP = Math.floor(50 * Math.pow(1.12, monstersDefeated)) * nextEliteMult;
     monsterHP = monsterMaxHP;
 
-    // 6. UI UPDATES
+    // 5. ARTIFACT DROP
+    killsSinceLastArtifact++;
+    const dropChance = eliteMult > 1 ? 0.20 : 0.10; 
+    if (Math.random() < dropChance || killsSinceLastArtifact >= 20) {
+        if (typeof gainRandomArtifact === 'function') gainRandomArtifact();
+        killsSinceLastArtifact = 0; 
+    }
+
+    // 6. UI VISUALS
     const roll = monsters[Math.floor(Math.random() * monsters.length)];
     const nameEl = document.getElementById('monster-name');
     const spriteEl = document.getElementById('monster-sprite');
-    const log = document.getElementById('battle-log');
-    
     if (nameEl) {
         nameEl.innerText = isCurrentMonsterElite ? "✨ ELITE " + roll.name : roll.name;
         nameEl.style.color = isCurrentMonsterElite ? "#f1c40f" : "#fff";
     }
-    
     if (spriteEl) {
         spriteEl.innerText = roll.icon;
         spriteEl.style.transform = isCurrentMonsterElite ? "scale(1.4)" : "scale(1.0)";
     }
 
-    if (log) {
-        log.innerText = `Victory! +${mReward.toLocaleString()} Mana, +${eReward} Essence`;
-    }
+    const log = document.getElementById('battle-log');
+    if (log) log.innerText = `Victory! +${mReward.toLocaleString()} Mana, +${eReward} Essence`;
 
     updateUI();
     if (typeof saveGame === 'function') saveGame();
@@ -1170,7 +1165,7 @@ function applyArtifactPowerBoost(art) {
 }
 function getArtifactBonus(id) {
     const art = artifactPool.find(a => a.id === id);
-    return (art && art.owned) ? art.bonus : 0;
+    return (art && art.owned) ? Number(art.bonus || 0) : 0;
 }
 	  
 function renderCompendium() {
@@ -1465,13 +1460,13 @@ function updateCombatUI() {
 
     if (hpFill) {
         hpFill.style.width = pct + "%";
-        // COLOR FLOW: Green -> Yellow -> Red
+        // Logic: Green (100-50), Yellow (50-25), Red (25-0)
         if (pct > 50) {
-            hpFill.style.backgroundColor = "#4ecca3"; // Healthy Green
+            hpFill.style.backgroundColor = "#4ecca3"; 
         } else if (pct > 25) {
-            hpFill.style.backgroundColor = "#f1c40f"; // Warning Yellow
+            hpFill.style.backgroundColor = "#f1c40f"; 
         } else {
-            hpFill.style.backgroundColor = "#ff4d4d"; // Danger Red
+            hpFill.style.backgroundColor = "#e94560"; 
         }
     }
 
@@ -1479,7 +1474,6 @@ function updateCombatUI() {
         hpLabel.innerText = `HP: ${Math.floor(monsterHP).toLocaleString()} / ${Math.floor(monsterMaxHP).toLocaleString()}`;
     }
 }
-
 function ascend() {
     // 1. Calculate Potential
     let totalTarget = Math.floor(Math.sqrt(totalManaAllTime / 1000000));
