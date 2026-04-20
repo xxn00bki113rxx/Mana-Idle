@@ -473,66 +473,30 @@ const divineUpgrades = [
 
 // --- 2. NAVIGATION LOGIC ---
 window.showTab = function(tabName) {
-    // 1. Safety: Strip '-tab' if passed by mistake
-    if (tabName.endsWith('-tab')) {
-        tabName = tabName.replace('-tab', '');
-    }
+    if (tabName.endsWith('-tab')) tabName = tabName.replace('-tab', '');
 
-    console.log("Navigating to tab:", tabName);
-
-    // 2. Tab list
     const tabs = ['sanctum', 'battle', 'compendium', 'settings', 'prestige']; 
     
-    // 3. Hide all content and deactivate buttons
     tabs.forEach(t => {
         const content = document.getElementById(t + '-tab');
         const btn = document.getElementById(t + '-btn') || document.getElementById('nav-' + t);
         if (content) content.style.display = 'none';
-        if (btn) btn.classList.remove('active');
+        if (btn) btn?.classList.remove('active');
     });
 
-    // 4. Find the target elements
     const activeTab = document.getElementById(tabName + '-tab');
     const activeBtn = document.getElementById(tabName + '-btn') || document.getElementById('nav-' + tabName);
 
-    // 5. Show target tab
     if (activeTab) {
         activeTab.style.display = 'block';
-        if (activeBtn) activeBtn.classList.add('active');
-    } else {
-        console.error("Critical Error: Tab content not found for " + tabName);
-        return; 
+        activeBtn?.classList.add('active');
     }
 
-    // 6. Special Handling for Divine Shop
-    if (tabName === 'prestige') {
-        let attempts = 0;
-        const forceRender = () => {
-            const container = document.getElementById('divine-shop-container');
-            if (container) {
-                renderDivineShop();
-                updateUI();
-            } else if (attempts < 10) {
-                attempts++;
-                setTimeout(forceRender, 30);
-            }
-        };
-        forceRender();
-    }
-
-    // 7. General Rendering for Sanctum
-    if (tabName === 'sanctum') {
-        setTimeout(() => { if (typeof renderSanctum === "function") renderSanctum(); }, 10);
-    }
-
-
-    if (tabName === 'compendium') {
-        setTimeout(() => { 
-            if (typeof renderArtifacts === "function") renderCompendium(); 
-        }, 10);
-    }
+    // Trigger Specific Renders
+    if (tabName === 'sanctum') renderSanctum();
+    if (tabName === 'compendium') renderCompendium();
+    if (tabName === 'prestige') renderDivineShop();
     
-    // 8. Global UI Sync
     updateUI();
 };
 	  
@@ -566,42 +530,34 @@ function renderSanctum() {
     if (!container) return;
 
     container.innerHTML = '';
-    container.className = 'shop-container'; 
 
     upgrades.forEach(upg => {
         const card = document.createElement('div');
         card.className = 'upgrade-card';
-        
-        // FIXED: Using baseCost instead of cost for theme logic
-        const isTier2 = upg.baseCost >= 150000; 
-        const themeColor = isTier2 ? '#9b59b6' : '#4ecca3'; 
-        
-        card.style.borderLeft = `4px solid ${themeColor}`;
-        card.style.background = isTier2 ? 'rgba(155, 89, 182, 0.05)' : 'rgba(78, 204, 163, 0.05)';
+
+        // Check if player can afford it
+        const canAfford = mana >= upg.cost;
+        const btnClass = canAfford ? 'buy-btn' : 'buy-btn disabled';
 
         card.innerHTML = `
-            <div style="font-weight: bold; color: ${themeColor}; margin-bottom: 2px;">${upg.name}</div>
-            <div style="font-size: 0.85em; color: #bdc3c7; margin-bottom: 5px;">
-                Level: <span id="count-${upg.id}">${upg.count}</span>
+            <div class="upgrade-info">
+                <span class="upgrade-icon">${upg.icon || '📜'}</span>
+                <div class="upgrade-texts">
+                    <div class="upgrade-name">${upg.name}</div>
+                    <div class="upgrade-desc">${upg.description}</div>
+                </div>
             </div>
-            <div style="font-size: 0.8em; color: ${themeColor}; font-style: italic; margin-bottom: 12px;">
-                +${upg.mps.toLocaleString()} MPS
-            </div>
-            
-            <div class="card-actions">
-                <button id="buy-${upg.id}" class="buy-btn" onclick="buyOne('${upg.id}')">
-                    Buy 1
-                </button>
-                <button id="buyMax-${upg.id}" class="buy-btn" onclick="buyMax('${upg.id}')">
-                    MAX
+            <div class="upgrade-stats">
+                <div class="upgrade-level">Lv. ${upg.count}</div>
+                <button class="${btnClass}" 
+                    onclick="buyUpgrade('${upg.id}')" 
+                    ${!canAfford ? 'disabled' : ''}>
+                    ${Math.floor(upg.cost).toLocaleString()} Mana
                 </button>
             </div>
         `;
-        
         container.appendChild(card);
     });
-
-    if (typeof updateUI === "function") updateUI();
 }
 
 
@@ -1376,37 +1332,32 @@ function gameLoop() {
 }
 
 function updateUI() {
-    // 1. Core Currency (with Safety Rails)
+    // Currency Displays
     const manaEl = document.getElementById('mana-count');
     if (manaEl) manaEl.textContent = Math.floor(mana).toLocaleString();
 
     const essenceEl = document.getElementById('essence-count');
     if (essenceEl) essenceEl.textContent = Math.floor(essence).toLocaleString();
 
-    // 2. Production & Records
-    // Added back: Record display and Flow display
+    const heavenlyEl = document.getElementById('heavenly-count');
+    if (heavenlyEl) heavenlyEl.textContent = Math.floor(heavenlyEssence).toLocaleString();
+
+    // Production & Records
+    const mpsEl = document.getElementById('mps-display');
+    if (mpsEl) mpsEl.textContent = globalMPS.toLocaleString();
+
     const recordEl = document.getElementById('mana-record');
     if (recordEl) recordEl.textContent = Math.floor(totalManaAllTime).toLocaleString();
 
-    const flowEl = document.getElementById('mps-display');
-    if (flowEl) flowEl.textContent = globalMPS.toLocaleString();
-
-    // 3. Heavenly Essence Display
-    const heavenlyCount = document.getElementById('heavenly-count');
-    if (heavenlyCount) {
-        heavenlyCount.textContent = Math.floor(heavenlyEssence).toLocaleString();
-    }
-
-    // 4. Ascension Visibility Logic
+    // Ascension Visibility Logic
     const ascendBox = document.getElementById('ascension-container');
     const potentialText = document.getElementById('potential-essence-text');
 
     if (ascendBox) {
-        // Only show if player has reached 1M mana or has already ascended
+        // Unlock at 1M Mana or if player has ascended before
         if (totalManaAllTime >= 1000000 || totalHeavenlyEarned > 0) {
             ascendBox.style.display = 'block';
             
-            // Re-calculate potential gain for the label
             let totalTarget = Math.floor(Math.sqrt(totalManaAllTime / 1000000));
             let potentialGain = Math.max(0, totalTarget - totalHeavenlyEarned);
             
@@ -1418,7 +1369,7 @@ function updateUI() {
         }
     }
 
-    // 5. Header/Navigation Visibility
+    // Header & Tab Navigation Visibility
     const heavenlyWrapper = document.getElementById('heavenly-display-wrapper');
     if (heavenlyWrapper) {
         heavenlyWrapper.style.display = (totalHeavenlyEarned > 0) ? 'block' : 'none';
@@ -1769,49 +1720,91 @@ function importSave() {
 // --- ARCANE DEBUGGER (ADMIN CHEATS) ---
 
 // --- STANDARD CHEATS ---
-window.cheatMana = function() { mana += 1000000; totalManaAllTime += 1000000; updateUI(); };
-window.cheatEssence = function() { essence += 100; updateUI(); };
+// --- STANDARD CHEATS ---
+window.cheatMana = function() { 
+    mana += 1000000; 
+    totalManaAllTime += 1000000; 
+    // Trigger render so buttons immediately become clickable
+    if (typeof renderSanctum === "function") renderSanctum(); 
+    updateUI(); 
+};
+
+window.cheatEssence = function() { 
+    essence += 100; 
+    // Trigger render so artifact upgrade buttons update
+    if (typeof renderCompendium === "function") renderCompendium(); 
+    updateUI(); 
+};
+
 window.cheatHeavenly = function() { 
-    console.log("Essence button clicked!");
-	heavenlyEssence += 100; 
+    console.log("Debug: Adding Heavenly Essence");
+    heavenlyEssence += 100; 
+    totalHeavenlyEarned += 100; 
+    // Trigger render so the Divine Shop buttons update
+    if (typeof renderDivineShop === "function") renderDivineShop(); 
     updateUI(); 
 };
 
 // --- THE ASCENSION CHEAT ---
 window.cheatAscend = function() {
+    console.log("Cheat: Triggering Simulated Ascension...");
+    
+    // 1. Grant Rewards
     heavenlyEssence += 50;
-    totalHeavenlyEarned += 50; // Add this so the Higher Plane stays unlocked!
+    totalHeavenlyEarned += 50; 
+    divinityLevel++;
+    
+    // 2. The Reset Logic
     mana = 0;
     essence = 0;
+    totalManaThisRun = 0; 
     
+    // Reset building counts and restore original costs
     upgrades.forEach(upg => {
         upg.count = 0;
-        upg.cost = upg.baseCost || upg.cost; // Reset the price!
+        if (upg.baseCost) {
+            upg.cost = upg.baseCost;
+        }
     });
+
+    // 3. Update the World State
+    calculateMPS(); 
+    saveGame();
     
-    calculateMPS();
+    // 4. Full UI Refresh
     if (typeof renderSanctum === "function") renderSanctum();
+    if (typeof renderDivineShop === "function") renderDivineShop();
     updateUI();
     
-    showTab('prestige');
-    alert("Ascension Successful! +50 Essence.");
+    // 5. Navigate to show the result
+    if (typeof showTab === "function") showTab('prestige');
+    
+    alert("Ascension Successful! +50 Heavenly Essence.");
 };
 
 // --- COMBAT & UTILITY CHEATS ---
 window.instaKill = function() { 
-    monsterHP = 0; 
-    if (typeof defeatMonster === "function") defeatMonster(); 
+    // We target monsterHP specifically to trigger the game's own death logic
+    if (typeof monsterHP !== 'undefined') {
+        monsterHP = 0; 
+        if (typeof defeatMonster === "function") defeatMonster(); 
+    }
 };
 
 window.unlockAllArtifacts = function() { 
-    artifactPool.forEach(a => a.owned = true); 
+    artifactPool.forEach(a => {
+        a.owned = true;
+        if (!a.level) a.level = 1;
+    }); 
+    
+    // Refresh all areas where artifacts are displayed
     if (typeof renderCompendium === "function") renderCompendium(); 
-    renderSanctum(); 
+    if (typeof renderSanctum === "function") renderSanctum(); 
     updateUI(); 
 };
 
 window.deleteSave = function() { 
-    if (confirm("Wipe ALL progress and refresh?")) { 
+    if (confirm("Wipe ALL progress and refresh? This cannot be undone.")) { 
         localStorage.removeItem("wizardIdle_v1"); 
         location.reload(); 
     } 
