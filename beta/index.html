@@ -495,16 +495,29 @@ window.showTab = function(tabName) {
         setTimeout(() => { if (typeof renderCompendium === "function") renderCompendium(); }, 10);
     }
     
-    // FIXED PRESTIGE BLOCK
     if (tabName === 'prestige') {
-        setTimeout(() => {
-            if (typeof renderDivineShop === "function") renderDivineShop();
-            updateUI();
-        }, 20);
-    } 
+        // 1. Force the tab to be visible immediately
+        activeTab.style.display = 'block';
 
-    updateUI();
-};
+        // 2. Use a "Retry" loop to ensure the container is ready
+        let attempts = 0;
+        const forceRender = () => {
+            const container = document.getElementById('divine-shop-container');
+            
+            if (container) {
+                renderDivineShop();
+                updateUI();
+                console.log("Divine Shop successfully reloaded.");
+            } else if (attempts < 5) {
+                attempts++;
+                setTimeout(forceRender, 50); // Try again in 50ms if not found
+            }
+        };
+
+        forceRender();
+    }
+	updateUI();
+}
 
 // --- 3. SHOP & ECONOMY ---
 function getAffordableAmount(upg, currentMana, discount) {
@@ -1223,34 +1236,51 @@ function renderCompendium() {
 //Higher Plane Upgrade Shop Functions
 
 function renderDivineShop() {
+    // 1. Debug Logs (Optional: Remove these once the shop stays visible)
+    console.log("Attempting to render Divine Shop...");
+    
     const container = document.getElementById('divine-shop-container');
-    if (!container) return;
+    
+    // 2. Check for the Container
+    if (!container) {
+        console.warn("Divine Shop Container NOT FOUND!");
+        return;
+    }
 
-    // 1. Clear the container
+    // 3. Check for the Data (Prevents crashes if upgrades aren't loaded)
+    if (!divineUpgrades || divineUpgrades.length === 0) {
+        console.error("Divine Upgrades data is missing or empty.");
+        container.innerHTML = '<p style="color: #666; margin: 20px;">No divine upgrades found...</p>';
+        return;
+    }
+
+    // 4. Clear the container to prevent duplicate cards
     container.innerHTML = '';
 
+    // 5. Build the Shop Cards
     divineUpgrades.forEach(upg => {
         const card = document.createElement('div');
         card.className = 'upgrade-card divine-card'; 
 
-        // 2. The Polished HTML Structure
         card.innerHTML = `
-            <div style="font-size: 2em; margin-bottom: 5px;">${upg.icon}</div>
+            <div style="font-size: 2.2em; margin-bottom: 8px;">${upg.icon}</div>
             
-            <div style="color: #ffd700; font-weight: bold; margin-bottom: 5px;">${upg.name}</div>
+            <div style="color: #ffd700; font-weight: bold; font-size: 1.1em; margin-bottom: 5px;">
+                ${upg.name}
+            </div>
             
-            <div style="font-size: 0.8em; margin-bottom: 10px; min-height: 40px; color: #eee; line-height: 1.4;">
+            <div style="font-size: 0.85em; margin-bottom: 12px; min-height: 45px; color: #ecf0f1; line-height: 1.4;">
                 ${upg.description}
             </div>
             
-            <div id="divine-lvl-${upg.id}" style="font-size: 0.85em; color: #aaa;">
+            <div id="divine-lvl-${upg.id}" style="font-size: 0.85em; color: #bdc3c7; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 4px;">
                 Level: ${upg.level} / ${upg.maxLevel}
             </div>
             
-            <div class="card-actions">
+            <div class="card-actions" style="width: 100%;">
                 <button id="buy-divine-${upg.id}" class="buy-btn" 
                     onclick="buyDivineUpgrade('${upg.id}')" 
-                    style="border-color: #ffd700; color: #ffd700; width: 100%; margin-top: 10px; padding: 8px;">
+                    style="border-color: #ffd700; color: #ffd700; width: 100%; margin-top: 12px; padding: 10px; font-weight: bold; cursor: pointer;">
                     Buy: ${upg.cost} 🌟
                 </button>
             </div>
@@ -1258,9 +1288,12 @@ function renderDivineShop() {
         container.appendChild(card);
     });
 
-    // 3. Immediately sync the button states (enabled/disabled)
+    // 6. Sync logic for button enabling/disabling
     if (typeof updateDivineUI === "function") {
         updateDivineUI();
+    } else {
+        // Fallback: If updateDivineUI isn't written yet, use standard updateUI
+        updateUI();
     }
 }
 
