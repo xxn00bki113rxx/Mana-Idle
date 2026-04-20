@@ -972,34 +972,32 @@ function defeatMonster() {
     ];
 
     // 2. CALCULATE REWARDS
-    // Ensure all variables exist; default to 0/1 if they are undefined
-    const eliteMult = (typeof isCurrentMonsterElite !== 'undefined' && isCurrentMonsterElite) ? 3 : 1;
+    const eliteMult = isCurrentMonsterElite ? 3 : 1;
     const wandBonus = (typeof getArtifactBonus === 'function') ? getArtifactBonus("wand") : 0;
     const pouchBonus = (typeof getArtifactBonus === 'function') ? getArtifactBonus("pouch") : 1; 
 
-    // Math check: base mana + wand bonus, scaled by 10% per kill, then tripled for elites
-    const currentManaReward = Math.floor((5 + wandBonus) * (1 + (monstersDefeated || 0) * 0.1)) * eliteMult;
-    const currentEssenceReward = Math.floor(1 * pouchBonus) * eliteMult;
+    // Ensure reward is at least 1 so it's never stuck at 0
+    let mReward = Math.floor((5 + wandBonus) * (1 + monstersDefeated * 0.1)) * eliteMult;
+    let eReward = Math.max(1, Math.floor(1 * pouchBonus)) * eliteMult;
 
     // 3. APPLY REWARDS TO GLOBAL VARIABLES
-    // We add them directly to the global mana and essence variables
-    mana += currentManaReward;
-    essence += currentEssenceReward;
+    mana += mReward;
+    essence += eReward; 
     monstersDefeated++;
 
-    // 4. ARTIFACT DROP LOGIC (Pity Timer at 20 kills)
+    console.log(`Defeated monster! Gained ${eReward} Essence. Total Essence now: ${essence}`);
+
+    // 4. ARTIFACT DROP LOGIC
     killsSinceLastArtifact++;
-    const dropChance = eliteMult > 1 ? 0.20 : 0.10; 
-    if (Math.random() < dropChance || killsSinceLastArtifact >= 20) {
+    const dropChance = isCurrentMonsterElite ? 0.20 : 0.10; 
+    if (Math.random() < dropChance || killsSinceLastArtifact >= PITY_THRESHOLD) {
         if (typeof gainRandomArtifact === 'function') gainRandomArtifact();
         killsSinceLastArtifact = 0; 
     }
 
-    // 5. ROLL STATUS FOR THE NEXT MONSTER
+    // 5. SPAWN NEXT MONSTER
     isCurrentMonsterElite = Math.random() < 0.10; 
     const nextEliteMult = isCurrentMonsterElite ? 3 : 1;
-
-    // Scaling health: 50 base, 12% growth per kill
     monsterMaxHP = Math.floor(50 * Math.pow(1.12, monstersDefeated)) * nextEliteMult;
     monsterHP = monsterMaxHP;
 
@@ -1016,22 +1014,17 @@ function defeatMonster() {
     
     if (spriteEl) {
         spriteEl.innerText = roll.icon;
-        // Visual feedback for Elite status
         spriteEl.style.transform = isCurrentMonsterElite ? "scale(1.4)" : "scale(1.0)";
-        spriteEl.style.filter = isCurrentMonsterElite ? "drop-shadow(0 0 15px #f1c40f)" : "none";
     }
 
     if (log) {
-        log.style.color = isCurrentMonsterElite ? "#f1c40f" : "#fff";
-        log.innerText = `Victory! +${currentManaReward.toLocaleString()} Mana, +${currentEssenceReward} Essence`;
+        log.innerText = `Victory! +${mReward.toLocaleString()} Mana, +${eReward} Essence`;
     }
 
-    // 7. HEARTBEAT SYNC
-    // This pushes the new essence/mana values to the header immediately
     updateUI();
     if (typeof saveGame === 'function') saveGame();
 }
-
+	  
 function gainRandomArtifact() {
     // 1. Filter for artifacts the player DOES NOT own yet
     const unowned = artifactPool.filter(art => !art.owned);
@@ -1468,13 +1461,10 @@ function updateUI() {
 function updateCombatUI() {
     const hpFill = document.getElementById('hp-bar');
     const hpLabel = document.getElementById('hp-text');
-    const attackBtn = document.getElementById('attack-btn');
-
     const pct = Math.max(0, (monsterHP / monsterMaxHP) * 100);
 
     if (hpFill) {
         hpFill.style.width = pct + "%";
-        
         // COLOR FLOW: Green -> Yellow -> Red
         if (pct > 50) {
             hpFill.style.backgroundColor = "#4ecca3"; // Healthy Green
@@ -1487,12 +1477,6 @@ function updateCombatUI() {
 
     if (hpLabel) {
         hpLabel.innerText = `HP: ${Math.floor(monsterHP).toLocaleString()} / ${Math.floor(monsterMaxHP).toLocaleString()}`;
-    }
-
-    if (attackBtn) {
-        const canAfford = (mana >= 10);
-        attackBtn.disabled = !canAfford;
-        attackBtn.style.opacity = canAfford ? "1" : "0.5";
     }
 }
 
