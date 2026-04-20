@@ -260,10 +260,10 @@ button:disabled {
         
     <div style="text-align: center;">
         <div style="font-size: 0.7em; color: #4ecca3; text-transform: uppercase; letter-spacing: 1px;">Mana Reservoir</div>
-        <div id="mana-display" style="font-size: 1.4em; font-weight: bold; color: #fff;">0</div>
+        <div id="mana-count" style="font-size: 1.4em; font-weight: bold; color: #fff;">0</div>
         
-        <div id="mana-record-display" style="font-size: 0.65em; color: #bdc3c7; font-style: italic; margin-top: 2px;">
-            Record: 0
+        <div style="font-size: 0.65em; color: #bdc3c7; font-style: italic; margin-top: 2px;">
+            Record: <span id="mana-record">0</span>
         </div>
 
         <div style="font-size: 0.8em; color: #888; margin-top: 4px;">
@@ -273,12 +273,12 @@ button:disabled {
 
     <div style="text-align: center; border-left: 1px solid #333; padding-left: 20px;">
         <div style="font-size: 0.7em; color: #9b59b6; text-transform: uppercase; letter-spacing: 1px;">Pure Essence</div>
-        <div id="essence-display" style="font-size: 1.4em; font-weight: bold; color: #fff;">0</div>
+        <div id="essence-count" style="font-size: 1.4em; font-weight: bold; color: #fff;">0</div>
     </div>
 
     <div id="heavenly-display-wrapper" style="display: none; text-align: center; border-left: 1px solid #333; padding-left: 20px;">
         <div style="font-size: 0.7em; color: #ffd700; text-transform: uppercase; letter-spacing: 1px;">Heavenly Essence</div>
-        <div id="heavenly-essence-header" style="font-size: 1.4em; font-weight: bold; color: #ffd700;">0</div>
+        <div id="heavenly-count" style="font-size: 1.4em; font-weight: bold; color: #ffd700;">0</div>
     </div>
 </div>
 
@@ -535,24 +535,31 @@ function renderSanctum() {
         const card = document.createElement('div');
         card.className = 'upgrade-card';
 
-        // Check if player can afford it
-        const canAfford = mana >= upg.cost;
+        // 1. Calculate Cost and Affordability
+        // Use current cost, or fallback to baseCost if current is missing/NaN
+        const currentCost = (isNaN(upg.cost) || upg.cost === undefined) ? (upg.baseCost || 0) : upg.cost;
+        const canAfford = mana >= currentCost;
         const btnClass = canAfford ? 'buy-btn' : 'buy-btn disabled';
 
+        // 2. Build the Card
+        // Note: I included 'upg.desc' as a backup for 'upg.description'
         card.innerHTML = `
             <div class="upgrade-info">
-                <span class="upgrade-icon">${upg.icon || '📜'}</span>
+                <span class="upgrade-icon" style="font-size: 1.5em;">${upg.icon || '📜'}</span>
                 <div class="upgrade-texts">
-                    <div class="upgrade-name">${upg.name}</div>
-                    <div class="upgrade-desc">${upg.description}</div>
+                    <div class="upgrade-name" style="font-weight: bold;">${upg.name || 'Unknown Upgrade'}</div>
+                    <div class="upgrade-desc" style="font-size: 0.8em; color: #aaa;">
+                        ${upg.description || upg.desc || 'Increases mana production.'}
+                    </div>
                 </div>
             </div>
-            <div class="upgrade-stats">
-                <div class="upgrade-level">Lv. ${upg.count}</div>
+            <div class="upgrade-stats" style="margin-top: 10px; text-align: center;">
+                <div class="upgrade-level" style="color: #bdc3c7;">Lv. ${upg.count || 0}</div>
                 <button class="${btnClass}" 
                     onclick="buyUpgrade('${upg.id}')" 
-                    ${!canAfford ? 'disabled' : ''}>
-                    ${Math.floor(upg.cost).toLocaleString()} Mana
+                    ${!canAfford ? 'disabled' : ''}
+                    style="width: 100%; margin-top: 5px; padding: 10px; cursor: pointer;">
+                    ${Math.floor(currentCost).toLocaleString()} Mana
                 </button>
             </div>
         `;
@@ -1332,36 +1339,44 @@ function gameLoop() {
 }
 
 function updateUI() {
-    // Currency Displays
+    // 1. Core Currencies
     const manaEl = document.getElementById('mana-count');
-    if (manaEl) manaEl.textContent = Math.floor(mana).toLocaleString();
+    if (manaEl) {
+        manaEl.textContent = Math.floor(mana).toLocaleString();
+    }
 
     const essenceEl = document.getElementById('essence-count');
-    if (essenceEl) essenceEl.textContent = Math.floor(essence).toLocaleString();
+    if (essenceEl) {
+        essenceEl.textContent = Math.floor(essence).toLocaleString();
+    }
 
     const heavenlyEl = document.getElementById('heavenly-count');
-    if (heavenlyEl) heavenlyEl.textContent = Math.floor(heavenlyEssence).toLocaleString();
+    if (heavenlyEl) {
+        heavenlyEl.textContent = Math.floor(heavenlyEssence || 0).toLocaleString();
+    }
 
-    // Production & Records
+    // 2. Production (Flow) & Records
     const mpsEl = document.getElementById('mps-display');
-    if (mpsEl) mpsEl.textContent = globalMPS.toLocaleString();
+    if (mpsEl) {
+        mpsEl.textContent = (globalMPS || 0).toLocaleString();
+    }
 
     const recordEl = document.getElementById('mana-record');
-    if (recordEl) recordEl.textContent = Math.floor(totalManaAllTime).toLocaleString();
+    if (recordEl) {
+        recordEl.textContent = Math.floor(totalManaAllTime || 0).toLocaleString();
+    }
 
-    // Ascension Visibility Logic
+    // 3. Ascension Visibility Logic
     const ascendBox = document.getElementById('ascension-container');
-    const potentialText = document.getElementById('potential-essence-text');
-
     if (ascendBox) {
-        // Unlock at 1M Mana or if player has ascended before
+        // Show if 1M mana reached OR if they have previously ascended
         if (totalManaAllTime >= 1000000 || totalHeavenlyEarned > 0) {
             ascendBox.style.display = 'block';
             
-            let totalTarget = Math.floor(Math.sqrt(totalManaAllTime / 1000000));
-            let potentialGain = Math.max(0, totalTarget - totalHeavenlyEarned);
-            
+            const potentialText = document.getElementById('potential-essence-text');
             if (potentialText) {
+                let totalTarget = Math.floor(Math.sqrt((totalManaAllTime || 0) / 1000000));
+                let potentialGain = Math.max(0, totalTarget - (totalHeavenlyEarned || 0));
                 potentialText.textContent = `Current Potential: ${potentialGain} 🌟`;
             }
         } else {
@@ -1369,18 +1384,20 @@ function updateUI() {
         }
     }
 
-    // Header & Tab Navigation Visibility
+    // 4. Header & Navigation Visibility
     const heavenlyWrapper = document.getElementById('heavenly-display-wrapper');
     if (heavenlyWrapper) {
+        // Only show the Heavenly Essence header if you have earned prestige currency
         heavenlyWrapper.style.display = (totalHeavenlyEarned > 0) ? 'block' : 'none';
     }
 
     const navPrestige = document.getElementById('nav-prestige');
     if (navPrestige) {
+        // Only show the "Higher Plane" button if you have ascended
         navPrestige.style.display = (totalHeavenlyEarned > 0) ? 'inline-block' : 'none';
     }
 }
-
+	  
 function updateCombatUI() {
     const pct = Math.max(0, (monsterHP / monsterMaxHP) * 100);
     document.getElementById('hp-bar').style.width = pct + "%";
@@ -1717,30 +1734,24 @@ function importSave() {
     }
 }
 // --- 8. ADMIN FUNCTIONS ---
-// --- ARCANE DEBUGGER (ADMIN CHEATS) ---
-
-// --- STANDARD CHEATS ---
 // --- STANDARD CHEATS ---
 window.cheatMana = function() { 
     mana += 1000000; 
     totalManaAllTime += 1000000; 
-    // Trigger render so buttons immediately become clickable
-    if (typeof renderSanctum === "function") renderSanctum(); 
+    renderSanctum(); 
     updateUI(); 
 };
 
 window.cheatEssence = function() { 
     essence += 100; 
-    // Trigger render so artifact upgrade buttons update
     if (typeof renderCompendium === "function") renderCompendium(); 
     updateUI(); 
 };
 
 window.cheatHeavenly = function() { 
-    console.log("Debug: Adding Heavenly Essence");
+    console.log("Cheat: Adding Heavenly Essence");
     heavenlyEssence += 100; 
     totalHeavenlyEarned += 100; 
-    // Trigger render so the Divine Shop buttons update
     if (typeof renderDivineShop === "function") renderDivineShop(); 
     updateUI(); 
 };
@@ -1748,43 +1759,32 @@ window.cheatHeavenly = function() {
 // --- THE ASCENSION CHEAT ---
 window.cheatAscend = function() {
     console.log("Cheat: Triggering Simulated Ascension...");
-    
-    // 1. Grant Rewards
     heavenlyEssence += 50;
     totalHeavenlyEarned += 50; 
     divinityLevel++;
     
-    // 2. The Reset Logic
     mana = 0;
     essence = 0;
     totalManaThisRun = 0; 
     
-    // Reset building counts and restore original costs
     upgrades.forEach(upg => {
         upg.count = 0;
-        if (upg.baseCost) {
-            upg.cost = upg.baseCost;
-        }
+        upg.cost = upg.baseCost || upg.cost; 
     });
 
-    // 3. Update the World State
     calculateMPS(); 
     saveGame();
     
-    // 4. Full UI Refresh
-    if (typeof renderSanctum === "function") renderSanctum();
-    if (typeof renderDivineShop === "function") renderDivineShop();
+    renderSanctum();
+    renderDivineShop();
     updateUI();
     
-    // 5. Navigate to show the result
-    if (typeof showTab === "function") showTab('prestige');
-    
+    showTab('prestige');
     alert("Ascension Successful! +50 Heavenly Essence.");
 };
 
-// --- COMBAT & UTILITY CHEATS ---
+// --- COMBAT & UTILITY ---
 window.instaKill = function() { 
-    // We target monsterHP specifically to trigger the game's own death logic
     if (typeof monsterHP !== 'undefined') {
         monsterHP = 0; 
         if (typeof defeatMonster === "function") defeatMonster(); 
@@ -1796,10 +1796,8 @@ window.unlockAllArtifacts = function() {
         a.owned = true;
         if (!a.level) a.level = 1;
     }); 
-    
-    // Refresh all areas where artifacts are displayed
     if (typeof renderCompendium === "function") renderCompendium(); 
-    if (typeof renderSanctum === "function") renderSanctum(); 
+    renderSanctum(); 
     updateUI(); 
 };
 
