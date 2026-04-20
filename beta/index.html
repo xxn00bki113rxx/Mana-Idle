@@ -1419,7 +1419,6 @@ function updateUI() {
     // 3. Ascension Visibility Logic
     const ascendBox = document.getElementById('ascension-container');
     if (ascendBox) {
-        // Show if 1M mana reached OR if they have previously ascended
         if (totalManaAllTime >= 1000000 || totalHeavenlyEarned > 0) {
             ascendBox.style.display = 'block';
             
@@ -1437,23 +1436,63 @@ function updateUI() {
     // 4. Header & Navigation Visibility
     const heavenlyWrapper = document.getElementById('heavenly-display-wrapper');
     if (heavenlyWrapper) {
-        // Only show the Heavenly Essence header if you have earned prestige currency
         heavenlyWrapper.style.display = (totalHeavenlyEarned > 0) ? 'block' : 'none';
     }
 
     const navPrestige = document.getElementById('nav-prestige');
     if (navPrestige) {
-        // Only show the "Higher Plane" button if you have ascended
         navPrestige.style.display = (totalHeavenlyEarned > 0) ? 'inline-block' : 'none';
+    }
+
+    // ==========================================
+    // 5. LIVE REFRESHERS 
+    // ==========================================
+    
+    // This moves the HP bar and updates monster health text
+    if (typeof updateCombatUI === "function") {
+        updateCombatUI();
+    }
+
+    // This makes shop buttons light up as mana increases
+    if (typeof updateShopAffordability === "function") {
+        updateShopAffordability();
     }
 }
 	  
 function updateCombatUI() {
+    const hpFill = document.getElementById('hp-bar');
+    const hpLabel = document.getElementById('hp-text');
+    const attackBtn = document.getElementById('attack-btn');
+
+    // 1. Calculate percentage accurately
     const pct = Math.max(0, (monsterHP / monsterMaxHP) * 100);
-    document.getElementById('hp-bar').style.width = pct + "%";
-    document.getElementById('hp-text').innerText = `HP: ${Math.ceil(monsterHP)} / ${monsterMaxHP}`;
-    const btn = document.getElementById('attack-btn');
-    if (btn) btn.disabled = (mana < 10);
+
+    // 2. Update the Fill Bar width and color
+    if (hpFill) {
+        hpFill.style.width = pct + "%";
+        
+        // Visual Feedback: Green -> Yellow -> Red
+        if (pct < 25) {
+            hpFill.style.backgroundColor = "#ff4d4d"; 
+        } else if (pct < 50) {
+            hpFill.style.backgroundColor = "#f1c40f"; 
+        } else {
+            hpFill.style.backgroundColor = "#e94560"; // Matches your HTML theme
+        }
+    }
+
+    // 3. Update the Text (Using floor so players see progress)
+    if (hpLabel) {
+        hpLabel.innerText = `HP: ${Math.floor(monsterHP).toLocaleString()} / ${Math.floor(monsterMaxHP).toLocaleString()}`;
+    }
+
+    // 4. Attack Button State
+    if (attackBtn) {
+        const canAfford = (mana >= 10);
+        attackBtn.disabled = !canAfford;
+        attackBtn.style.opacity = canAfford ? "1" : "0.5";
+        attackBtn.style.cursor = canAfford ? "pointer" : "not-allowed";
+    }
 }
 
 function ascend() {
