@@ -783,23 +783,23 @@ function attackMonster(event) {
 
     mana -= cost;
     
-    // Base damage + Slayer bonus if Elite
-    let damage = 5;
-    const slayer = artifactPool.find(a => a.id === 'slayer');
+    // Calculate Damage (Ensuring Slayer Artifact is checked correctly)
+    let damage = 5; 
+    const slayer = (typeof artifactPool !== 'undefined') ? artifactPool.find(a => a.id === 'slayer') : null;
     if (isCurrentMonsterElite && slayer && slayer.owned) {
-        damage *= (1 + slayer.bonus);
+        damage *= (1 + (slayer.bonus || 0));
     }
 
     monsterHP -= damage;
-    spawnDamageText(event, `-${Math.floor(damage)}`, "#ff4d4d");
 
-    // Visual feedback
-    const sprite = document.getElementById('monster-sprite');
-    sprite.classList.add('monster-pulse');
-    setTimeout(() => sprite.classList.remove('monster-pulse'), 200);
+    // Trigger visual feedback (Popup)
+    if (typeof spawnDamageText === 'function' && event) {
+        spawnDamageText(event, `-${Math.floor(damage)}`, "#ff4d4d");
+    }
 
+    // Unified Check for death and UI Refresh
     checkMonsterDeath();
-    updateUI();
+    updateUI(); 
 }
 
 // --- ARCANE BLAST (Spell 1) ---
