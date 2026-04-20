@@ -12,7 +12,11 @@
     <meta name="theme-color" content="#1a1a2e">
     <title>Fantasy Idle: Tiered Magic</title>
     <style>
-/* 1. GLOBAL THEME & LAYOUT */
+/* 1. GLOBAL THEME & BASE SETTINGS */
+* {
+    box-sizing: border-box;
+}
+
 body { 
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
     background: #1a1a2e; 
@@ -21,160 +25,47 @@ body {
     margin: 0; 
     padding-bottom: 50px; 
     overflow-x: hidden; 
-    box-sizing: border-box;
 }
 
-*, *:before, *:after {
-    box-sizing: inherit; /* Ensures all elements stay within their borders */
+/* 2. TOP CURRENCY & HEADER */
+.currency-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.5);
+    border-bottom: 2px solid #4ecca3;
+    margin-bottom: 20px;
 }
 
 #mana-display { 
     font-size: 2.5em; 
     color: #4ecca3; 
-    margin: 10px; 
-    text-shadow: 0 0 10px rgba(78, 204, 163, 0.3);
-}
-
-/* 2. TAB & GRID SYSTEM (Consolidated Fix) */
-.tab-content {
-    padding: 10px;
-    width: 100%;
-}
-
-.shop-container, .artifact-grid {
-    display: grid;
-    /* responsive columns: tiles shrink to 160px then wrap */
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 12px;
-    padding: 15px;
-    width: 100%;
-    max-height: 65vh; 
-    overflow-y: auto; 
-    justify-content: center;
-}
-
-/* 3. CARDS (Unified Upgrade/Artifact cards) */
-.upgrade-card, .artifact-card {
-    background: #16213e;
-    border: 1px solid #0f3460;
-    border-radius: 12px;
-    padding: 15px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    transition: transform 0.2s, border-color 0.2s;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-}
-
-.upgrade-card:hover, .artifact-card:hover {
-    border-color: #4ecca3;
-    transform: translateY(-2px);
-    background: #1f2d52;
-}
-
-/* 4. COMBAT SECTION (Battle Rift) */
-#combat-section {
-    width: 100%;
-    max-width: 420px; /* Limits size on desktop */
-    background: #16213e;
-    border: 2px solid #e94560;
-    padding: 20px;
-    border-radius: 20px;
-    margin: 20px auto;
-    position: relative;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-
-#monster-sprite { 
-    font-size: clamp(60px, 18vw, 90px); 
-    transition: transform 0.1s; 
-    cursor: pointer; 
-    display: inline-block;
-    user-select: none;
-    padding: 10px;
-}
-
-#monster-sprite:active {
-    transform: scale(0.9);
-}
-
-/* 5. ABILITY BAR & BUTTONS */
-.ability-bar {
-    display: flex;
-    flex-wrap: wrap; /* Fixes mobile overflow */
-    gap: 10px;
-    justify-content: center;
-    margin: 15px auto;
-    width: 100%;
-}
-
-.skill-container {
-    position: relative;
-    flex: 1;
-    min-width: 85px; /* Ensures buttons stay readable on small screens */
-    border-radius: 12px;
-    height: 70px;
-    overflow: hidden;
-}
-
-/* Main Action Buttons */
-#gather-mana-btn, #strike-btn, .buy-btn, .skill-btn {
-    border-radius: 12px;
-    border: 2px solid #4ecca3;
-    background: #16213e;
-    color: #4ecca3;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-#strike-btn {
-    border-color: #e94560;
-    color: #e94560;
-    width: 100%;
-    padding: 12px;
     margin: 10px 0;
+    text-shadow: 0 0 10px rgba(78, 204, 163, 0.4);
 }
 
-.skill-btn {
-    width: 100%;
-    height: 100%;
-    font-size: 0.8em;
+#mana-record-display {
+    font-family: 'Courier New', Courier, monospace;
+    letter-spacing: 1px;
+    border-bottom: 1px solid rgba(78, 204, 163, 0.2);
+    display: inline-block;
+    padding-bottom: 2px;
 }
 
-.cooldown-overlay {
-    position: absolute;
-    bottom: 0; /* Cooldown fills from bottom up */
-    left: 0;
-    width: 100%;
-    height: 0%; 
-    background: rgba(0, 0, 0, 0.75); 
-    pointer-events: none; 
-    z-index: 2;
-}
+/* Currency Text Colors */
+.essence-text { color: #bb86fc; font-weight: bold; }
+.heavenly-text { color: #ffd700; font-weight: bold; text-shadow: 0 0 8px rgba(255, 214, 0, 0.5); }
 
-/* Hover/Active States */
-.nav-btn:hover, button:hover:not(:disabled) {
-    transform: translateY(-2px);
-    filter: brightness(1.2);
-}
-
-button:disabled {
-    border-color: #444 !important;
-    color: #666 !important;
-    background: #1a1a2e !important;
-    cursor: not-allowed;
-    transform: none !important;
-}
-
-/* 6. NAVIGATION */
+/* 3. NAVIGATION & TABS */
 .nav-bar {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 8px;
-    margin-bottom: 20px;
+    gap: 10px;
+    margin-bottom: 25px;
 }
 
 .nav-btn {
@@ -185,6 +76,7 @@ button:disabled {
     border-radius: 12px;
     font-weight: bold;
     cursor: pointer;
+    transition: 0.2s;
 }
 
 .nav-btn.active {
@@ -193,10 +85,122 @@ button:disabled {
     box-shadow: 0 0 15px rgba(78, 204, 163, 0.5);
 }
 
-/* 7. ANIMATIONS */
+.tab-content {
+    width: 100%;
+    max-width: 100vw;
+    padding: 10px;
+    display: none;
+    overflow-x: hidden;
+}
+
+/* 4. THE GRID SYSTEM (Crucial for Shop Layout) */
+.shop-container, .artifact-grid {
+    display: grid !important; 
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+    gap: 15px;
+    padding: 20px;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    
+    justify-content: center;
+    align-content: start; 
+}
+
+/* 5. CARDS (Standard & Divine) */
+.upgrade-card, .artifact-card {
+    background: #16213e;
+    border: 1px solid #0f3460;
+    border-radius: 15px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.upgrade-card:hover {
+    border-color: #4ecca3;
+    transform: translateY(-3px);
+    background: #1f2d52;
+}
+
+/* Heavenly Plane/Prestige Card Styling */
+.divine-card {
+    border-color: #ffd700 !important;
+    background: #1c1c1c;
+}
+.divine-card:hover {
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+    border-color: #fff !important;
+}
+
+/* 6. BUTTONS & ACTIONS */
+.card-actions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 10px;
+}
+
+.buy-btn, .skill-btn, #strike-btn, #gather-mana-btn {
+    border-radius: 12px;
+    border: 2px solid #4ecca3;
+    background: #16213e;
+    color: #4ecca3;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.buy-btn { width: 100%; padding: 8px 5px; }
+
+#strike-btn { border-color: #e94560; color: #e94560; padding: 12px; }
+
+/* 7. COMBAT SECTION (Battle Rift) */
+#combat-section {
+    width: 95%;
+    max-width: 420px;
+    background: #16213e;
+    border: 2px solid #e94560;
+    padding: 25px;
+    border-radius: 24px;
+    margin: 20px auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+}
+
+#monster-sprite { 
+    font-size: clamp(70px, 20vw, 100px); 
+    transition: transform 0.1s; 
+    cursor: pointer; 
+    user-select: none;
+}
+
+.cooldown-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 0%; 
+    background: rgba(0, 0, 0, 0.6); 
+    pointer-events: none; 
+    border-radius: inherit; 
+    z-index: 2;
+}
+
+.skill-btn {
+    position: relative; 
+    overflow: hidden;   
+    z-index: 1;
+}
+
+/* 8. ANIMATIONS & POPUPS */
 @keyframes hitFlash {
     0% { transform: scale(1); }
-    50% { transform: scale(1.1); filter: brightness(2); }
+    50% { transform: scale(1.1); filter: brightness(1.8); }
     100% { transform: scale(1); }
 }
 .monster-pulse { animation: hitFlash 0.15s ease-out; }
@@ -212,13 +216,13 @@ button:disabled {
 
 @keyframes popupFloat { 
     0% { opacity: 1; transform: translateY(0); } 
-    100% { opacity: 0; transform: translateY(-60px) scale(1.2); } 
+    100% { opacity: 0; transform: translateY(-70px) scale(1.2); } 
 }
 
 .floating-text {
     position: fixed;
     font-weight: bold;
-    font-size: 1.5rem;
+    font-size: 1.6rem;
     color: #4ecca3;
     pointer-events: none;
     z-index: 10000;
@@ -227,25 +231,56 @@ button:disabled {
 
 @keyframes floatAndFade {
     0% { opacity: 1; transform: translateY(0); }
-    100% { opacity: 0; transform: translateY(-100px); }
+    100% { opacity: 0; transform: translateY(-120px); }
 }
-		
+
+/* 9. UTILITY */
+button:disabled {
+    border-color: #444 !important;
+    color: #666 !important;
+    background: #1a1a2e !important;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.hidden { display: none !important; }
+
+#sanctum-container.shop-container {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    gap: 15px !important;
+    padding: 10px !important;
+}
 </style>
 </head>
 <body>
     <div id="game-header" style="position: sticky; top: 0; background: #16213e; border-bottom: 2px solid #4ecca3; padding: 15px; display: flex; justify-content: space-around; align-items: center; z-index: 1000; width: 100%; box-sizing: border-box; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
         
-        <div style="text-align: center;">
-            <div style="font-size: 0.7em; color: #4ecca3; text-transform: uppercase; letter-spacing: 1px;">Mana Reservoir</div>
-            <div id="mana-display" style="font-size: 1.4em; font-weight: bold; color: #fff;">0</div>
-            <div id="mps-display" style="font-size: 0.8em; color: #888;">Flow: 0.0 /sec</div>
+    <div style="text-align: center;">
+        <div style="font-size: 0.7em; color: #4ecca3; text-transform: uppercase; letter-spacing: 1px;">Mana Reservoir</div>
+        <div id="mana-count" style="font-size: 1.4em; font-weight: bold; color: #fff;">0</div>
+        
+        <div style="font-size: 0.65em; color: #bdc3c7; font-style: italic; margin-top: 2px;">
+            Record: <span id="mana-record">0</span>
         </div>
 
-        <div style="text-align: center; border-left: 1px solid #333; padding-left: 20px;">
-            <div style="font-size: 0.7em; color: #9b59b6; text-transform: uppercase; letter-spacing: 1px;">Pure Essence</div>
-            <div id="essence-display" style="font-size: 1.4em; font-weight: bold; color: #fff;">0</div>
+        <div style="font-size: 0.8em; color: #888; margin-top: 4px;">
+            Flow: <span id="mps-display">0.0</span> /sec
         </div>
     </div>
+
+    <div style="text-align: center; border-left: 1px solid #333; padding-left: 20px;">
+        <div style="font-size: 0.7em; color: #9b59b6; text-transform: uppercase; letter-spacing: 1px;">Pure Essence</div>
+        <div id="essence-count" style="font-size: 1.4em; font-weight: bold; color: #fff;">0</div>
+    </div>
+
+    <div id="heavenly-display-wrapper" style="display: none; text-align: center; border-left: 1px solid #333; padding-left: 20px;">
+        <div style="font-size: 0.7em; color: #ffd700; text-transform: uppercase; letter-spacing: 1px;">Heavenly Essence</div>
+        <div id="heavenly-count" style="font-size: 1.4em; font-weight: bold; color: #ffd700;">0</div>
+    </div>
+</div>
 
     <h1>Mana Sanctum</h1>
     
@@ -257,9 +292,16 @@ button:disabled {
     </div>
 
     <div id="sanctum-tab" class="tab-content">
-        <button onclick="clickMana(event)" id="gather-mana-btn" style="width: 200px; height: 60px; margin-top: 20px; margin-bottom: 20px; cursor: pointer;">Gather Mana</button>
-        <div class="shop-container" id="sanctum-display"></div>
-    </div>
+    	<button onclick="clickMana(event)" id="gather-mana-btn" style="width: 200px; height: 60px; margin-top: 20px; margin-bottom: 20px; cursor: pointer;">Gather Mana</button>
+    	<div class="shop-container" id="sanctum-container"></div>
+		<div id="ascension-container" style="margin-top: 40px; padding: 20px; border: 2px dashed #ffd700; background: rgba(0,0,0,0.3); border-radius: 10px; text-align: center;">
+    		<h3 style="color: #ffd700; margin-top: 0;">Ritual of Transcendence</h3>
+    		<p style="font-size: 0.9em; color: #aaa;">Sacrifice your mortal progress to touch the Higher Plane.</p>
+    		<button onclick="ascend()" class="prestige-btn" style="padding: 12px 24px; background: #ffd700; color: #000; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; text-transform: uppercase;">
+        	Ascend to Divine Realm
+    		</button>
+		</div>
+	</div>
 
     <div id="battle-tab" class="tab-content" style="display: none; padding: 10px; box-sizing: border-box;">
     <div id="combat-section" style="
@@ -286,22 +328,22 @@ button:disabled {
             <div id="hp-text" style="position: absolute; width: 100%; top: 0; left: 0; text-align: center; font-size: 0.85em; line-height: 22px; color: white; font-weight: bold; text-shadow: 1px 1px 2px #000;">HP: 50 / 50</div>
         </div>
 
-        <button id="strike-btn" onclick="attackMonster(event)" style="width: 100%; padding: 12px; margin-bottom: 15px; background: #e94560; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">Standard Strike</button>
+      <button id="attack-btn" onclick="attackMonster(event)" style="width: 100%; padding: 12px; margin-bottom: 15px; background: #e94560; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">Standard Strike</button>
 
-        <div class="ability-bar" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: 100%;">
-            <div class="skill-container" style="position: relative; flex: 1; min-width: 80px;">
-                <button class="skill-btn" onclick="castBlast(event)" style="width: 100%; font-size: 0.8em; padding: 10px 5px;">Arcane Blast</button>
-                <div id="cooldown-blast" class="cooldown-overlay"></div>
-            </div>
-            <div class="skill-container" style="position: relative; flex: 1; min-width: 80px;">
-                <button class="skill-btn" onclick="castSiphon(event)" style="width: 100%; font-size: 0.8em; padding: 10px 5px;">Mana Siphon</button>
-                <div id="cooldown-siphon" class="cooldown-overlay"></div>
-            </div>
-            <div class="skill-container" style="position: relative; flex: 1; min-width: 80px;">
-                <button class="skill-btn" onclick="castStorm(event)" style="width: 100%; font-size: 0.8em; padding: 10px 5px;">Mana Storm</button>
-                <div id="cooldown-storm" class="cooldown-overlay"></div>
-            </div>
-        </div>
+<div class="ability-bar" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: 100%;">
+    <div class="skill-container" style="position: relative; flex: 1; min-width: 80px;">
+        <button id="skill-blast" class="skill-btn" onclick="castBlast(event)" style="width: 100%; font-size: 0.8em; padding: 10px 5px;">Arcane Blast</button>
+        <div id="cooldown-blast" class="cooldown-overlay"></div>
+    </div>
+    <div class="skill-container" style="position: relative; flex: 1; min-width: 80px;">
+        <button id="skill-siphon" class="skill-btn" onclick="castSiphon(event)" style="width: 100%; font-size: 0.8em; padding: 10px 5px;">Mana Siphon</button>
+        <div id="cooldown-siphon" class="cooldown-overlay"></div>
+    </div>
+    <div class="skill-container" style="position: relative; flex: 1; min-width: 80px;">
+        <button id="skill-storm" class="skill-btn" onclick="castStorm(event)" style="width: 100%; font-size: 0.8em; padding: 10px 5px;">Mana Storm</button>
+        <div id="cooldown-storm" class="cooldown-overlay"></div>
+    </div>
+</div>
     </div>
 </div> 
 
@@ -324,15 +366,31 @@ button:disabled {
         </div>
     </div>
 
-    <div id="admin-menu" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #222; border: 2px solid #ff0055; padding: 20px; border-radius: 10px; z-index: 99999; text-align: left; box-shadow: 0 0 20px #000;">
-        <h3 style="color: #ff0055; margin: 0 0 10px 0;">Arcane Debugger</h3>
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-            <button onclick="cheatMana()">+1 Million Mana</button>
-            <button onclick="cheatEssence()">+100 Essence</button>
-            <button onclick="instaKill()">Insta-Kill</button>
-            <button onclick="unlockAllArtifacts()">Unlock All</button>
-        </div>
+<button id="nav-prestige" class="nav-btn" onclick="showTab('prestige')" style="display: none; border-color: #ffd700; color: #ffd700;">Higher Plane</button>
+
+<div id="prestige-tab" class="tab-content" style="display: none;">
+    <div class="prestige-header" style="margin-bottom: 20px;">
+        <h2 style="color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);">The Divine Realm</h2>
+        <p>You have gathered <span id="heavenly-essence-header" style="font-weight: bold; color: #ffd700;">0</span> Heavenly Essence</p>
     </div>
+
+    <div id="divine-shop-container" class="shop-container"></div>
+</div>
+	
+    <div id="admin-menu" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #111; border: 2px solid #e94560; padding: 20px; border-radius: 12px; z-index: 99999; text-align: left; box-shadow: 0 0 25px rgba(233, 69, 96, 0.4); width: 220px;">
+    <h3 style="color: #e94560; margin: 0 0 15px 0; font-family: sans-serif; text-transform: uppercase; font-size: 0.9em; letter-spacing: 1px;">Arcane Debugger</h3>
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+        <button class="debug-btn" onclick="cheatMana()">+1M Mana</button>
+        <button class="debug-btn" onclick="cheatEssence()">+100 Essence</button>
+        <button class="debug-btn" onclick="cheatHeavenly()">+100 Heavenly (Currency Only)</button>
+        <hr style="border: 0; border-top: 1px solid #333; margin: 5px 0;">
+        <button class="debug-btn" onclick="cheatAscend()" style="border-color: #ffd700; color: #ffd700; font-weight: bold;">Force Full Ascension</button>
+        <hr style="border: 0; border-top: 1px solid #333; margin: 5px 0;">
+        <button class="debug-btn" onclick="instaKill()">Insta-Kill</button>
+        <button class="debug-btn" onclick="unlockAllArtifacts()">Unlock All</button>
+        <button class="debug-btn" onclick="deleteSave()" style="border-color: #555; color: #888; font-size: 0.75em; margin-top: 5px;">Hard Reset</button>
+    </div>
+</div>
 
     <div id="artifact-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:99999; justify-content:center; align-items:center;">
         <div style="background:#1a1a2e; border:2px solid #f1c40f; padding:30px; border-radius:15px; text-align:center; max-width:350px; color:white; box-shadow: 0 0 20px #f1c40f;">
@@ -369,11 +427,15 @@ let baseTickSpeed = 100;
 let saveTimer = 0; 
 
 // --- Spell Systems ---
-let spellCooldowns = {
-    blast: false,
-    siphon: false,
-    storm: false
-};
+let spellCooldowns = { blast: false, siphon: false, storm: false };
+
+// --- Prestige System (The Higher Plane) ---
+let heavenlyEssence = 0;      
+let totalManaThisRun = 0;     
+let divinityLevel = 0;       
+let divineMultiplier = 1; 
+let totalManaAllTime = 0;      
+let totalHeavenlyEarned = 0;    
 
 // --- 2. ARTIFACT DEFINITIONS ---
 const artifactPool = [
@@ -385,60 +447,59 @@ const artifactPool = [
     { id: "slayer", name: "Slayer's Mark", icon: "🎯", owned: false, level: 1, bonus: 1.0, type: "elite_damage", desc: "Deals 100% bonus damage to Elite monsters." }
 ];
 
-// --- 3. UPGRADE DEFINITIONS ---
+// --- 3. UPGRADE DEFINITIONS (Sanctum) ---
 const upgrades = [
-    { id: 'scribe', name: 'Apprentice Scribe', cost: 15, mps: 1, count: 0 },
-    { id: 'well', name: 'Mana Well', cost: 125, mps: 6, count: 0 },
-    { id: 'library', name: 'Arcane Library', cost: 1200, mps: 40, count: 0 },
-    { id: 'tower', name: 'Wizard Tower', cost: 9500, mps: 180, count: 0 },
-    { id: 'palantir', name: 'Visionary Palantir', cost: 45000, mps: 650, count: 0 },
+    { id: 'scribe', name: 'Apprentice Scribe', baseCost: 15, mps: 1, count: 0 },
+    { id: 'well', name: 'Mana Well', baseCost: 125, mps: 6, count: 0 },
+    { id: 'library', name: 'Arcane Library', baseCost: 1200, mps: 40, count: 0 },
+    { id: 'tower', name: 'Wizard Tower', baseCost: 9500, mps: 180, count: 0 },
+    { id: 'palantir', name: 'Visionary Palantir', baseCost: 45000, mps: 650, count: 0 },
+    { id: 'monolith', name: 'Eldritch Monolith', baseCost: 150000, mps: 1800, count: 0 },
+    { id: 'nexus', name: 'Leyline Nexus', baseCost: 850000, mps: 7500, count: 0 },
+    { id: 'citadel', name: 'Floating Citadel', baseCost: 5000000, mps: 32000, count: 0 },
+    { id: 'sanctum_bldg', name: 'Eternal Sanctum', baseCost: 25000000, mps: 125000, count: 0 },
+    { id: 'rift_gate', name: 'Void Rift Gate', baseCost: 150000000, mps: 600000, count: 0 }
+];
 
-    // Tier 2 
-    { id: 'monolith', name: 'Eldritch Monolith', cost: 150000, mps: 1800, count: 0 },
-    { id: 'nexus', name: 'Leyline Nexus', cost: 850000, mps: 7500, count: 0 },
-    { id: 'citadel', name: 'Floating Citadel', cost: 5000000, mps: 32000, count: 0 },
-    { id: 'sanctum_bldg', name: 'Eternal Sanctum', cost: 25000000, mps: 125000, count: 0 },
-    { id: 'rift_gate', name: 'Void Rift Gate', cost: 150000000, mps: 600000, count: 0 }
+// --- 4. DIVINE UPGRADES (The Higher Plane) ---
+const divineUpgrades = [
+    { id: 'holy_flow', name: 'Holy Flow', icon: '✨', type: 'production', description: 'Permanent +20% Mana production per level.', level: 0, maxLevel: 50, cost: 10 },
+    { id: 'divine_strike', name: 'Divine Strike', icon: '⚔️', type: 'click', description: 'Permanent +5 Mana per click per level.', level: 0, maxLevel: 50, cost: 5 },
+    { id: 'spirit_projection', name: 'Spirit Projection', icon: '👻', type: 'utility', description: 'Increases soul efficiency while away. (+10% Offline Efficiency per level)', level: 0, maxLevel: 5, cost: 5 },
+    { id: 'soul_siphon', name: 'Soul Siphon', icon: '💎', type: 'combat', description: 'Gain +25% more Battle Essence from monsters per level.', level: 0, maxLevel: 20, cost: 8 },
+    { id: 'ethereal_wisdom', name: 'Ethereal Wisdom', icon: '📜', type: 'cost', description: 'Permanently reduces building costs by 5% per level.', level: 0, maxLevel: 10, cost: 20 },
+    { id: 'astral_speed', name: 'Astral Speed', icon: '⏳', type: 'time', description: 'Increases the speed of the game clock by 2% per level.', level: 0, maxLevel: 25, cost: 15 }
 ];
 
 // --- 2. NAVIGATION LOGIC ---
 window.showTab = function(tabName) {
-    const tabs = ['sanctum', 'battle', 'compendium', 'settings']; 
+    if (tabName.endsWith('-tab')) tabName = tabName.replace('-tab', '');
+
+    const tabs = ['sanctum', 'battle', 'compendium', 'settings', 'prestige']; 
     
     tabs.forEach(t => {
         const content = document.getElementById(t + '-tab');
-        const btn = document.getElementById(t + '-btn');
+        const btn = document.getElementById(t + '-btn') || document.getElementById('nav-' + t);
         if (content) content.style.display = 'none';
-        if (btn) btn.classList.remove('active');
+        if (btn) btn?.classList.remove('active');
     });
 
     const activeTab = document.getElementById(tabName + '-tab');
+    const activeBtn = document.getElementById(tabName + '-btn') || document.getElementById('nav-' + tabName);
+
     if (activeTab) {
         activeTab.style.display = 'block';
-        console.log("Showing tab: " + tabName);
+        activeBtn?.classList.add('active');
     }
+
+    // Trigger Specific Renders
+    if (tabName === 'sanctum') renderSanctum();
+    if (tabName === 'compendium') renderCompendium();
+    if (tabName === 'prestige') renderDivineShop();
     
-    const activeBtn = document.getElementById(tabName + '-btn');
-    if (activeBtn) activeBtn.classList.add('active');
-
-    // --- SECTION 4: THE FIXES ---
-    
-    // 1. Rename renderShop to renderSanctum
-    if (tabName === 'sanctum') {
-        renderSanctum(); 
-    }
-
-    // 2. Remove renderArtifacts from Battle (it lives in Compendium now)
-    if (tabName === 'battle') {
-        updateUI(); // Keep this to ensure the health bar is correct
-    }
-
-    // 3. Ensure this matches your artifact render function name
-    if (tabName === 'compendium') {
-        renderCompendium();
-    }
+    updateUI();
 };
-
+	  
 // --- 3. SHOP & ECONOMY ---
 function getAffordableAmount(upg, currentMana, discount) {
     let tempMana = currentMana;
@@ -464,161 +525,193 @@ function getAffordableAmount(upg, currentMana, discount) {
     return count;
 }
 
-function renderSanctum() {
-    // 1. Target the Sanctum container
-    const container = document.getElementById('sanctum-display');
-    if (!container) return;
+// ==========================================
+// 1. THE SHOP FUNCTIONS
+// ==========================================
 
-    // 2. Clear it out (Prevents duplicating the list every time we render)
-    container.innerHTML = '';
-    container.className = 'shop-container'; // Ensures your CSS grid/flex stays active
-
-    // 3. Get the discount from the Scholar's Robe (if owned)
-    const robe = artifactPool.find(a => a.id === 'robe');
-    const discount = (robe && robe.owned) ? (robe.bonus || 0) : 0;
-
-    // 4. Create a card for every building in your upgrades list
-    upgrades.forEach(upg => {
-        const card = document.createElement('div');
-        card.className = 'upgrade-card';
-        
-        // --- TIER 2 COLOR LOGIC ---
-        // We define Tier 2 as any building with a base cost of 150,000 or higher
-        const isTier2 = upg.cost >= 150000; 
-        const themeColor = isTier2 ? '#9b59b6' : '#4ecca3'; // Purple vs Green
-        
-        // Add specific Tier 2 styling if applicable
-        if (isTier2) {
-            card.style.borderLeft = `4px solid ${themeColor}`;
-            card.style.background = 'rgba(155, 89, 182, 0.05)';
-        } else {
-            card.style.borderLeft = `4px solid ${themeColor}`;
-            card.style.background = 'rgba(78, 204, 163, 0.05)';
-        }
-
-        // 5. Generate the HTML Structure
-        card.innerHTML = `
-            <div style="font-weight: bold; color: ${themeColor}; margin-bottom: 2px;">${upg.name}</div>
-            <div id="level-${upg.id}" style="font-size: 0.85em; color: #bdc3c7; margin-bottom: 5px;">Level: ${upg.count}</div>
-            <div style="font-size: 0.8em; color: ${themeColor}; font-style: italic; margin-bottom: 12px;">
-                +${upg.mps.toLocaleString()} MPS
-            </div>
-            
-            <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
-                <button id="buy1-${upg.id}" class="buy-btn" onclick="buyUpgrade('${upg.id}')" style="cursor: pointer;">
-                    Buy
-                </button>
-                <button id="max-${upg.id}" class="buy-btn max-btn" onclick="buyMax('${upg.id}')" style="cursor: pointer;">
-                    MAX
-                </button>
-            </div>
-        `;
-        
-        container.appendChild(card);
-    });
-
-    // 6. Final Sync
-    // Since renderSanctum creates the buttons, we must run updateUI 
-    // immediately to fill in the costs and disable/enable buttons.
-    if (typeof updateUI === "function") updateUI();
-}
-function buyUpgrade(id) {
-    // 1. Find the building in your upgrades array
+function buyOne(id) {
     const upg = upgrades.find(u => u.id === id);
     if (!upg) return;
+    
+    const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
+    const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
+    const currentCost = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
 
-    // 2. Calculate the discounted cost
-    const robe = artifactPool.find(a => a.id === 'robe');
-    const discount = (robe && robe.owned) ? robe.bonus : 0;
-    const currentCost = Math.floor(upg.cost * (1 - discount));
-
-    // 3. Check if player can afford it
     if (mana >= currentCost) {
         mana -= currentCost;
         upg.count++;
         
-        // 4. Increase the cost for the next one (standard 15% increase)
-        upg.cost = Math.ceil(upg.cost * 1.15);
-
-        // 5. Update game state
         if (typeof calculateMPS === 'function') calculateMPS();
-        
-        // 6. Refresh the UI
-        // We call renderSanctum here to update the static text (like Level)
         renderSanctum(); 
         updateUI();
-        saveGame();
-    } else {
-        console.log("Not enough mana!");
+        if (typeof saveGame === 'function') saveGame();
     }
 }
 
 function buyMax(id) {
     const upg = upgrades.find(u => u.id === id);
-    if (!upg || mana <= 0) return;
+    if (!upg) return;
 
-    const robe = artifactPool.find(a => a.id === 'robe');
-    const discount = (robe && robe.owned) ? robe.bonus : 0;
+    const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
+    const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
 
-    // 1. Calculate how many we can afford using your helper function
-    let amountToBuy = typeof getAffordableAmount === "function" ? getAffordableAmount(upg, mana, discount) : 0;
+    let totalCost = 0;
+    let amountToBuy = 0;
 
-    // Safety cap: prevents browser hangs if numbers get weirdly high
-    if (amountToBuy > 1000) amountToBuy = 1000;
+    while (true) {
+        let nextPrice = Math.floor((upg.baseCost * Math.pow(1.15, upg.count + amountToBuy)) * discount);
+        if (mana >= totalCost + nextPrice) {
+            totalCost += nextPrice;
+            amountToBuy++;
+        } else {
+            break;
+        }
+        if (amountToBuy >= 1000) break; 
+    }
 
     if (amountToBuy > 0) {
-        let totalCost = 0;
+        mana -= totalCost;
+        upg.count += amountToBuy;
         
-        // 2. The Fix: Calculate the cost of the NEXT building based on CURRENT level
-        // We use upg.cost (the base price) and scale it by the current count
-        let nextUnitBaseCost = upg.cost * Math.pow(1.15, upg.count);
-
-        for (let i = 0; i < amountToBuy; i++) {
-            const discountedPrice = Math.floor(nextUnitBaseCost * (1 - discount));
-            totalCost += discountedPrice;
-            
-            // Scaled cost for the iteration after this one
-            nextUnitBaseCost *= 1.15; 
-        }
-
-        // 3. Final safety check on mana before deducting
-        if (mana >= totalCost) {
-            mana -= totalCost;
-            upg.count += amountToBuy;
-            
-            // 4. Update and Save
-            if (typeof calculateMPS === 'function') calculateMPS();
-            
-            // Refresh visuals
-            if (typeof renderSanctum === 'function') renderSanctum();
-            updateUI();
-            
-            if (typeof saveGame === 'function') saveGame();
-            
-            console.log(`Successfully bought ${amountToBuy} levels of ${upg.name} for ${Math.floor(totalCost).toLocaleString()} Mana.`);
-        } else {
-            // This fallback handles edge cases where math rounding might slightly mismatch
-            console.warn("Calculated amount was slightly too expensive. Re-syncing UI.");
-            updateUI();
-        }
+        if (typeof calculateMPS === 'function') calculateMPS();
+        renderSanctum();
+        updateUI();
+        if (typeof saveGame === 'function') saveGame();
     }
 }
-function calculateMPS() {
-    // 1. Calculate Base Production from Buildings
-    let baseMPS = upgrades.reduce((total, upg) => {
-        // Use (upg.mps || 0) just in case a building is missing its MPS value
-        return total + (upg.count * (upg.mps || 0));
-    }, 0);
 
-    // 2. Apply Artifact Multipliers
-    const orb = artifactPool.find(a => a.id === 'orb');
+function renderSanctum() {
+    const container = document.getElementById('sanctum-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    upgrades.forEach(upg => {
+        const card = document.createElement('div');
+        card.className = 'upgrade-card';
+
+        // 1. FIXED TIER LOGIC: Tier 2 starts at Eldritch Monolith (150k cost)
+        // Everything 150k and above is Tier 2 (Purple)
+        const isTier2 = upg.baseCost >= 150000;
+        const tierColor = isTier2 ? '#9b59b6' : '#4ecca3'; 
+        const tierGlow = isTier2 ? 'rgba(155, 89, 182, 0.2)' : 'rgba(78, 204, 163, 0.1)';
+
+        const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
+        const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
+        const displayCost = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
+        
+        const canAffordOne = mana >= displayCost;
+        const btnClass = canAffordOne ? 'buy-btn' : 'buy-btn disabled';
+
+        // Calculate Buy Max Potential
+        let tempTotalCost = 0;
+        let amountToBuy = 0;
+        let tempCount = upg.count;
+        while (true) {
+            let nextPrice = Math.floor((upg.baseCost * Math.pow(1.15, tempCount)) * discount);
+            if (mana >= tempTotalCost + nextPrice) {
+                tempTotalCost += nextPrice;
+                amountToBuy++;
+                tempCount++;
+            } else { break; }
+            if (amountToBuy >= 1000) break;
+        }
+
+        card.innerHTML = `
+            <div class="upgrade-info" style="border-left: 4px solid ${tierColor}; padding-left: 10px;">
+                <span class="upgrade-icon" style="font-size: 1.5em;">${upg.icon || '📜'}</span>
+                <div class="upgrade-texts">
+                    <div class="upgrade-name" style="font-weight: bold; color: ${tierColor};">${upg.name || 'Unknown'}</div>
+                    <div class="upgrade-desc" style="font-size: 0.8em; color: #aaa;">${upg.description || upg.desc || ''}</div>
+                </div>
+            </div>
+            <div class="upgrade-stats" style="margin-top: 10px; text-align: center;">
+                <div class="upgrade-level" style="color: #bdc3c7; margin-bottom: 5px;">Lv. ${upg.count || 0}</div>
+                
+                <button class="${btnClass}" 
+                    onclick="buyOne('${upg.id}')" 
+                    ${!canAffordOne ? 'disabled' : ''}
+                    style="width: 100%; padding: 10px; cursor: pointer; margin-bottom: 8px; border-radius: 8px; font-weight: bold; 
+                    background: ${canAffordOne ? tierColor : '#333'}; 
+                    border: 2px solid ${tierColor};
+                    color: white;
+                    box-shadow: 0 0 10px ${tierGlow};">
+                    Buy: ${displayCost.toLocaleString()}
+                </button>
+
+                <button class="buy-max-btn" 
+                    onclick="buyMax('${upg.id}')" 
+                    ${amountToBuy === 0 ? 'disabled' : ''}
+                    style="width: 100%; padding: 8px; cursor: pointer; font-size: 0.75em; background: #2c3e50; color: #fff; border: 1px solid #34495e; border-radius: 8px; opacity: ${amountToBuy > 0 ? 1 : 0.5};">
+                    Buy Max (+${amountToBuy})
+                </button>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// 2. EXPORT TO GLOBAL
+window.buyOne = buyOne;
+window.buyMax = buyMax;
+window.renderSanctum = renderSanctum;
+
+function updateShopAffordability() {
+    const buyButtons = document.querySelectorAll('.buy-btn');
     
-    // Safety check: ensure orb.bonus exists and is a number
-    let orbMult = (orb && orb.owned) ? (1 + (orb.bonus || 0)) : 1;
+    upgrades.forEach((upg, index) => {
+        const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
+        const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
+        const currentCost = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
+        
+        const btn = buyButtons[index];
+        if (btn) {
+            if (mana >= currentCost) {
+                btn.classList.remove('disabled');
+                btn.disabled = false;
+                // Match the tier colors we set up
+                const isTier2 = upg.baseCost >= 150000;
+                btn.style.background = isTier2 ? '#9b59b6' : '#4ecca3';
+                btn.style.opacity = "1";
+            } else {
+                btn.classList.add('disabled');
+                btn.disabled = true;
+                btn.style.background = '#333';
+                btn.style.opacity = "0.5";
+            }
+        }
+    });
+}
+	  
+function getBuildingCost(upg) {
+    // 1. Calculate the standard price
+    let price = Math.floor(upg.baseCost * Math.pow(1.15, upg.count));
 
-    // 3. Set Global State
-    // We update the global variable and return it
-    globalMPS = Math.max(0, baseMPS * orbMult);
+    // 2. Apply Ethereal Wisdom (The Divine Discount)
+    const wisdom = divineUpgrades.find(d => d.id === 'ethereal_wisdom');
+    const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
+
+    // 3. Return the discounted price
+    return Math.floor(price * discount);
+}
+	  
+function calculateMPS() {
+    let baseMPS = 0;
+    
+    upgrades.forEach(upg => {
+        baseMPS += upg.count * upg.mps;
+    });
+
+    const holyFlow = divineUpgrades.find(u => u.id === 'holy_flow');
+    const flowMult = holyFlow ? (1 + (holyFlow.level * 0.20)) : 1;
+
+    // Wrap the final result in Math.floor
+    globalMPS = Math.floor(baseMPS * flowMult);
+    
+    const astral = divineUpgrades.find(u => u.id === 'astral_speed');
+    if (astral) {
+        currentTickDelay = 100 * (1 - (astral.level * 0.02));
+    }
 
     return globalMPS;
 }
@@ -690,23 +783,23 @@ function attackMonster(event) {
 
     mana -= cost;
     
-    // Base damage + Slayer bonus if Elite
-    let damage = 5;
-    const slayer = artifactPool.find(a => a.id === 'slayer');
+    // Calculate Damage (Ensuring Slayer Artifact is checked correctly)
+    let damage = 5; 
+    const slayer = (typeof artifactPool !== 'undefined') ? artifactPool.find(a => a.id === 'slayer') : null;
     if (isCurrentMonsterElite && slayer && slayer.owned) {
-        damage *= (1 + slayer.bonus);
+        damage *= (1 + (slayer.bonus || 0));
     }
 
     monsterHP -= damage;
-    spawnDamageText(event, `-${Math.floor(damage)}`, "#ff4d4d");
 
-    // Visual feedback
-    const sprite = document.getElementById('monster-sprite');
-    sprite.classList.add('monster-pulse');
-    setTimeout(() => sprite.classList.remove('monster-pulse'), 200);
+    // Trigger visual feedback (Popup)
+    if (typeof spawnDamageText === 'function' && event) {
+        spawnDamageText(event, `-${Math.floor(damage)}`, "#ff4d4d");
+    }
 
+    // Unified Check for death and UI Refresh
     checkMonsterDeath();
-    updateUI();
+    updateUI(); 
 }
 
 // --- ARCANE BLAST (Spell 1) ---
@@ -799,35 +892,50 @@ function checkMonsterDeath() {
         defeatMonster(); // Your function that handles essence gain/new monster
     }
 }
+	  
 function triggerCooldown(skillId, ms) {
     const btn = document.getElementById(skillId);
-    // Get the overlay ID (e.g., 'skill-blast' -> 'cooldown-blast')
+    // This turns 'skill-blast' into 'cooldown-blast'
     const overlayId = skillId.replace('skill-', 'cooldown-');
     const overlay = document.getElementById(overlayId);
     
-    if (!btn || !overlay) return;
+    if (!btn || !overlay) {
+        console.warn(`Cooldown elements not found for: ${skillId}`);
+        return;
+    }
 
-    // 1. Lock the button and reset the overlay
+    // Lock button and reset overlay to full height
     btn.disabled = true;
     overlay.style.transition = "none"; 
-    overlay.style.height = "100%";     
+    overlay.style.height = "100%";      
 
-    // 2. Start the CSS animation
+    // Start the sliding down animation
     setTimeout(() => {
         overlay.style.transition = `height ${ms}ms linear`;
         overlay.style.height = "0%"; 
     }, 50);
 
-    // 3. Re-enable and Sync UI when finished
+    // Re-enable button after time is up
     setTimeout(() => {
         btn.disabled = false;
-        
-        // CRITICAL: Refresh the UI state. 
-        // This ensures the button's opacity/color resets correctly based on current mana.
         updateUI(); 
-        
-        console.log(`${skillId} is ready again!`);
     }, ms);
+}
+
+	function startCooldown(skill, seconds) {
+    // 1. Logic: Prevent the spell from being cast again immediately
+    if (!window.spellCooldowns) window.spellCooldowns = {}; 
+    spellCooldowns[skill] = true;
+    
+    // 2. Visuals: Run the bar animation (using milliseconds)
+    triggerCooldown(`skill-${skill}`, seconds * 1000);
+    
+    // 3. Reset: Unlock the spell after the timer ends
+    setTimeout(() => {
+        spellCooldowns[skill] = false;
+        // Check if we can afford spells now that cooldown is over
+        updateUI(); 
+    }, seconds * 1000);
 }
 
 	function spawnDamageText(event, text, color) {
@@ -856,7 +964,6 @@ function triggerCooldown(skillId, ms) {
 }
 	  
 function defeatMonster() {
-    // 1. MONSTER DATA
     const monsters = [
         { name: "Shadow Imp", icon: "👿" },
         { name: "Void Wraith", icon: "👻" },
@@ -864,70 +971,55 @@ function defeatMonster() {
         { name: "Abyssal Drake", icon: "🐲" }
     ];
 
-    // 2. CALCULATE REWARDS FOR THE DEFEATED MONSTER
-    // (We use the 'isCurrentMonsterElite' flag set from the PREVIOUS round)
+    // 2. CALCULATE REWARDS
     const eliteMult = isCurrentMonsterElite ? 3 : 1;
-    const wandBonus = getArtifactBonus("wand");
-    
-    // Base Mana + Wand Bonus, scaled by total kills, then tripled if Elite
-    manaPerKill = Math.floor((5 + wandBonus) * (1 + monstersDefeated * 0.1)) * eliteMult;
-    
-    // Essence logic + Pouch bonus, tripled if Elite
-    const pouchBonus = getArtifactBonus("pouch") || 1; 
-    const essenceGained = Math.floor(1 * pouchBonus) * eliteMult;
+    const wandBonus = Number(getArtifactBonus("wand") || 0);
+    const pouchBonus = Number(getArtifactBonus("pouch") || 1); // Default to 1x multiplier
+
+    // Math.max(1, ...) prevents essence from ever being 0 or NaN
+    let mReward = Math.floor((5 + wandBonus) * (1 + (monstersDefeated || 0) * 0.1)) * eliteMult;
+    let eReward = Math.max(1, Math.floor(1 * (pouchBonus || 1))) * eliteMult;
 
     // 3. APPLY REWARDS
-    mana += manaPerKill;
-    essence += essenceGained;
+    // We explicitly check for NaN before adding
+    if (!isNaN(mReward)) mana += mReward;
+    if (!isNaN(eReward)) essence += eReward;
     monstersDefeated++;
 
-    // 4. ARTIFACT DROP LOGIC (With Pity Timer)
-    killsSinceLastArtifact++;
-    // Elites have a 20% drop chance, Normals have 10%
-    const dropChance = isCurrentMonsterElite ? 0.20 : 0.10; 
-    
-    if (Math.random() < dropChance || killsSinceLastArtifact >= 20) {
-        if (typeof gainRandomArtifact === 'function') gainRandomArtifact();
-        killsSinceLastArtifact = 0; // Reset pity timer
-    }
-
-    // 5. ROLL FOR NEXT MONSTER STATUS
-    // This sets the flag for the monster that is about to appear
+    // 4. SPAWN NEXT (Do this BEFORE UI so scaling is current)
     isCurrentMonsterElite = Math.random() < 0.10; 
     const nextEliteMult = isCurrentMonsterElite ? 3 : 1;
-
-    // 6. SCALE STATS FOR NEXT MONSTER
-    // Uses exponential scaling so health doesn't stay flat
     monsterMaxHP = Math.floor(50 * Math.pow(1.12, monstersDefeated)) * nextEliteMult;
     monsterHP = monsterMaxHP;
 
-    // 7. UI VISUALS
+    // 5. ARTIFACT DROP
+    killsSinceLastArtifact++;
+    const dropChance = eliteMult > 1 ? 0.20 : 0.10; 
+    if (Math.random() < dropChance || killsSinceLastArtifact >= 20) {
+        if (typeof gainRandomArtifact === 'function') gainRandomArtifact();
+        killsSinceLastArtifact = 0; 
+    }
+
+    // 6. UI VISUALS
     const roll = monsters[Math.floor(Math.random() * monsters.length)];
     const nameEl = document.getElementById('monster-name');
     const spriteEl = document.getElementById('monster-sprite');
-    const log = document.getElementById('battle-log');
-    
     if (nameEl) {
         nameEl.innerText = isCurrentMonsterElite ? "✨ ELITE " + roll.name : roll.name;
         nameEl.style.color = isCurrentMonsterElite ? "#f1c40f" : "#fff";
     }
-    
     if (spriteEl) {
         spriteEl.innerText = roll.icon;
         spriteEl.style.transform = isCurrentMonsterElite ? "scale(1.4)" : "scale(1.0)";
-        spriteEl.style.filter = isCurrentMonsterElite ? "drop-shadow(0 0 15px #f1c40f)" : "none";
     }
 
-    if (log) {
-        log.style.color = isCurrentMonsterElite ? "#f1c40f" : "#fff";
-        log.innerText = `Victory! +${manaPerKill.toLocaleString()} Mana, +${essenceGained} Ess.`;
-    }
+    const log = document.getElementById('battle-log');
+    if (log) log.innerText = `Victory! +${mReward.toLocaleString()} Mana, +${eReward} Essence`;
 
-    // 8. FINAL SYNC
     updateUI();
     if (typeof saveGame === 'function') saveGame();
 }
-
+	  
 function gainRandomArtifact() {
     // 1. Filter for artifacts the player DOES NOT own yet
     const unowned = artifactPool.filter(art => !art.owned);
@@ -1002,45 +1094,6 @@ function closeArtifactPopup() {
     const modal = document.getElementById('artifact-modal');
     if (modal) modal.style.display = 'none';
 }
-	  
-function renderArtifacts() {
-    const container = document.getElementById('artifact-display') || document.querySelector('.artifact-grid');
-    if (!container) return;
-
-    // Clear and set to Grid
-    container.innerHTML = '';
-    container.className = 'artifact-grid';
-
-    // Only show owned artifacts
-    const owned = artifactPool.filter(art => art.owned);
-
-    if (owned.length === 0) {
-        container.innerHTML = `<p style="color: #666; font-style: italic; grid-column: 1/-1;">No artifacts discovered yet. Defeat monsters in the Rift to find them.</p>`;
-        return;
-    }
-
-    owned.forEach(art => {
-        const card = document.createElement('div');
-        card.className = 'artifact-card';
-
-        // Calculate display bonus (e.g., 0.1 becomes 10%)
-        const displayBonus = (art.bonus * 100).toFixed(0);
-
-        card.innerHTML = `
-            <img src="${art.icon || 'default-art.png'}" style="width: 50px; height: 50px; margin-bottom: 5px;">
-            <div style="font-weight: bold; font-size: 0.9em; color: #f1c40f;">${art.name}</div>
-            <div style="font-size: 0.75em; color: #aaa;">Lv. ${art.level}</div>
-            <div style="font-size: 0.8em; color: #4ecca3; margin: 5px 0;">+${displayBonus}% Bonus</div>
-            
-            <button class="upgrade-art-btn" onclick="upgradeArtifact('${art.id}')" 
-                style="width: 100%; font-size: 0.7em; background: #0f3460; border: 1px solid #4ecca3; color: white; cursor: pointer; padding: 4px; border-radius: 4px;">
-                Upgrade (Essence)
-            </button>
-        `;
-
-        container.appendChild(card);
-    });
-}
 
 function upgradeArtifact(id) {
     // 1. Find the specific artifact in your pool
@@ -1112,7 +1165,7 @@ function applyArtifactPowerBoost(art) {
 }
 function getArtifactBonus(id) {
     const art = artifactPool.find(a => a.id === id);
-    return (art && art.owned) ? art.bonus : 0;
+    return (art && art.owned) ? Number(art.bonus || 0) : 0;
 }
 	  
 function renderCompendium() {
@@ -1161,45 +1214,100 @@ function renderCompendium() {
         list.appendChild(card);
     });
 }
-// --- 5. VISUALS ---
-function clickMana(event) {
-    // 1. DATA RETRIEVAL
-    const wand = artifactPool.find(a => a.id === 'wand');
-    const orb = artifactPool.find(a => a.id === 'orb');
 
-    // 2. POWER CALCULATION
-    // Option B: Base power is 1, plus the wand's bonus multiplied by its level
-    let basePower = 1 + (wand && wand.owned ? (wand.level * wand.bonus) : 0);
+	  
+//Higher Plane Upgrade Shop Functions
 
-    // The Orb provides a global multiplier (e.g., 1.25 for +25%)
-    const multiplier = (orb && orb.owned) ? (1 + orb.bonus) : 1;
+function renderDivineShop() {
+    const container = document.getElementById('divine-shop-container');
+    if (!container) return;
 
-    // Final Calculation (Using Math.floor to keep mana as a whole number)
-    const finalPower = Math.floor(basePower * multiplier);
+    container.innerHTML = '';
 
-    // 3. STATE UPDATE
-    mana += finalPower;
+    divineUpgrades.forEach(upg => {
+        const card = document.createElement('div');
+        card.className = 'upgrade-card divine-card'; 
 
-    // 4. FLOATING TEXT LOGIC
-    if (event) {
-        const p = document.createElement('div');
-        p.className = 'floating-text';
-        p.innerText = `+${finalPower}`;
-        
-        // Position at mouse click
-        p.style.left = event.clientX + 'px';
-        p.style.top = event.clientY + 'px';
-        p.style.transform = 'translateX(-50%)'; 
+        // Use || 0 to prevent NaN if cost is missing
+        const displayCost = (upg.cost || 0).toLocaleString();
 
-        document.body.appendChild(p);
+        card.innerHTML = `
+            <div style="font-size: 2.2em; margin-bottom: 8px;">${upg.icon}</div>
+            <div style="color: #ffd700; font-weight: bold; font-size: 1.1em;">${upg.name}</div>
+            <div style="font-size: 0.85em; margin: 10px 0; min-height: 45px; color: #ecf0f1;">
+                ${upg.description}
+            </div>
+            <div id="divine-lvl-${upg.id}" style="font-size: 0.85em; color: #bdc3c7;">
+                Level: ${upg.level} / ${upg.maxLevel}
+            </div>
+            <div class="card-actions" style="width: 100%;">
+                <button id="buy-divine-${upg.id}" class="buy-btn" 
+                    onclick="buyDivineUpgrade('${upg.id}')" 
+                    style="border-color: #ffd700; color: #ffd700; width: 100%; margin-top: 12px; padding: 10px;">
+                    Buy: ${displayCost} 🌟
+                </button>
+            </div>
+        `;
+        container.appendChild(card);
+    });
 
-        // Auto-remove after animation
-        setTimeout(() => {
-            p.remove();
-        }, 800);
+    if (typeof updateDivineUI === "function") updateDivineUI();
+}
+function buyDivineUpgrade(id) {
+    const upg = divineUpgrades.find(u => u.id === id);
+    
+    // 1. Basic Validation
+    if (!upg) return;
+    if (heavenlyEssence < upg.cost) {
+        console.log("Not enough Heavenly Essence!");
+        return;
+    }
+    if (upg.level >= upg.maxLevel) {
+        console.log("Already at maximum level.");
+        return;
     }
 
-    // 5. UI SYNC
+    // 2. Process Purchase
+    heavenlyEssence -= upg.cost;
+    upg.level++;
+
+    // 3. Dynamic Cost Scaling (Optional: If you want costs to go up)
+    upg.cost = Math.floor(upg.cost * 1.5); 
+
+    // 4. Logic Updates
+    calculateMPS();
+    
+    // 5. UI Updates (The "No-Flicker" Way)
+    // Instead of rendering the whole shop, we just update the text/labels
+    if (typeof updateDivineUI === "function") {
+        updateDivineUI();
+    }
+    
+    updateUI(); // Updates the top header mana/essence displays
+    saveGame();
+}
+
+window.buyDivineUpgrade = buyDivineUpgrade;
+
+// --- 5. VISUALS ---
+function clickMana(event) {
+    const wand = artifactPool.find(a => a.id === 'wand');
+    const strike = divineUpgrades.find(u => u.id === 'divine_strike');
+    const holyFlow = divineUpgrades.find(u => u.id === 'holy_flow');
+
+    // Base + Wand + Divine Strike (+5 per level)
+    let power = 1;
+    if (wand && wand.owned) power += (wand.level * wand.bonus);
+    if (strike) power += (strike.level * 5);
+
+    // Apply Global Production Multiplier to clicks too
+    const flowMult = holyFlow ? (1 + (holyFlow.level * 0.20)) : 1;
+    const finalPower = Math.floor(power * flowMult);
+
+    mana += finalPower;
+    totalManaAllTime += finalPower;
+
+    if (event) createFloatingText(event.clientX, event.clientY, `+${finalPower}`);
     updateUI();
 }
 
@@ -1228,26 +1336,27 @@ function gameLoop() {
     let deltaTime = tickDelay / 1000; 
     let mpsThisTick = globalMPS * deltaTime;
     
-    // Internal values keep their decimals for accuracy
     mana += mpsThisTick;
+
+    // Trackers for Ascension Rewards
+    totalManaThisRun += mpsThisTick;
+    totalManaAllTime += mpsThisTick;
 
     // --- B. PASSIVE COMBAT ---
     if (monsterHP > 0) {
-        let pDmg = mpsThisTick * 0.1; // 10% of MPS as passive damage
+        let pDmg = mpsThisTick * 0.1; 
         monsterHP -= pDmg;
         passiveDamageBuffer += pDmg;
         
-        if (monsterHP <= 0) {
-            if (typeof defeatMonster === "function") defeatMonster();
-        }
+        
+        checkMonsterDeath(); 
     }
 
-    // --- C. DAMAGE POPUPS (Whole Numbers) ---
+    // --- C. DAMAGE POPUPS ---
     passiveTimer++;
-    if (passiveTimer >= 10) { // Every 1 second (at 100ms ticks)
+    if (passiveTimer >= (1000 / tickDelay)) {
         if (passiveDamageBuffer >= 1) {
             if (typeof createDamagePopup === "function") {
-                // Math.floor used here so floating text is always a whole number
                 createDamagePopup(Math.floor(passiveDamageBuffer), true);
             }
         }
@@ -1257,215 +1366,362 @@ function gameLoop() {
 
     // --- D. STABLE AUTOSAVE ---
     saveTimer += tickDelay;
-    if (saveTimer >= 30000) { // 30 Seconds
+    if (saveTimer >= 30000) { 
         if (typeof saveGame === "function") saveGame();
         saveTimer = 0;
     }
 
-    // --- E. HEARTBEAT ---
+    // --- E. HEARTBEAT & LIVE UPDATES ---
     updateUI();
+    
+    // NEW: Live check for shop buttons
+    if (typeof updateShopAffordability === "function") {
+        updateShopAffordability();
+    }
     
     // Schedule next tick
     setTimeout(gameLoop, tickDelay);
 }
-
 function updateUI() {
-    // --- 1. GLOBAL CURRENCIES (Header) ---
-    const mDisplay = document.getElementById('mana-display');
-    const eDisplay = document.getElementById('essence-display');
-    
-    if (mDisplay) {
-        // Floor the mana and add commas for readability
-        mDisplay.innerText = Math.floor(mana).toLocaleString();
-    }
-    
-    if (eDisplay) {
-        // Essence is usually earned in smaller amounts, but commas still help
-        eDisplay.innerText = Math.floor(essence).toLocaleString();
+    // 1. Core Currencies
+    const manaEl = document.getElementById('mana-count');
+    if (manaEl) {
+        manaEl.textContent = Math.floor(mana).toLocaleString();
     }
 
-    // --- 2. GLOBAL MPS (Flow) ---
-    const mpsDisplay = document.getElementById('mps-display');
-    if (mpsDisplay) {
-        const currentMPS = calculateMPS(); 
-        // Display MPS as a clean whole number
-        mpsDisplay.innerText = `Flow: ${Math.floor(currentMPS).toLocaleString()} /sec`;
+    const essenceEl = document.getElementById('essence-count');
+    if (essenceEl) {
+        essenceEl.textContent = Math.floor(essence).toLocaleString();
     }
 
-    // --- 3. SANCTUM (Buildings) ---
-    const robe = artifactPool.find(a => a.id === 'robe');
-    const discount = (robe && robe.owned) ? (robe.bonus || 0) : 0;
+    const heavenlyEl = document.getElementById('heavenly-count');
+    if (heavenlyEl) {
+        heavenlyEl.textContent = Math.floor(heavenlyEssence || 0).toLocaleString();
+    }
 
-    upgrades.forEach(upg => {
-        // Calculate the actual cost with scaling and artifact discounts
-        const currentCost = Math.floor(upg.cost * Math.pow(1.15, upg.count) * (1 - discount));
-        
-        // Find buttons
-        const b1Btn = document.getElementById(`buy1-${upg.id}`);
-        const mxBtn = document.getElementById(`max-${upg.id}`);
-        const lvlTxt = document.getElementById(`level-${upg.id}`);
+    // 2. Production (Flow) & Records
+    const mpsEl = document.getElementById('mps-display');
+    if (mpsEl) {
+        mpsEl.textContent = (globalMPS || 0).toLocaleString();
+    }
 
-        if (b1Btn) {
-            b1Btn.disabled = (mana < currentCost);
-            b1Btn.innerText = `Buy: ${currentCost.toLocaleString()}`;
-        }
+    const recordEl = document.getElementById('mana-record');
+    if (recordEl) {
+        recordEl.textContent = Math.floor(totalManaAllTime || 0).toLocaleString();
+    }
 
-        if (mxBtn) {
-            // Check how many the player can afford (assumes helper function exists)
-            const affordable = typeof getAffordableAmount === "function" ? getAffordableAmount(upg, mana, discount) : 0;
-            mxBtn.disabled = (mana < currentCost);
-            mxBtn.innerText = `MAX (+${affordable})`;
-        }
-        
-        if (lvlTxt) lvlTxt.innerText = `Level: ${upg.count}`;
-    });
-
-    // --- 4. COMPENDIUM (Artifacts) ---
-    artifactPool.forEach(art => {
-        if (art.owned) {
-            const artBtn = document.getElementById(`upgrade-art-${art.id}`);
-            const artLvlTxt = document.getElementById(`art-level-${art.id}`);
+    // 3. Ascension Visibility Logic
+    const ascendBox = document.getElementById('ascension-container');
+    if (ascendBox) {
+        if (totalManaAllTime >= 1000000 || totalHeavenlyEarned > 0) {
+            ascendBox.style.display = 'block';
             
-            const upgradeCost = Math.floor(Math.pow(2, art.level - 1) * 10);
-            
-            if (artBtn) {
-                artBtn.disabled = (essence < upgradeCost);
-                artBtn.innerText = `Upgrade: ${upgradeCost.toLocaleString()} Essence`;
+            const potentialText = document.getElementById('potential-essence-text');
+            if (potentialText) {
+                let totalTarget = Math.floor(Math.sqrt((totalManaAllTime || 0) / 1000000));
+                let potentialGain = Math.max(0, totalTarget - (totalHeavenlyEarned || 0));
+                potentialText.textContent = `Current Potential: ${potentialGain} 🌟`;
             }
-            if (artLvlTxt) artLvlTxt.innerText = `Lv. ${art.level}`;
+        } else {
+            ascendBox.style.display = 'none';
+        }
+    }
+
+    // 4. Header & Navigation Visibility
+    const heavenlyWrapper = document.getElementById('heavenly-display-wrapper');
+    if (heavenlyWrapper) {
+        heavenlyWrapper.style.display = (totalHeavenlyEarned > 0) ? 'block' : 'none';
+    }
+
+    const navPrestige = document.getElementById('nav-prestige');
+    if (navPrestige) {
+        navPrestige.style.display = (totalHeavenlyEarned > 0) ? 'inline-block' : 'none';
+    }
+
+    // ==========================================
+    // 5. LIVE REFRESHERS 
+    // ==========================================
+    
+    // This moves the HP bar and updates monster health text
+    if (typeof updateCombatUI === "function") {
+        updateCombatUI();
+    }
+
+    // This makes shop buttons light up as mana increases
+    if (typeof updateShopAffordability === "function") {
+        updateShopAffordability();
+    }
+}
+	  
+function updateCombatUI() {
+    const hpFill = document.getElementById('hp-bar');
+    const hpLabel = document.getElementById('hp-text');
+    const pct = Math.max(0, (monsterHP / monsterMaxHP) * 100);
+
+    if (hpFill) {
+        hpFill.style.width = pct + "%";
+        // Logic: Green (100-50), Yellow (50-25), Red (25-0)
+        if (pct > 50) {
+            hpFill.style.backgroundColor = "#4ecca3"; 
+        } else if (pct > 25) {
+            hpFill.style.backgroundColor = "#f1c40f"; 
+        } else {
+            hpFill.style.backgroundColor = "#e94560"; 
+        }
+    }
+
+    if (hpLabel) {
+        hpLabel.innerText = `HP: ${Math.floor(monsterHP).toLocaleString()} / ${Math.floor(monsterMaxHP).toLocaleString()}`;
+    }
+}
+function ascend() {
+    // 1. Calculate Potential
+    let totalTarget = Math.floor(Math.sqrt(totalManaAllTime / 1000000));
+    let potentialGain = totalTarget - totalHeavenlyEarned;
+
+    // 2. Requirement Check
+    if (potentialGain < 1) {
+        let nextTargetMana = Math.pow(totalHeavenlyEarned + 1, 2) * 1000000;
+        let remaining = Math.ceil(nextTargetMana - totalManaAllTime);
+        alert(`Your soul hasn't surpassed its previous limits yet. \n\nGenerate ${remaining.toLocaleString()} more Mana to earn your next Heavenly Essence.`);
+        return;
+    }
+
+    // 3. Confirmation
+    const message = `Do you wish to transcend? \n\n` +
+                    `You will gain ${potentialGain} Heavenly Essence. \n` +
+                    `(Based on all-time record of ${Math.floor(totalManaAllTime).toLocaleString()} Mana!)`;
+
+    if (confirm(message)) {
+        // 4. Grant Permanent Rewards
+        heavenlyEssence += potentialGain;
+        totalHeavenlyEarned += potentialGain;
+        divinityLevel++;
+        
+        // 5. THE GREAT RESET
+        mana = 0;
+        essence = 0;
+        totalManaThisRun = 0; 
+
+        // Reset building counts and restore original costs
+        upgrades.forEach(upg => {
+            upg.count = 0;
+            if (upg.baseCost) {
+                upg.cost = upg.baseCost;
+            }
+        });
+
+        // Update the save timestamp to prevent "ghost" offline progress
+        lastSaveTime = Date.now();
+        
+        // 6. Visual Transition
+        document.body.style.transition = "filter 1s ease-in";
+        document.body.style.filter = "brightness(10) blur(10px)";
+        
+        setTimeout(() => {
+            // Recalculate and Save the reset state
+            calculateMPS(); 
+            saveGame();
+
+            document.body.style.filter = "none";
+            
+            // Re-render and Switch Tabs
+            showTab('prestige'); 
+            renderSanctum();     
+            renderDivineShop();  
+            updateUI();
+            
+            alert("✨ You have been reborn in the Higher Plane! ✨");
+        }, 1000);
+    }
+}
+	  
+function updateDivineUI() {
+    // Only update if the Higher Plane tab is actually visible
+    const prestigeTab = document.getElementById('prestige-tab');
+    if (!prestigeTab || prestigeTab.style.display === 'none') return;
+
+    divineUpgrades.forEach(upg => {
+        const btn = document.getElementById(`buy-divine-${upg.id}`);
+        const lvlTxt = document.getElementById(`divine-lvl-${upg.id}`);
+        
+        if (btn) {
+            btn.disabled = (heavenlyEssence < upg.cost);
+            btn.innerText = `Buy: ${Math.floor(upg.cost).toLocaleString()} 🌟`;
+        }
+        if (lvlTxt) {
+            lvlTxt.innerText = `Level: ${upg.level}`;
         }
     });
-
-    // --- 5. COMBAT SYNC ---
-    if (typeof updateCombatUI === "function") updateCombatUI();
-}
-
-function updateCombatUI() {
-    const pct = Math.max(0, (monsterHP / monsterMaxHP) * 100);
-    document.getElementById('hp-bar').style.width = pct + "%";
-    document.getElementById('hp-text').innerText = `HP: ${Math.ceil(monsterHP)} / ${monsterMaxHP}`;
-    const btn = document.getElementById('attack-btn');
-    if (btn) btn.disabled = (mana < 10);
+    
+    // Also update the main display in the prestige header
+    const hDisplay = document.getElementById('heavenly-essence-display');
+    if (hDisplay) hDisplay.innerText = Math.floor(heavenlyEssence).toLocaleString();
 }
 
 // --- 7. SAVE SYSTEM ---
 function saveGame() {
-    try {
-        const state = {
-            // Numbers
-            mana: Number(mana),
-            essence: Number(essence),
-            monstersDefeated: Number(monstersDefeated),
-            monsterMaxHP: Number(monsterMaxHP),
-            killsSinceLastArtifact: Number(killsSinceLastArtifact),
-
-            // Map upgrades: We only NEED the count. 
-            // The cost and mps will be recalculated based on your newest balance code.
-            upgrades: upgrades.map(u => ({ 
-                id: u.id, 
-                count: u.count 
-            })),
-
-            // Map artifacts
-            artifacts: artifactPool.map(a => ({ 
-                id: a.id, 
-                owned: a.owned, 
-                level: a.level 
-            }))
-        };
-
-        localStorage.setItem("wizardIdle_v1", JSON.stringify(state));
+    const saveData = {
+        // Core Currencies
+        mana: mana,
+        essence: essence,
+        heavenlyEssence: heavenlyEssence,
         
-        // Optional: Visual feedback for the player
-        console.log("Game Saved Successfully at " + new Date().toLocaleTimeString());
-    } catch (e) {
-        console.error("Save Error:", e);
-    }
+        // Ascension & Record Tracking
+        totalManaAllTime: totalManaAllTime,
+        totalManaThisRun: totalManaThisRun,
+        totalHeavenlyEarned: totalHeavenlyEarned,
+        divinityLevel: divinityLevel,
+        
+        // Progression
+        upgrades: upgrades.map(u => ({ id: u.id, count: u.count })),
+        divineUpgrades: divineUpgrades.map(du => ({ id: du.id, level: du.level, cost: du.cost })),
+        artifacts: artifactPool.map(a => ({ id: a.id, owned: a.owned, level: a.level })),
+        
+        // The "Exit Timestamp"
+        lastSaveTime: Date.now() 
+    };
+
+    localStorage.setItem("wizardIdle_v1", JSON.stringify(saveData));
+    console.log("Progress saved safely to the ethereal scrolls.");
 }
 
 function loadGame() {
-    try {
-        const saved = localStorage.getItem("wizardIdle_v1");
-        if (!saved) return;
+    const rawData = localStorage.getItem("wizardIdle_v1");
+    if (!rawData) return;
 
-        const data = JSON.parse(saved);
-        
-        // 1. Load basic resources
-        mana = Number(data.mana) || 0;
-        essence = Number(data.essence) || 0;
-        monstersDefeated = Number(data.monstersDefeated) || 0;
-        monsterMaxHP = Number(data.monsterMaxHP) || 50;
-        monsterHP = monsterMaxHP; 
-        killsSinceLastArtifact = Number(data.killsSinceLastArtifact) || 0;
-        
-        // 2. Load Upgrades (Using ID matching instead of Index)
-        if (data.upgrades) {
-            data.upgrades.forEach(savedUpg => {
-                // Find the building in your local code that matches the saved ID
-                const upg = upgrades.find(u => u.id === savedUpg.id);
-                if (upg) {
-                    upg.count = savedUpg.count || 0;
-                    // We don't load 'cost' here anymore; 
-                    // renderSanctum/updateUI will calculate it fresh using your formulas.
-                }
-            });
-        }
+    const savedData = JSON.parse(rawData);
 
-        // 3. Load Artifacts
-        if (data.artifacts) {
-            data.artifacts.forEach(savedArt => {
-                const art = artifactPool.find(a => a.id === savedArt.id);
-                if (art) {
-                    art.owned = savedArt.owned;
-                    art.level = savedArt.level || 1;
-                }
-            });
-        }
+    // 1. Restore Currencies
+    mana = savedData.mana || 0;
+    essence = savedData.essence || 0;
+    heavenlyEssence = savedData.heavenlyEssence || 0;
+
+    // 2. Restore Records
+    totalManaAllTime = savedData.totalManaAllTime || 0;
+    totalManaThisRun = savedData.totalManaThisRun || 0;
+    totalHeavenlyEarned = savedData.totalHeavenlyEarned || 0;
+    divinityLevel = savedData.divinityLevel || 0;
+
+    // 3. Restore Building Counts
+    if (savedData.upgrades) {
+        savedData.upgrades.forEach(savedUpg => {
+            const actualUpg = upgrades.find(u => u.id === savedUpg.id);
+            if (actualUpg) actualUpg.count = savedUpg.count;
+        });
+    }
+
+    // 4. Restore Divine Upgrades
+    if (savedData.divineUpgrades) {
+        savedData.divineUpgrades.forEach(savedDiv => {
+            const actualDiv = divineUpgrades.find(d => d.id === savedDiv.id);
+            if (actualDiv) {
+                actualDiv.level = savedDiv.level;
+                actualDiv.cost = savedDiv.cost;
+            }
+        });
+    }
+
+    // 5. Restore Artifacts
+    if (savedData.artifacts) {
+        savedData.artifacts.forEach(savedArt => {
+            const actualArt = artifactPool.find(a => a.id === savedArt.id);
+            if (actualArt) {
+                actualArt.owned = savedArt.owned;
+                actualArt.level = savedArt.level;
+            }
+        });
+    }
+
+    // --- CRITICAL: OFFLINE CALCULATION ---
+    // We must calculate MPS first so the offline math knows the current rate
+    calculateMPS(); 
+
+    if (savedData.lastSaveTime) {
+        calculateOfflineProgress(savedData.lastSaveTime);
+    }
+
+    // Refresh UI to show the loaded state
+    updateUI();
+    renderSanctum();
+    console.log("Welcome back, Archmage. Your progress has been restored.");
+}
+	  
+function calculateOfflineProgress(lastSaveTime) {
+    const secondsOffline = (Date.now() - lastSaveTime) / 1000;
+    const effectiveSeconds = Math.min(secondsOffline, 43200); // 12h cap
+
+    if (effectiveSeconds > 60) {
+        const mps = calculateMPS();
         
-        // 4. Refresh the Visuals
-        // This is crucial to ensure the new values show up on the buttons immediately
-        if (typeof renderSanctum === "function") renderSanctum();
-        if (typeof renderCompendium === "function") renderCompendium();
-        updateUI();
+        // A. Spirit Projection (Efficiency)
+        const spirit = divineUpgrades.find(u => u.id === 'spirit_projection');
+        const efficiency = 0.5 + (spirit ? (spirit.level * 0.1) : 0);
         
-        console.log("Game Loaded Successfully");
-    } catch (e) {
-        console.error("Load Error:", e);
+        // B. Soul Siphon (Essence Multiplier)
+        const siphon = divineUpgrades.find(u => u.id === 'soul_siphon');
+        const siphonMult = siphon ? (1 + (siphon.level * 0.25)) : 1;
+
+        const gainedMana = mps * effectiveSeconds * efficiency;
+        const gainedEssence = (mps * 0.1) * effectiveSeconds * efficiency * siphonMult;
+
+        mana += gainedMana;
+        totalManaAllTime += gainedMana;
+        essence += gainedEssence;
+
+        alert(`While away, you gathered ${Math.floor(gainedMana).toLocaleString()} Mana and ${Math.floor(gainedEssence).toLocaleString()} Essence at ${(efficiency * 100)}% efficiency.`);
     }
 }
-	  function exportSave() {
+
+function exportSave() {
     try {
         // 1. Package all current game variables into one object
         const saveState = {
+            // Core Progress
             mana: typeof mana !== 'undefined' ? mana : 0,
             essence: typeof essence !== 'undefined' ? essence : 0,
             monstersDefeated: typeof monstersDefeated !== 'undefined' ? monstersDefeated : 0,
             monsterMaxHP: typeof monsterMaxHP !== 'undefined' ? monsterMaxHP : 50,
-            killsSinceLastArtifact: killsSinceLastArtifact,
-				
-            // Map the upgrades to a clean array
+            killsSinceLastArtifact: typeof killsSinceLastArtifact !== 'undefined' ? killsSinceLastArtifact : 0,
+            
+            // --- PRESTIGE & DIVINE DATA ---
+            heavenlyEssence: typeof heavenlyEssence !== 'undefined' ? heavenlyEssence : 0,
+            totalHeavenlyEarned: typeof totalHeavenlyEarned !== 'undefined' ? totalHeavenlyEarned : 0,
+            totalManaAllTime: typeof totalManaAllTime !== 'undefined' ? totalManaAllTime : 0,
+            divinityLevel: typeof divinityLevel !== 'undefined' ? divinityLevel : 0,
+
+            // Standard Building Upgrades (Maps the ID + Count)
             upgrades: upgrades.map(u => ({ 
+                id: u.id, 
                 count: u.count, 
                 cost: u.cost 
             })),
             
-            // Map the artifacts to ensure we only save what's necessary
+            // Artifacts
             artifacts: artifactPool.map(a => ({ 
                 id: a.id, 
                 owned: a.owned, 
                 level: a.level || 1 
             })),
+
+            // --- THE FIX: DIVINE UPGRADES DATA ---
+            // We map the ID and Level so the import function can "Merge" them 
+            // without losing the Cost or Icon data on the phone side.
+            divineUpgrades: divineUpgrades.map(d => ({
+                id: d.id,
+                level: d.level
+            })),
             
-            // Add a timestamp so you know when the save was made
-            timestamp: Date.now(),
-            version: "1.0.0"
+            // Metadata for Offline Progress & Versioning
+            lastSaveTime: Date.now(),
+            version: "1.1.0"
         };
 
         // 2. Convert object to JSON string, then to Base64
         const jsonStr = JSON.stringify(saveState);
         const encodedSave = btoa(jsonStr);
 
-        // 3. Display the code in the textarea
+        // 3. Display the code in the UI
         const saveBox = document.getElementById('save-box');
         if (saveBox) {
             saveBox.value = encodedSave;
@@ -1473,26 +1729,27 @@ function loadGame() {
             saveBox.select();
         }
 
-        // 4. Attempt to copy to clipboard
+        // 4. Copy to Clipboard logic
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(encodedSave).then(() => {
-                handleExportFeedback();
+                if (typeof handleExportFeedback === "function") handleExportFeedback();
+                else alert("Save code copied to clipboard!");
             }).catch(err => {
-                // Fallback if Clipboard API fails
                 document.execCommand('copy');
-                handleExportFeedback();
+                alert("Save code copied to clipboard!");
             });
         } else {
             document.execCommand('copy');
-            handleExportFeedback();
+            alert("Save code copied to clipboard!");
         }
+
+        console.log("Export Successful: Divine progress bundled.");
 
     } catch (e) {
         console.error("Export Error:", e);
         alert("Wizard Council Error: Could not enchant save string.");
     }
 }
-
 // Helper function to show the user it worked
 function handleExportFeedback() {
     const exportBtn = document.querySelector("button[onclick='exportSave()']");
@@ -1514,118 +1771,119 @@ function importSave() {
         const encodedData = saveBox.value.trim();
 
         if (!encodedData) {
-            alert("The scroll is empty! Please paste a save code.");
+            alert("The scroll is empty!");
             return;
         }
 
-        // 1. Decode the Base64 string back into JSON
         const jsonStr = atob(encodedData);
         const saveState = JSON.parse(jsonStr);
 
-        // 2. Restore core variables
-        mana = saveState.mana || 0;
-        essence = saveState.essence || 0;
-        monstersDefeated = saveState.monstersDefeated || 0;
-        monsterMaxHP = saveState.monsterMaxHP || 50;
+        // Standardize the key to match your loadGame()
+        localStorage.setItem("wizardIdle_v1", JSON.stringify(saveState)); 
 
-        // 3. Restore the Artifact Pity Counter
-        // The "|| 0" ensures it works even for saves from the older version
-        killsSinceLastArtifact = saveState.killsSinceLastArtifact || 0;
-
-        // 4. Restore Upgrades (Mapping back to the live array)
-        if (saveState.upgrades) {
-            saveState.upgrades.forEach((savedUp, index) => {
-                if (upgrades[index]) {
-                    upgrades[index].count = savedUp.count;
-                    upgrades[index].cost = savedUp.cost;
+        // CRITICAL: Merge Divine Upgrades instead of overwriting
+        if (saveState.divineUpgrades) {
+            saveState.divineUpgrades.forEach(savedDiv => {
+                const realDiv = divineUpgrades.find(d => d.id === savedDiv.id);
+                if (realDiv) {
+                    // We only take the level from the save. 
+                    // This keeps the 'cost' and 'icon' intact from your local code.
+                    realDiv.level = savedDiv.level || 0;
                 }
             });
         }
 
-        // 5. Restore Artifacts
-        if (saveState.artifacts) {
-            saveState.artifacts.forEach(savedArt => {
-                const realArt = artifactPool.find(a => a.id === savedArt.id);
-                if (realArt) {
-                    realArt.owned = savedArt.owned;
-                    realArt.level = savedArt.level || 1;
-                }
-            });
-        }
-
-        // 6. Force a save to LocalStorage so progress persists
-        const finalSave = JSON.stringify(saveState);
-        localStorage.setItem("wizardIdle_save", finalSave);
-
-        // 7. Refresh the UI and provide feedback
         alert("✨ Save Successfully Imported! ✨");
-        
-        // Reloading the page is the safest way to ensure all game 
-        // loops and logic restart with the new data.
-        location.reload();
+        location.reload(); 
 
     } catch (e) {
         console.error("Import Error:", e);
-        alert("Failed to read the save code. It may be corrupted or from an incompatible version.");
+        alert("Failed to read the save code.");
     }
 }
-
 // --- 8. ADMIN FUNCTIONS ---
-// --- ARCANE DEBUGGER (ADMIN CHEATS) ---
-
-function cheatMana() { 
+// --- STANDARD CHEATS ---
+window.cheatMana = function() { 
     mana += 1000000; 
-    // We update UI instead of rendering the whole Sanctum 
-    // because mana only affects button "enabled" states.
-    updateUI(); 
-}
-
-function cheatEssence() { 
-    essence += 100; 
-    updateUI(); 
-}
-
-function instaKill() { 
-    // Ensure monsterHP is 0 and trigger the existing defeat logic
-    monsterHP = 0; 
-    if (typeof defeatMonster === "function") {
-        defeatMonster(); 
-    } else {
-        console.error("defeatMonster function not found!");
-    }
-}
-
-function unlockAllArtifacts() { 
-    // 1. Force own all items
-    artifactPool.forEach(a => a.owned = true); 
-    
-    // 2. Refresh the Compendium list to show the newly owned cards
-    if (typeof renderCompendium === "function") renderCompendium(); 
-    
-    // 3. Refresh the Sanctum because artifacts like the Robe change building costs
+    totalManaAllTime += 1000000; 
     renderSanctum(); 
-    
-    // 4. Update the Header and all button states
     updateUI(); 
-}
+};
 
-function deleteSave() { 
-    if (confirm("Are you sure? This will wipe ALL progress and restart the game.")) { 
-        // Ensure the key "wizardIdle_v1" matches exactly what you use in your saveGame() function
+window.cheatEssence = function() { 
+    essence += 100; 
+    if (typeof renderCompendium === "function") renderCompendium(); 
+    updateUI(); 
+};
+
+window.cheatHeavenly = function() { 
+    console.log("Cheat: Adding Heavenly Essence");
+    heavenlyEssence += 100; 
+    totalHeavenlyEarned += 100; 
+    if (typeof renderDivineShop === "function") renderDivineShop(); 
+    updateUI(); 
+};
+
+// --- THE ASCENSION CHEAT ---
+window.cheatAscend = function() {
+    console.log("Cheat: Triggering Simulated Ascension...");
+    heavenlyEssence += 50;
+    totalHeavenlyEarned += 50; 
+    divinityLevel++;
+    
+    mana = 0;
+    essence = 0;
+    totalManaThisRun = 0; 
+    
+    upgrades.forEach(upg => {
+        upg.count = 0;
+        upg.cost = upg.baseCost || upg.cost; 
+    });
+
+    calculateMPS(); 
+    saveGame();
+    
+    renderSanctum();
+    renderDivineShop();
+    updateUI();
+    
+    showTab('prestige');
+    alert("Ascension Successful! +50 Heavenly Essence.");
+};
+
+// --- COMBAT & UTILITY ---
+window.instaKill = function() { 
+    if (typeof monsterHP !== 'undefined') {
+        monsterHP = 0; 
+        if (typeof defeatMonster === "function") defeatMonster(); 
+    }
+};
+
+window.unlockAllArtifacts = function() { 
+    artifactPool.forEach(a => {
+        a.owned = true;
+        if (!a.level) a.level = 1;
+    }); 
+    if (typeof renderCompendium === "function") renderCompendium(); 
+    renderSanctum(); 
+    updateUI(); 
+};
+
+window.deleteSave = function() { 
+    if (confirm("Wipe ALL progress and refresh? This cannot be undone.")) { 
         localStorage.removeItem("wizardIdle_v1"); 
         location.reload(); 
     } 
-}
+};
 
+// --- TOGGLE LISTENER ---
 window.addEventListener('keydown', (e) => {
-    // Check for backtick (`) or Tilde (~)
-    if (e.key === '`' || e.key === '~' || e.keyCode === 192) {
-        e.preventDefault(); // Stop the character from being typed
+    if (e.key === '`' || e.key === '~') {
+        e.preventDefault();
         const menu = document.getElementById('admin-menu');
         if (menu) {
             const isHidden = menu.style.display === 'none';
             menu.style.display = isHidden ? 'block' : 'none';
-            console.log("Admin menu toggled: " + menu.style.display);
         }
     }
 });
@@ -1635,7 +1893,7 @@ window.onload = function() {
     console.log("Game Initializing...");
     
     // 1. Load player data FIRST
-    // This fills your arrays with the saved counts and levels
+    // This fills your arrays with saved counts, levels, and the LAST SAVE TIMESTAMP
     try {
         loadGame();
     } catch(e) {
@@ -1646,25 +1904,36 @@ window.onload = function() {
     // Now that levels are loaded, calculate the production values
     calculateMPS();
 
-    // 3. Build the UI DOM Elements
+    // 3. OFFLINE PROGRESS CHECK (New Section)
+    // We do this AFTER calculateMPS so the math uses your current production power.
+    // We access the timestamp directly from the saved data in localStorage.
+    const rawData = localStorage.getItem("wizardIdle_v1");
+    if (rawData) {
+        const savedData = JSON.parse(rawData);
+        if (savedData.lastSaveTime && typeof calculateOfflineProgress === "function") {
+            calculateOfflineProgress(savedData.lastSaveTime);
+        }
+    }
+
+    // 4. Build the UI DOM Elements
     // These create the physical buttons and cards
     renderSanctum();     // Draws the Buildings
     renderCompendium();  // Draws the Artifacts
     
-    // 4. Set default tab
+    // 5. Set default tab
     showTab('sanctum');
 
-    // 5. Final UI Sync
-    // This fills the buttons with costs and enables/disables them based on mana
+    // 6. Final UI Sync
+    // This fills the buttons with costs and enables/disables them
     updateUI();
     
-    // 6. Start the game heartbeat
+    // 7. Start the game heartbeat
     // We start the loop LAST so the UI is ready for the first tick
     if (typeof gameLoop === "function") {
         gameLoop();
     }
     
-    console.log("Initialization Complete.");
+    console.log("Initialization Complete. Welcome back, Archmage.");
 };
 </script>
 
