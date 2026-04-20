@@ -963,7 +963,7 @@ function triggerCooldown(skillId, ms) {
 }
 	  
 function defeatMonster() {
-    // 1. MONSTER DATA
+    // 1. MONSTER POOL
     const monsters = [
         { name: "Shadow Imp", icon: "👿" },
         { name: "Void Wraith", icon: "👻" },
@@ -971,16 +971,12 @@ function defeatMonster() {
         { name: "Abyssal Drake", icon: "🐲" }
     ];
 
-    // 2. CALCULATE REWARDS FOR THE DEFEATED MONSTER
-    // (We use the 'isCurrentMonsterElite' flag set from the PREVIOUS round)
+    // 2. CALCULATE REWARDS
     const eliteMult = isCurrentMonsterElite ? 3 : 1;
-    const wandBonus = getArtifactBonus("wand");
-    
-    // Base Mana + Wand Bonus, scaled by total kills, then tripled if Elite
+    const wandBonus = (typeof getArtifactBonus === 'function') ? getArtifactBonus("wand") : 0;
+    const pouchBonus = (typeof getArtifactBonus === 'function') ? getArtifactBonus("pouch") : 1; 
+
     manaPerKill = Math.floor((5 + wandBonus) * (1 + monstersDefeated * 0.1)) * eliteMult;
-    
-    // Essence logic + Pouch bonus, tripled if Elite
-    const pouchBonus = getArtifactBonus("pouch") || 1; 
     const essenceGained = Math.floor(1 * pouchBonus) * eliteMult;
 
     // 3. APPLY REWARDS
@@ -988,27 +984,23 @@ function defeatMonster() {
     essence += essenceGained;
     monstersDefeated++;
 
-    // 4. ARTIFACT DROP LOGIC (With Pity Timer)
+    // 4. ARTIFACT DROP LOGIC
     killsSinceLastArtifact++;
-    // Elites have a 20% drop chance, Normals have 10%
     const dropChance = isCurrentMonsterElite ? 0.20 : 0.10; 
-    
     if (Math.random() < dropChance || killsSinceLastArtifact >= 20) {
         if (typeof gainRandomArtifact === 'function') gainRandomArtifact();
-        killsSinceLastArtifact = 0; // Reset pity timer
+        killsSinceLastArtifact = 0; 
     }
 
-    // 5. ROLL FOR NEXT MONSTER STATUS
-    // This sets the flag for the monster that is about to appear
+    // 5. SPAWN NEXT MONSTER
     isCurrentMonsterElite = Math.random() < 0.10; 
     const nextEliteMult = isCurrentMonsterElite ? 3 : 1;
 
-    // 6. SCALE STATS FOR NEXT MONSTER
-    // Uses exponential scaling so health doesn't stay flat
+    // Scaling health: starts at 50, grows by 12% per kill
     monsterMaxHP = Math.floor(50 * Math.pow(1.12, monstersDefeated)) * nextEliteMult;
     monsterHP = monsterMaxHP;
 
-    // 7. UI VISUALS
+    // 6. UI UPDATES
     const roll = monsters[Math.floor(Math.random() * monsters.length)];
     const nameEl = document.getElementById('monster-name');
     const spriteEl = document.getElementById('monster-sprite');
@@ -1030,7 +1022,6 @@ function defeatMonster() {
         log.innerText = `Victory! +${manaPerKill.toLocaleString()} Mana, +${essenceGained} Ess.`;
     }
 
-    // 8. FINAL SYNC
     updateUI();
     if (typeof saveGame === 'function') saveGame();
 }
@@ -1363,9 +1354,8 @@ function gameLoop() {
         monsterHP -= pDmg;
         passiveDamageBuffer += pDmg;
         
-        if (monsterHP <= 0) {
-            if (typeof defeatMonster === "function") defeatMonster();
-        }
+        
+        checkMonsterDeath(); 
     }
 
     // --- C. DAMAGE POPUPS ---
