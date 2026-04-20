@@ -1099,40 +1099,54 @@ function upgradeArtifact(id) {
     // 1. Find the specific artifact in your pool
     const art = artifactPool.find(a => a.id === id);
     
-    // 2. Safety check: if the artifact doesn't exist or isn't owned, stop
+    // 2. Safety check: Verify existence and ownership
     if (!art || !art.owned) {
         console.error("Artifact not found or not owned.");
         return;
     }
 
     // 3. Calculate the Upgrade Cost
-    // Formula: 10 * (2 ^ (level - 1)) -> Level 1=10, 2=20, 3=40, 4=80...
-    const upgradeCost = Math.pow(2, art.level - 1) * 10;
+    // Using Math.floor to ensure costs are clean integers
+    // Formula: 10 * (2 ^ (level - 1))
+    const upgradeCost = Math.floor(Math.pow(2, art.level - 1) * 10);
 
     // 4. Check Essence Balance
     if (essence >= upgradeCost) {
-        // Deduct Currency
+        // A. Deduct Currency
         essence -= upgradeCost;
         
-        // Increase Level
+        // B. Increase Level
         art.level++;
 
-        // 5. Apply the Power Boost
-        // This scales the bonus based on the artifact's specific type
+        // C. APPLY THE POWER BOOST (Recalculate the actual bonus number)
+        // This is the critical step that was missing or desynced
         applyArtifactPowerBoost(art);
 
-        // 6. Refresh the Entire Game State
-        if (typeof calculateMPS === 'function') calculateMPS(); // Recalculate income
-        renderCompendium(); // Redraw the grid in Compendium
-        updateUI();        // Refresh all numbers and button states
+        // D. REFRESH ENGINE & UI
+        // Ensure the new bonuses are applied to your MPS and Combat stats immediately
+        if (typeof calculateMPS === 'function') calculateMPS(); 
         
-        // 7. Auto-Save
+        // Update the visual grid in the Compendium (so levels/costs update)
+        if (typeof renderCompendium === 'function') renderCompendium(); 
+        
+        // Refresh the header (Essence count) and action buttons
+        updateUI(); 
+
+        // E. AUTO-SAVE
+        // Saves the new level and essence balance to LocalStorage
         if (typeof saveGame === 'function') saveGame();
 
-        console.log(`Success! ${art.name} is now Level ${art.level}`);
+        console.log(`%c Success! ${art.name} upgraded to Level ${art.level}.`, "color: #4ecca3; font-weight: bold;");
     } else {
-        console.warn("Insufficient Essence for this upgrade.");
-        // Optional: Trigger a visual shake on the button or a message
+        // Visual feedback for insufficient funds
+        console.warn(`Insufficient Essence. Need: ${upgradeCost}, Have: ${Math.floor(essence)}`);
+        
+        // Optional: Trigger a log message for the player
+        const log = document.getElementById('battle-log');
+        if (log) {
+            log.innerText = `Not enough Essence! Need ${upgradeCost.toLocaleString()}.`;
+            log.style.color = "#ff4d4d";
+        }
     }
 }
 
@@ -1141,28 +1155,47 @@ function upgradeArtifact(id) {
  * You can customize these numbers to balance your game.
  */
 function applyArtifactPowerBoost(art) {
+    if (!art) return;
+
+    // Force Level to be a number to prevent "String math" bugs
+    const lvl = Number(art.level) || 1;
+
     switch(art.id) {
-        case 'robe': // Scholar's Robe (Discount)
-            // Increases discount by 2% per level (maxing at 0.02 * level)
-            art.bonus += 0.02; 
+        case 'wand':
+            // Flat Bonus: +5 Mana per level
+            art.bonus = lvl * 5; 
             break;
-        case 'ball': // Crystal Ball (MPS Multiplier)
-            // Increases global MPS by 5% per level
-            art.bonus += 0.05;
+
+        case 'pouch':
+            // Multiplier: +20% Essence per level (1.2, 1.4, 1.6...)
+            // We use .toFixed(2) and Number() to keep the decimals clean
+            art.bonus = Number((1 + (lvl * 0.2)).toFixed(2)); 
             break;
-        case 'slayer': // Mage Slayer (Combat Damage)
-            // Increases damage vs Elites by 10% per level
-            art.bonus += 0.10;
+
+        case 'tome':
+            // Percentage: +10% Spell Damage per level
+            art.bonus = Number((lvl * 0.1).toFixed(2)); 
             break;
-        case 'tome': // Arcane Tome (Spell Damage)
-            // Increases spell damage by 7% per level
-            art.bonus += 0.07;
+
+        case 'slayer':
+            // Percentage: +25% Elite Damage per level
+            art.bonus = Number((lvl * 0.25).toFixed(2)); 
             break;
+
+        case 'compass':
+            // Percentage: +5% Elite Spawn Chance per level
+            art.bonus = Number((lvl * 0.05).toFixed(2));
+            break;
+
         default:
-            // Generic fallback if you add new artifacts later
-            art.bonus += 0.01;
+            art.bonus = lvl; 
+            break;
     }
+
+    console.log(`%c[Artifact System] %c${art.name} %c(Lv.${lvl}) updated. Bonus: ${art.bonus}`, 
+                "color: #bb86fc", "color: #fff; font-weight: bold", "color: #4ecca3");
 }
+	  
 function getArtifactBonus(id) {
     const art = artifactPool.find(a => a.id === id);
     return (art && art.owned) ? Number(art.bonus || 0) : 0;
@@ -1648,31 +1681,39 @@ function loadGame() {
 }
 	  
 function calculateOfflineProgress(lastSaveTime) {
-    const secondsOffline = (Date.now() - lastSaveTime) / 1000;
-    const effectiveSeconds = Math.min(secondsOffline, 43200); // 12h cap
+    const now = Date.now();
+    const secondsOffline = (now - lastSaveTime) / 1000;
+    
+    // 1. Minimum 1 minute to trigger, 12-hour cap
+    if (secondsOffline < 60) return;
+    const effectiveSeconds = Math.min(secondsOffline, 43200);
 
-    if (effectiveSeconds > 60) {
-        const mps = calculateMPS();
-        
-        // A. Spirit Projection (Efficiency)
-        const spirit = divineUpgrades.find(u => u.id === 'spirit_projection');
-        const efficiency = 0.5 + (spirit ? (spirit.level * 0.1) : 0);
-        
-        // B. Soul Siphon (Essence Multiplier)
-        const siphon = divineUpgrades.find(u => u.id === 'soul_siphon');
-        const siphonMult = siphon ? (1 + (siphon.level * 0.25)) : 1;
+    const mps = calculateMPS();
+    const spirit = divineUpgrades.find(u => u.id === 'spirit_projection');
+    const efficiency = 0.5 + (spirit ? (spirit.level * 0.1) : 0);
+    
+    const siphon = divineUpgrades.find(u => u.id === 'soul_siphon');
+    const siphonMult = siphon ? (1 + (siphon.level * 0.25)) : 1;
 
-        const gainedMana = mps * effectiveSeconds * efficiency;
-        const gainedEssence = (mps * 0.1) * effectiveSeconds * efficiency * siphonMult;
+    // 2. MATH CORRECTION: 
+    // Mana stays the same (MPS * Time * Efficiency)
+    const gainedMana = mps * effectiveSeconds * efficiency;
+    
+    // Essence logic: Instead of 10% of MPS (too high), 
+    // we use a tiny fraction (0.1%) to simulate occasional monster kills.
+    const gainedEssence = (mps * 0.001) * effectiveSeconds * efficiency * siphonMult;
 
-        mana += gainedMana;
-        totalManaAllTime += gainedMana;
-        essence += gainedEssence;
+    // 3. APPLY & PREVENT DOUBLE-DIP
+    mana += gainedMana;
+    totalManaAllTime += gainedMana;
+    essence += gainedEssence;
 
-        alert(`While away, you gathered ${Math.floor(gainedMana).toLocaleString()} Mana and ${Math.floor(gainedEssence).toLocaleString()} Essence at ${(efficiency * 100)}% efficiency.`);
-    }
+    // We alert the player, then IMMEDIATELY save so the timestamp is updated to 'now'
+    alert(`OFFLINE REPORT\nTime: ${Math.floor(effectiveSeconds / 60)} minutes\nMana: +${Math.floor(gainedMana).toLocaleString()}\nEssence: +${Math.floor(gainedEssence).toLocaleString()}`);
+    
+    if (typeof saveGame === 'function') saveGame();
 }
-
+	  
 function exportSave() {
     try {
         // 1. Package all current game variables into one object
