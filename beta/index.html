@@ -530,24 +530,54 @@ function getAffordableAmount(upg, currentMana, discount) {
 // ==========================================
 
 function buyOne(id) {
+    // 1. Find the specific upgrade in your array
     const upg = upgrades.find(u => u.id === id);
-    if (!upg) return;
-    
-    const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
-    const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
-    const currentCost = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
+    if (!upg) {
+        console.error("Upgrade ID not found: " + id);
+        return;
+    }
 
-    if (mana >= currentCost) {
-        mana -= currentCost;
-        upg.count++;
+    // 2. Calculate the Scholar's Robe Discount
+    // We use our helper function to get the current bonus (max 0.50)
+    const discount = (typeof getArtifactBonus === 'function') ? getArtifactBonus('robe') : 0;
+    
+    // Apply discount to the cost and floor it for a clean integer
+    const finalCost = Math.floor(upg.cost * (1 - discount));
+
+    // 3. Affordability Check
+    if (mana >= finalCost) {
+        // A. Deduct Currency
+        mana -= finalCost;
         
-        if (typeof calculateMPS === 'function') calculateMPS();
-        renderSanctum(); 
+        // B. Increase Building Count
+        upg.count = (upg.count || 0) + 1;
+
+        // C. Scale Cost for the next purchase
+        // Standard scaling is 1.15x. We use Math.ceil to avoid costs getting "stuck"
+        upg.cost = Math.ceil(upg.cost * 1.15);
+
+        // 4. Update the World State
+        // Recalculate production rates immediately
+        if (typeof calculateMPS === 'function') calculateMPS(); 
+        
+        // Refresh the header and button labels
         updateUI();
+        
+        // 5. Auto-Save
         if (typeof saveGame === 'function') saveGame();
+
+        console.log(`%c[Purchase] %c${upg.name} %cbought for ${finalCost.toLocaleString()} mana. Total: ${upg.count}`, 
+                    "color: #4ecca3", "color: #fff; font-weight: bold", "color: #ccc");
+    } else {
+        // Visual/Audio feedback for the player
+        const log = document.getElementById('battle-log');
+        if (log) {
+            log.innerText = `Insufficient Mana! Need ${finalCost.toLocaleString()}`;
+            log.style.color = "#ff4d4d";
+        }
+        console.warn(`Cannot afford ${upg.name}. Need ${finalCost}, have ${Math.floor(mana)}.`);
     }
 }
-
 function buyMax(id) {
     const upg = upgrades.find(u => u.id === id);
     if (!upg) return;
@@ -698,20 +728,27 @@ function getBuildingCost(upg) {
 function calculateMPS() {
     let baseMPS = 0;
     
+    // 1. Calculate production from all buildings
     upgrades.forEach(upg => {
-        baseMPS += upg.count * upg.mps;
+        baseMPS += (upg.count || 0) * (upg.mps || 0);
     });
 
-    const holyFlow = divineUpgrades.find(u => u.id === 'holy_flow');
+    // 2. Apply Divine Multipliers (Holy Flow)
+    const holyFlow = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(u => u.id === 'holy_flow') : null;
     const flowMult = holyFlow ? (1 + (holyFlow.level * 0.20)) : 1;
 
-    // Wrap the final result in Math.floor
-    globalMPS = Math.floor(baseMPS * flowMult);
+    // 3. Apply Crystal Ball Artifact Bonus
+    const orbBonus = getArtifactBonus('orb'); // e.g., 0.25 for 25%
+    const orbMult = 1 + orbBonus;
+
+    // Set Global MPS
+    globalMPS = Math.floor(baseMPS * flowMult * orbMult);
     
-    const astral = divineUpgrades.find(u => u.id === 'astral_speed');
-    if (astral) {
-        currentTickDelay = 100 * (1 - (astral.level * 0.02));
-    }
+    // 4. Handle Tick Speed (Temporal Hourglass)
+    // Base speed is 100ms. Bonus is capped at 0.80 (80%).
+    // 100 * (1 - 0.80) = 20ms Hard Limit.
+    const speedBonus = getArtifactBonus('hourglass');
+    baseTickSpeed = 100 * (1 - speedBonus); 
 
     return globalMPS;
 }
@@ -1156,44 +1193,44 @@ function upgradeArtifact(id) {
  */
 function applyArtifactPowerBoost(art) {
     if (!art) return;
-
-    // Force Level to be a number to prevent "String math" bugs
     const lvl = Number(art.level) || 1;
 
     switch(art.id) {
         case 'wand':
-            // Flat Bonus: +5 Mana per level
-            art.bonus = lvl * 5; 
+            // +100% per level (Description: increases click/blast damage)
+            art.bonus = lvl * 1.0; 
+            break;
+
+        case 'robe':
+            // 10% discount per level, hard-capped at 50%
+            art.bonus = Math.min(lvl * 0.10, 0.50); 
+            break;
+
+        case 'orb':
+            // +25% Global MPS per level (No cap)
+            art.bonus = lvl * 0.25; 
+            break;
+
+        case 'hourglass':
+            // 5% speed per level. 
+            // Capped at 80% reduction (100ms base -> 20ms floor)
+            art.bonus = Math.min(lvl * 0.05, 0.80); 
             break;
 
         case 'pouch':
-            // Multiplier: +20% Essence per level (1.2, 1.4, 1.6...)
-            // We use .toFixed(2) and Number() to keep the decimals clean
-            art.bonus = Number((1 + (lvl * 0.2)).toFixed(2)); 
-            break;
-
-        case 'tome':
-            // Percentage: +10% Spell Damage per level
-            art.bonus = Number((lvl * 0.1).toFixed(2)); 
+            // Multiplier: 1.2x, 1.4x, etc.
+            art.bonus = 1 + (lvl * 0.20); 
             break;
 
         case 'slayer':
-            // Percentage: +25% Elite Damage per level
-            art.bonus = Number((lvl * 0.25).toFixed(2)); 
-            break;
-
-        case 'compass':
-            // Percentage: +5% Elite Spawn Chance per level
-            art.bonus = Number((lvl * 0.05).toFixed(2));
+            // +100% Elite damage per level
+            art.bonus = lvl * 1.0; 
             break;
 
         default:
             art.bonus = lvl; 
-            break;
     }
-
-    console.log(`%c[Artifact System] %c${art.name} %c(Lv.${lvl}) updated. Bonus: ${art.bonus}`, 
-                "color: #bb86fc", "color: #fff; font-weight: bold", "color: #4ecca3");
+    console.log(`%c[Artifact System] ${art.name} is now Lv.${lvl}. Bonus: ${art.bonus}`, "color: #4ecca3");
 }
 	  
 function getArtifactBonus(id) {
@@ -1213,48 +1250,53 @@ function renderCompendium() {
         card.className = 'artifact-card';
         card.style.opacity = art.owned ? '1' : '0.5';
 
-        const icon = art.owned ? art.icon : "❓";
-        const name = art.owned ? art.name : "Locked Relic";
-        const desc = art.owned ? art.desc : "Defeat monsters to discover.";
-        
-        // 1. Calculate Cost
         const upgradeCost = Math.floor(Math.pow(2, art.level - 1) * 10);
         
-        // 2. Logic for Displaying Percentage Correcty
-        let displayBonus = 0;
-        
-        if (art.id === 'wand' || art.id === 'slayer') {
-            // If art.bonus is 5 (Level 5), this shows +500%
-            // If art.bonus is 25 (Level 5 * 5), this shows +2500%
-            // To make it show +500% for a Level 5, use:
-            displayBonus = (art.level * 100); 
-        } else if (art.id === 'pouch' || art.id === 'orb') {
-            // For multipliers, show the gain above 1.0 (e.g., 1.2x becomes +20%)
-            displayBonus = Math.round((art.bonus - 1) * 100);
-        } else {
-            displayBonus = Math.round(art.bonus * 100);
+        // --- CUSTOM DISPLAY LOGIC ---
+        let displayBonus = "";
+        let isMaxed = false;
+
+        switch(art.id) {
+            case 'robe':
+                displayBonus = `${Math.round(art.bonus * 100)}% Off`;
+                if (art.bonus >= 0.50) isMaxed = true;
+                break;
+            case 'orb':
+                displayBonus = `+${Math.round(art.bonus * 100)}% MPS`;
+                break;
+            case 'hourglass':
+                displayBonus = `+${Math.round(art.bonus * 100)}% Speed`;
+                if (art.bonus >= 0.80) isMaxed = true;
+                break;
+            case 'wand':
+            case 'slayer':
+                displayBonus = `+${Math.round(art.level * 100)}%`; // Level 5 = +500%
+                break;
+            case 'pouch':
+                displayBonus = `+${Math.round((art.bonus - 1) * 100)}%`;
+                break;
+            default:
+                displayBonus = `+${Math.round(art.bonus * 100)}%`;
         }
 
         card.innerHTML = `
-            <div style="font-size: 2em; margin-bottom: 5px;">${icon}</div>
-            <div style="font-weight: bold; color: #f1c40f;">${name}</div>
-            <div style="font-size: 0.7em; color: #aaa;">Lv. ${art.level}</div>
-            <div style="font-size: 0.8em; color: #4ecca3;">+${displayBonus}% Bonus</div>
-            <p style="font-size: 0.7em; color: #ccc; margin: 5px 0;">${desc}</p>
+            <div style="font-size: 2em; margin-bottom: 5px;">${art.owned ? art.icon : "❓"}</div>
+            <div style="font-weight: bold; color: #f1c40f;">${art.owned ? art.name : "Locked Relic"}</div>
+            <div style="font-size: 0.7em; color: #aaa;">Lv. ${art.level} ${isMaxed ? '<span style="color:#e94560">(MAX)</span>' : ""}</div>
+            <div style="font-size: 0.8em; color: #4ecca3; font-weight: bold;">${displayBonus}</div>
+            <p style="font-size: 0.7em; color: #ccc; margin: 5px 0;">${art.owned ? art.desc : "Discover by defeating monsters."}</p>
             
-            ${art.owned ? `
-                <button class="upgrade-art-btn" 
-                    onclick="upgradeArtifact('${art.id}')"
-                    style="width: 100%; margin-top: 10px;">
+            ${(art.owned && !isMaxed) ? `
+                <button class="upgrade-art-btn" onclick="upgradeArtifact('${art.id}')" style="width: 100%; margin-top: 10px;">
                     Upgrade: ${upgradeCost.toLocaleString()} Ess
                 </button>
+            ` : art.owned && isMaxed ? `
+                <button disabled style="width: 100%; margin-top: 10px; opacity: 0.5; cursor: not-allowed;">MAX LEVEL</button>
             ` : ''}
         `;
-
         list.appendChild(card);
     });
 }
-
 	  
 //Higher Plane Upgrade Shop Functions
 
