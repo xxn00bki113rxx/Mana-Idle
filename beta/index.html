@@ -439,26 +439,26 @@ let totalHeavenlyEarned = 0;
 
 // --- 2. ARTIFACT DEFINITIONS ---
 const artifactPool = [
-    { id: "wand", name: "Ancient Wand", icon: "🪄", owned: false, level: 1, bonus: 1.0, type: "damage", desc: "Increases Click & Blast damage by 100% per level." },
-    { id: "robe", name: "Scholar's Robe", icon: "🥋", owned: false, level: 1, bonus: 0.1, type: "discount", desc: "10% discount on upgrades." },
-    { id: "orb", name: "Crystal Ball", icon: "🔮", owned: false, level: 1, bonus: 0.25, type: "mps", desc: "Increases Global MPS by 25%." },
-    { id: "hourglass", name: "Temporal Hourglass", icon: "⏳", owned: false, level: 1, bonus: 0.05, type: "speed", desc: "Makes the game tick 5% faster." },
-    { id: "pouch", name: "Bottomless Pouch", icon: "💰", owned: false, level: 1, bonus: 0.2, type: "essence", desc: "Monsters drop 20% more Essence." },
-    { id: "slayer", name: "Slayer's Mark", icon: "🎯", owned: false, level: 1, bonus: 1.0, type: "elite_damage", desc: "Deals 100% bonus damage to Elite monsters." }
+    { id: "wand", name: "Ancient Wand", icon: "🪄", owned: false, level: 1, maxLevel: null, bonus: 1.0, type: "damage", desc: "Increases Click & Blast damage by 100% per level." },
+    { id: "robe", name: "Scholar's Robe", icon: "🥋", owned: false, level: 1, maxLevel: 5, bonus: 0.1, type: "discount", desc: "10% discount on upgrades. (Capped at 50%)" },
+    { id: "orb", name: "Crystal Ball", icon: "🔮", owned: false, level: 1, maxLevel: null, bonus: 0.25, type: "mps", desc: "Increases Global MPS by 25% per level." },
+    { id: "hourglass", name: "Temporal Hourglass", icon: "⏳", owned: false, level: 1, maxLevel: 16, bonus: 0.05, type: "speed", desc: "Makes the game tick 5% faster per level. (Capped at 20ms)" },
+    { id: "pouch", name: "Bottomless Pouch", icon: "💰", owned: false, level: 1, maxLevel: null, bonus: 0.2, type: "essence", desc: "Monsters drop 20% more Essence per level." },
+    { id: "slayer", name: "Slayer's Mark", icon: "🎯", owned: false, level: 1, maxLevel: null, bonus: 1.0, type: "elite_damage", desc: "Deals 100% bonus damage to Elite monsters per level." }
 ];
 
 // --- 3. UPGRADE DEFINITIONS (Sanctum) ---
 const upgrades = [
-    { id: 'scribe', name: 'Apprentice Scribe', baseCost: 15, mps: 1, count: 0 },
-    { id: 'well', name: 'Mana Well', baseCost: 125, mps: 6, count: 0 },
-    { id: 'library', name: 'Arcane Library', baseCost: 1200, mps: 40, count: 0 },
-    { id: 'tower', name: 'Wizard Tower', baseCost: 9500, mps: 180, count: 0 },
-    { id: 'palantir', name: 'Visionary Palantir', baseCost: 45000, mps: 650, count: 0 },
-    { id: 'monolith', name: 'Eldritch Monolith', baseCost: 150000, mps: 1800, count: 0 },
-    { id: 'nexus', name: 'Leyline Nexus', baseCost: 850000, mps: 7500, count: 0 },
-    { id: 'citadel', name: 'Floating Citadel', baseCost: 5000000, mps: 32000, count: 0 },
-    { id: 'sanctum_bldg', name: 'Eternal Sanctum', baseCost: 25000000, mps: 125000, count: 0 },
-    { id: 'rift_gate', name: 'Void Rift Gate', baseCost: 150000000, mps: 600000, count: 0 }
+    { id: 'scribe', name: 'Apprentice Scribe', baseCost: 15, cost: 15, mps: 1, count: 0 },
+    { id: 'well', name: 'Mana Well', baseCost: 125, cost: 125, mps: 6, count: 0 },
+    { id: 'library', name: 'Arcane Library', baseCost: 1200, cost: 1200, mps: 40, count: 0 },
+    { id: 'tower', name: 'Wizard Tower', baseCost: 9500, cost: 9500, mps: 180, count: 0 },
+    { id: 'palantir', name: 'Visionary Palantir', baseCost: 45000, cost: 45000, mps: 650, count: 0 },
+    { id: 'monolith', name: 'Eldritch Monolith', baseCost: 150000, cost: 150000, mps: 1800, count: 0 },
+    { id: 'nexus', name: 'Leyline Nexus', baseCost: 850000, cost: 850000, mps: 7500, count: 0 },
+    { id: 'citadel', name: 'Floating Citadel', baseCost: 5000000, cost: 5000000, mps: 32000, count: 0 },
+    { id: 'sanctum_bldg', name: 'Eternal Sanctum', baseCost: 25000000, cost: 25000000, mps: 125000, count: 0 },
+    { id: 'rift_gate', name: 'Void Rift Gate', baseCost: 150000000, cost: 150000000, mps: 600000, count: 0 }
 ];
 
 // --- 4. DIVINE UPGRADES (The Higher Plane) ---
@@ -1142,12 +1142,20 @@ function upgradeArtifact(id) {
         return;
     }
 
-    // 3. Calculate the Upgrade Cost
-    // Using Math.floor to ensure costs are clean integers
+    // 3. CAP CHECK: Prevent upgrading past maxLevel
+    if (art.maxLevel !== null && art.level >= art.maxLevel) {
+        console.warn(`${art.name} is already at maximum level.`);
+        
+        // Update the UI one last time just in case a button is stuck
+        renderCompendium(); 
+        return;
+    }
+
+    // 4. Calculate the Upgrade Cost
     // Formula: 10 * (2 ^ (level - 1))
     const upgradeCost = Math.floor(Math.pow(2, art.level - 1) * 10);
 
-    // 4. Check Essence Balance
+    // 5. Check Essence Balance
     if (essence >= upgradeCost) {
         // A. Deduct Currency
         essence -= upgradeCost;
@@ -1155,35 +1163,34 @@ function upgradeArtifact(id) {
         // B. Increase Level
         art.level++;
 
-        // C. APPLY THE POWER BOOST (Recalculate the actual bonus number)
-        // This is the critical step that was missing or desynced
-        applyArtifactPowerBoost(art);
+        // C. APPLY THE POWER BOOST
+        // This recalculates the bonus (e.g., 0.10, 0.20...) based on the new level
+        if (typeof applyArtifactPowerBoost === 'function') {
+            applyArtifactPowerBoost(art);
+        }
 
         // D. REFRESH ENGINE & UI
-        // Ensure the new bonuses are applied to your MPS and Combat stats immediately
+        // Recalculate production rates so the Orb or Hourglass changes take effect
         if (typeof calculateMPS === 'function') calculateMPS(); 
         
-        // Update the visual grid in the Compendium (so levels/costs update)
-        if (typeof renderCompendium === 'function') renderCompendium(); 
+        // Update the Compendium to reflect new level/cost or show "(MAX)"
+        renderCompendium(); 
         
-        // Refresh the header (Essence count) and action buttons
+        // Refresh the Essence count in the UI
         updateUI(); 
 
         // E. AUTO-SAVE
-        // Saves the new level and essence balance to LocalStorage
         if (typeof saveGame === 'function') saveGame();
 
-        console.log(`%c Success! ${art.name} upgraded to Level ${art.level}.`, "color: #4ecca3; font-weight: bold;");
+        console.log(`%c Success! ${art.name} is now Level ${art.level}`, "color: #4ecca3; font-weight: bold;");
     } else {
-        // Visual feedback for insufficient funds
-        console.warn(`Insufficient Essence. Need: ${upgradeCost}, Have: ${Math.floor(essence)}`);
-        
-        // Optional: Trigger a log message for the player
+        // Insufficient funds feedback
         const log = document.getElementById('battle-log');
         if (log) {
-            log.innerText = `Not enough Essence! Need ${upgradeCost.toLocaleString()}.`;
+            log.innerText = `Need ${upgradeCost.toLocaleString()} Essence for ${art.name}!`;
             log.style.color = "#ff4d4d";
         }
+        console.warn(`Insufficient Essence for ${art.name}. Need: ${upgradeCost}`);
     }
 }
 
@@ -1685,12 +1692,23 @@ function loadGame() {
     divinityLevel = savedData.divinityLevel || 0;
 
     // 3. Restore Building Counts
-    if (savedData.upgrades) {
-        savedData.upgrades.forEach(savedUpg => {
-            const actualUpg = upgrades.find(u => u.id === savedUpg.id);
-            if (actualUpg) actualUpg.count = savedUpg.count;
-        });
-    }
+if (savedData.upgrades) {
+    upgrades.forEach(actualUpg => {
+        const savedUpg = savedData.upgrades.find(u => u.id === actualUpg.id);
+        if (savedUpg) {
+            // Restore count and calculate the cost based on that count
+            actualUpg.count = Number(savedUpg.count) || 0;
+            
+            // Formula: baseCost * (1.15 ^ count)
+            // This ensures the cost is ALWAYS correct based on how many you own
+            actualUpg.cost = Math.ceil(actualUpg.baseCost * Math.pow(1.15, actualUpg.count));
+        } else {
+            // New building found that wasn't in the save file
+            actualUpg.count = 0;
+            actualUpg.cost = actualUpg.baseCost;
+        }
+    });
+}
 
     // 4. Restore Divine Upgrades
     if (savedData.divineUpgrades) {
