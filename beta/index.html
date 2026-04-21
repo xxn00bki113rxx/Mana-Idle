@@ -1205,41 +1205,46 @@ function renderCompendium() {
     const list = document.getElementById('compendium-list');
     if (!list) return;
 
-    // Clear the list once
     list.innerHTML = '';
-    list.className = 'artifact-grid'; // Use the grid layout we made
-
-    if (!artifactPool || artifactPool.length === 0) {
-        list.innerHTML = "<p>No artifacts found in data.</p>";
-        return;
-    }
+    list.className = 'artifact-grid'; 
 
     artifactPool.forEach(art => {
         const card = document.createElement('div');
         card.className = 'artifact-card';
-        // If not owned, make it look faded
         card.style.opacity = art.owned ? '1' : '0.5';
 
         const icon = art.owned ? art.icon : "❓";
         const name = art.owned ? art.name : "Locked Relic";
         const desc = art.owned ? art.desc : "Defeat monsters to discover.";
         
-        // Calculate current upgrade cost
-        const upgradeCost = Math.pow(2, art.level - 1) * 10;
-        const displayBonus = (art.bonus * 100).toFixed(0);
+        // 1. Calculate Cost
+        const upgradeCost = Math.floor(Math.pow(2, art.level - 1) * 10);
+        
+        // 2. Logic for Displaying Percentage Correcty
+        let displayBonus = "";
+        if (art.id === 'wand' || art.id === 'slayer') {
+            // For flat additive bonuses (like +5 mana per level)
+            displayBonus = (art.bonus * 100).toFixed(0); 
+        } else if (art.id === 'pouch' || art.id === 'orb') {
+            // For multipliers (like 1.2x, 1.4x), show the % increase above 100%
+            displayBonus = ((art.bonus - 1) * 100).toFixed(0);
+        } else {
+            // For everything else (like 10% speed)
+            displayBonus = (art.bonus * 100).toFixed(0);
+        }
 
         card.innerHTML = `
             <div style="font-size: 2em; margin-bottom: 5px;">${icon}</div>
             <div style="font-weight: bold; color: #f1c40f;">${name}</div>
-            <div id="art-level-${art.id}" style="font-size: 0.7em; color: #aaa;">Lv. ${art.level}</div>
-            <div id="art-bonus-${art.id}" style="font-size: 0.8em; color: #4ecca3;">+${displayBonus}% Bonus</div>
+            <div style="font-size: 0.7em; color: #aaa;">Lv. ${art.level}</div>
+            <div style="font-size: 0.8em; color: #4ecca3;">+${displayBonus}% Bonus</div>
             <p style="font-size: 0.7em; color: #ccc; margin: 5px 0;">${desc}</p>
             
             ${art.owned ? `
-                <button id="upgrade-art-${art.id}" class="upgrade-art-btn" 
+                <button class="upgrade-art-btn" 
                     onclick="upgradeArtifact('${art.id}')"
                     style="width: 100%; margin-top: 10px;">
-                    Upgrade: ${upgradeCost} Ess
+                    Upgrade: ${upgradeCost.toLocaleString()} Ess
                 </button>
             ` : ''}
         `;
@@ -1526,6 +1531,13 @@ function ascend() {
                     `(Based on all-time record of ${Math.floor(totalManaAllTime).toLocaleString()} Mana!)`;
 
     if (confirm(message)) {
+        // --- STOP PRODUCTION IMMEDIATELY ---
+        globalMPS = 0;
+        upgrades.forEach(upg => {
+            upg.count = 0;
+            if (upg.baseCost) upg.cost = upg.baseCost;
+        });
+
         // 4. Grant Permanent Rewards
         heavenlyEssence += potentialGain;
         totalHeavenlyEarned += potentialGain;
@@ -1536,15 +1548,7 @@ function ascend() {
         essence = 0;
         totalManaThisRun = 0; 
 
-        // Reset building counts and restore original costs
-        upgrades.forEach(upg => {
-            upg.count = 0;
-            if (upg.baseCost) {
-                upg.cost = upg.baseCost;
-            }
-        });
-
-        // Update the save timestamp to prevent "ghost" offline progress
+        // Update the save timestamp immediately
         lastSaveTime = Date.now();
         
         // 6. Visual Transition
@@ -1552,7 +1556,7 @@ function ascend() {
         document.body.style.filter = "brightness(10) blur(10px)";
         
         setTimeout(() => {
-            // Recalculate and Save the reset state
+            // Recalculate to ensure 'Flow' is truly 0
             calculateMPS(); 
             saveGame();
 
@@ -1662,21 +1666,23 @@ function loadGame() {
             if (actualArt) {
                 actualArt.owned = savedArt.owned;
                 actualArt.level = savedArt.level;
+                // RE-CALCULATE POWER BASED ON LOADED LEVEL
+                if (actualArt.owned) applyArtifactPowerBoost(actualArt);
             }
         });
     }
 
-    // --- CRITICAL: OFFLINE CALCULATION ---
-    // We must calculate MPS first so the offline math knows the current rate
+    // --- CRITICAL ORDER: CALCULATE RATES BEFORE OFFLINE MATH ---
     calculateMPS(); 
 
     if (savedData.lastSaveTime) {
         calculateOfflineProgress(savedData.lastSaveTime);
     }
 
-    // Refresh UI to show the loaded state
+    // Final UI Refresh
     updateUI();
     renderSanctum();
+    renderCompendium();
     console.log("Welcome back, Archmage. Your progress has been restored.");
 }
 	  
