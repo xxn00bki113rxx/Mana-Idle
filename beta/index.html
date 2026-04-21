@@ -1221,16 +1221,18 @@ function renderCompendium() {
         const upgradeCost = Math.floor(Math.pow(2, art.level - 1) * 10);
         
         // 2. Logic for Displaying Percentage Correcty
-        let displayBonus = "";
+        let displayBonus = 0;
+        
         if (art.id === 'wand' || art.id === 'slayer') {
-            // For flat additive bonuses (like +5 mana per level)
-            displayBonus = (art.bonus * 100).toFixed(0); 
+            // If art.bonus is 5 (Level 5), this shows +500%
+            // If art.bonus is 25 (Level 5 * 5), this shows +2500%
+            // To make it show +500% for a Level 5, use:
+            displayBonus = (art.level * 100); 
         } else if (art.id === 'pouch' || art.id === 'orb') {
-            // For multipliers (like 1.2x, 1.4x), show the % increase above 100%
-            displayBonus = ((art.bonus - 1) * 100).toFixed(0);
+            // For multipliers, show the gain above 1.0 (e.g., 1.2x becomes +20%)
+            displayBonus = Math.round((art.bonus - 1) * 100);
         } else {
-            // For everything else (like 10% speed)
-            displayBonus = (art.bonus * 100).toFixed(0);
+            displayBonus = Math.round(art.bonus * 100);
         }
 
         card.innerHTML = `
