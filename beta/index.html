@@ -529,6 +529,20 @@ function getAffordableAmount(upg, currentMana, discount) {
 // 1. THE SHOP FUNCTIONS
 // ==========================================
 
+function getArtifactBonus(id) {
+    if (typeof artifactPool === 'undefined') return 0;
+    const art = artifactPool.find(a => a.id === id);
+    
+    // If not owned, bonus is 0. 
+    // If owned, we return the bonus we calculated in applyArtifactPowerBoost
+    if (!art || !art.owned) return 0;
+
+    // Special logic for the Pouch (Multiplier) vs others (Additives)
+    if (id === 'pouch') return art.bonus; // 1.2, 1.4, etc.
+    
+    return art.bonus || 0;
+}
+	  
 function buyOne(id) {
     // 1. Find the specific upgrade in your array
     const upg = upgrades.find(u => u.id === id);
@@ -686,30 +700,25 @@ window.buyOne = buyOne;
 window.buyMax = buyMax;
 window.renderSanctum = renderSanctum;
 
-function updateShopAffordability() {
-    const buyButtons = document.querySelectorAll('.buy-btn');
-    
-    upgrades.forEach((upg, index) => {
-        const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
-        const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
-        const currentCost = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
+function updateShopAffordability(discount = 0) {
+    upgrades.forEach(upg => {
+        const costEl = document.getElementById(`cost-${upg.id}`);
+        const countEl = document.getElementById(`count-${upg.id}`);
         
-        const btn = buyButtons[index];
-        if (btn) {
-            if (mana >= currentCost) {
-                btn.classList.remove('disabled');
-                btn.disabled = false;
-                // Match the tier colors we set up
-                const isTier2 = upg.baseCost >= 150000;
-                btn.style.background = isTier2 ? '#9b59b6' : '#4ecca3';
-                btn.style.opacity = "1";
-            } else {
-                btn.classList.add('disabled');
-                btn.disabled = true;
-                btn.style.background = '#333';
-                btn.style.opacity = "0.5";
+        if (costEl) {
+            // Apply the Artifact Discount here!
+            const finalCost = Math.floor(upg.cost * (1 - discount));
+            costEl.textContent = finalCost.toLocaleString();
+            
+            // Check affordability
+            const btn = costEl.closest('button') || document.getElementById(`btn-${upg.id}`);
+            if (btn) {
+                btn.disabled = (mana < finalCost);
+                btn.style.opacity = (mana < finalCost) ? "0.5" : "1";
             }
         }
+        
+        if (countEl) countEl.textContent = upg.count;
     });
 }
 	  
@@ -818,23 +827,32 @@ function attackMonster(event) {
     const cost = 10;
     if (mana < cost) return;
 
-    mana -= cost;
+    // 1. Calculate Damage
+    let baseDamage = 5; 
     
-    // Calculate Damage (Ensuring Slayer Artifact is checked correctly)
-    let damage = 5; 
-    const slayer = (typeof artifactPool !== 'undefined') ? artifactPool.find(a => a.id === 'slayer') : null;
-    if (isCurrentMonsterElite && slayer && slayer.owned) {
-        damage *= (1 + (slayer.bonus || 0));
+    // Grab bonuses safely
+    const wandBonus = (typeof getArtifactBonus === 'function') ? getArtifactBonus('wand') : 0;
+    const slayerBonus = (typeof getArtifactBonus === 'function') ? getArtifactBonus('slayer') : 0;
+
+    // Apply Wand (Works on everything)
+    // Level 5 Wand (+500%) = 5 * (1 + 5) = 30 Damage
+    let totalDamage = baseDamage * (1 + wandBonus);
+
+    // Apply Slayer (Only on Elites)
+    if (isCurrentMonsterElite) {
+        totalDamage *= (1 + slayerBonus);
     }
 
-    monsterHP -= damage;
+    // 2. Execute Attack
+    mana -= cost;
+    monsterHP -= totalDamage;
 
-    // Trigger visual feedback (Popup)
+    // 3. Visual Feedback
     if (typeof spawnDamageText === 'function' && event) {
-        spawnDamageText(event, `-${Math.floor(damage)}`, "#ff4d4d");
+        spawnDamageText(event, `-${Math.floor(totalDamage)}`, isCurrentMonsterElite ? "#f1c40f" : "#ff4d4d");
     }
 
-    // Unified Check for death and UI Refresh
+    // 4. State Check
     checkMonsterDeath();
     updateUI(); 
 }
@@ -1474,14 +1492,10 @@ function gameLoop() {
 function updateUI() {
     // 1. Core Currencies
     const manaEl = document.getElementById('mana-count');
-    if (manaEl) {
-        manaEl.textContent = Math.floor(mana).toLocaleString();
-    }
+    if (manaEl) manaEl.textContent = Math.floor(mana).toLocaleString();
 
     const essenceEl = document.getElementById('essence-count');
-    if (essenceEl) {
-        essenceEl.textContent = Math.floor(essence).toLocaleString();
-    }
+    if (essenceEl) essenceEl.textContent = Math.floor(essence).toLocaleString();
 
     const heavenlyEl = document.getElementById('heavenly-count');
     if (heavenlyEl) {
@@ -1490,13 +1504,18 @@ function updateUI() {
 
     // 2. Production (Flow) & Records
     const mpsEl = document.getElementById('mps-display');
-    if (mpsEl) {
-        mpsEl.textContent = (globalMPS || 0).toLocaleString();
-    }
+    if (mpsEl) mpsEl.textContent = (globalMPS || 0).toLocaleString();
 
     const recordEl = document.getElementById('mana-record');
-    if (recordEl) {
-        recordEl.textContent = Math.floor(totalManaAllTime || 0).toLocaleString();
+    if (recordEl) recordEl.textContent = Math.floor(totalManaAllTime || 0).toLocaleString();
+
+    // --- ADDED: Battle Power Display ---
+    // Update a text element to show the player their current click power
+    const clickDmgEl = document.getElementById('click-damage-display');
+    if (clickDmgEl) {
+        const wandBonus = (typeof getArtifactBonus === 'function') ? getArtifactBonus('wand') : 0;
+        const currentDmg = 5 * (1 + wandBonus);
+        clickDmgEl.textContent = Math.floor(currentDmg).toLocaleString();
     }
 
     // 3. Ascension Visibility Logic
@@ -1504,7 +1523,6 @@ function updateUI() {
     if (ascendBox) {
         if (totalManaAllTime >= 1000000 || totalHeavenlyEarned > 0) {
             ascendBox.style.display = 'block';
-            
             const potentialText = document.getElementById('potential-essence-text');
             if (potentialText) {
                 let totalTarget = Math.floor(Math.sqrt((totalManaAllTime || 0) / 1000000));
@@ -1527,18 +1545,14 @@ function updateUI() {
         navPrestige.style.display = (totalHeavenlyEarned > 0) ? 'inline-block' : 'none';
     }
 
-    // ==========================================
     // 5. LIVE REFRESHERS 
-    // ==========================================
+    if (typeof updateCombatUI === "function") updateCombatUI();
     
-    // This moves the HP bar and updates monster health text
-    if (typeof updateCombatUI === "function") {
-        updateCombatUI();
-    }
-
-    // This makes shop buttons light up as mana increases
+    // --- CRITICAL UPDATE FOR SHOP ---
+    // Pass the discount to your shop refresher so prices update correctly
     if (typeof updateShopAffordability === "function") {
-        updateShopAffordability();
+        const currentDiscount = (typeof getArtifactBonus === 'function') ? getArtifactBonus('robe') : 0;
+        updateShopAffordability(currentDiscount); 
     }
 }
 	  
