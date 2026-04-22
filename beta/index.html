@@ -1412,55 +1412,65 @@ function renderDivineShop() {
     const container = document.getElementById('divine-shop-container');
     if (!container) return;
 
-    container.innerHTML = '';
+    // Only build the full HTML if the container is empty
+    if (container.innerHTML === '') {
+        divineUpgrades.forEach(upg => {
+            const card = document.createElement('div');
+            card.className = 'upgrade-card divine-card';
+            card.innerHTML = `
+                <div style="font-size: 2.2em; margin-bottom: 8px;">${upg.icon}</div>
+                <div style="color: #ffd700; font-weight: bold; font-size: 1.1em;">${upg.name}</div>
+                <div style="font-size: 0.85em; margin: 10px 0; min-height: 45px; color: #ecf0f1;">
+                    ${upg.description}
+                </div>
+                <div id="divine-lvl-${upg.id}" style="font-size: 0.85em; color: #bdc3c7;">
+                    Level: 0 / ${upg.maxLevel || '∞'}
+                </div>
+                <div class="card-actions" style="width: 100%;">
+                    <button id="buy-divine-${upg.id}" class="buy-btn" 
+                        onclick="buyDivineUpgrade('${upg.id}')" 
+                        style="width: 100%; margin-top: 12px; padding: 10px;">
+                        Buy: ${upg.cost} 🌟
+                    </button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
 
+    // Now, UPDATE the existing elements (This is what actually fixes the 'stuck' UI)
     divineUpgrades.forEach(upg => {
-        const card = document.createElement('div');
-        card.className = 'upgrade-card divine-card'; 
-
-        // 1. Determine State
         const isMaxed = upg.maxLevel !== null && upg.level >= upg.maxLevel;
         const canAfford = !isMaxed && (heavenlyEssence >= upg.cost);
         
-        // 2. Prepare Display Values
-        const displayCost = (upg.cost || 0).toLocaleString();
-        const levelText = `Level: ${upg.level} / ${upg.maxLevel || '∞'}`;
-        
-        // 3. Force Colors (Using !important to beat the CSS file)
-        const btnColor = isMaxed ? '#666 !important' : '#ffd700 !important';
+        const lvlEl = document.getElementById(`divine-lvl-${upg.id}`);
+        const btnEl = document.getElementById(`buy-divine-${upg.id}`);
 
-        card.innerHTML = `
-            <div style="font-size: 2.2em; margin-bottom: 8px;">${upg.icon}</div>
-            <div style="color: #ffd700; font-weight: bold; font-size: 1.1em;">${upg.name}</div>
-            <div style="font-size: 0.85em; margin: 10px 0; min-height: 45px; color: #ecf0f1;">
-                ${upg.description}
-            </div>
-            <div id="divine-lvl-${upg.id}" style="font-size: 0.85em; color: #bdc3c7;">
-                ${levelText}
-            </div>
-            <div class="card-actions" style="width: 100%;">
-                <button id="buy-divine-${upg.id}" class="buy-btn" 
-                    onclick="buyDivineUpgrade('${upg.id}')" 
-                    ${(isMaxed || !canAfford) ? 'disabled' : ''}
-                    style="border-color: ${btnColor}; 
-                           color: ${btnColor}; 
-                           width: 100%; margin-top: 12px; padding: 10px; 
-                           opacity: ${(isMaxed || !canAfford) ? 0.5 : 1}; 
-                           cursor: ${isMaxed ? 'default' : 'pointer'};">
-                    ${isMaxed ? 'MAXED' : `Buy: ${displayCost} 🌟`}
-                </button>
-            </div>
-        `;
-        container.appendChild(card);
+        if (lvlEl) {
+            lvlEl.textContent = `Level: ${upg.level} / ${upg.maxLevel || '∞'}`;
+        }
+
+        if (btnEl) {
+            if (isMaxed) {
+                btnEl.textContent = "MAXED";
+                btnEl.disabled = true;
+                btnEl.style.setProperty('color', '#666', 'important');
+                btnEl.style.setProperty('border-color', '#666', 'important');
+                btnEl.style.opacity = "0.5";
+            } else {
+                btnEl.textContent = `Buy: ${upg.cost.toLocaleString()} 🌟`;
+                btnEl.disabled = !canAfford;
+                btnEl.style.setProperty('color', '#ffd700', 'important');
+                btnEl.style.setProperty('border-color', '#ffd700', 'important');
+                btnEl.style.opacity = canAfford ? "1" : "0.5";
+            }
+        }
     });
 
-    // Sync the header essence count
+    // Update the header count
     const headerEssence = document.getElementById('heavenly-essence-header');
     if (headerEssence) headerEssence.textContent = Math.floor(heavenlyEssence).toLocaleString();
-
-    if (typeof updateDivineUI === "function") updateDivineUI();
 }
-
 
 function buyDivineUpgrade(id) {
     const upg = divineUpgrades.find(u => u.id === id);
