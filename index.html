@@ -1412,96 +1412,101 @@ function renderDivineShop() {
     const container = document.getElementById('divine-shop-container');
     if (!container) return;
 
-    container.innerHTML = '';
+    // A. Build initial cards if they don't exist
+    if (container.innerHTML === '') {
+        divineUpgrades.forEach(upg => {
+            const card = document.createElement('div');
+            card.className = 'upgrade-card divine-card';
+            card.innerHTML = `
+                <div style="font-size: 2.2em; margin-bottom: 8px;">${upg.icon}</div>
+                <div style="color: #ffd700; font-weight: bold; font-size: 1.1em;">${upg.name}</div>
+                <div style="font-size: 0.85em; margin: 10px 0; min-height: 45px; color: #ecf0f1;">
+                    ${upg.description}
+                </div>
+                <div id="divine-lvl-${upg.id}" style="font-size: 0.85em; color: #bdc3c7;">
+                    Level: ${upg.level} / ${upg.maxLevel || '∞'}
+                </div>
+                <div class="card-actions" style="width: 100%;">
+                    <button id="buy-divine-${upg.id}" class="buy-btn" 
+                        onclick="buyDivineUpgrade('${upg.id}')" 
+                        style="width: 100%; margin-top: 12px; padding: 10px;">
+                        Buy: ${upg.cost} 🌟
+                    </button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
 
+    // B. Live Update Loop
     divineUpgrades.forEach(upg => {
-        const card = document.createElement('div');
-        card.className = 'upgrade-card divine-card'; 
-
-        // 1. Determine State
         const isMaxed = upg.maxLevel !== null && upg.level >= upg.maxLevel;
         const canAfford = !isMaxed && (heavenlyEssence >= upg.cost);
         
-        // 2. Prepare Display Values
-        const displayCost = (upg.cost || 0).toLocaleString();
-        const levelText = `Level: ${upg.level} / ${upg.maxLevel || '∞'}`;
-        
-        // 3. Force Colors (Using !important to beat the CSS file)
-        const btnColor = isMaxed ? '#666 !important' : '#ffd700 !important';
+        const lvlEl = document.getElementById(`divine-lvl-${upg.id}`);
+        const btnEl = document.getElementById(`buy-divine-${upg.id}`);
 
-        card.innerHTML = `
-            <div style="font-size: 2.2em; margin-bottom: 8px;">${upg.icon}</div>
-            <div style="color: #ffd700; font-weight: bold; font-size: 1.1em;">${upg.name}</div>
-            <div style="font-size: 0.85em; margin: 10px 0; min-height: 45px; color: #ecf0f1;">
-                ${upg.description}
-            </div>
-            <div id="divine-lvl-${upg.id}" style="font-size: 0.85em; color: #bdc3c7;">
-                ${levelText}
-            </div>
-            <div class="card-actions" style="width: 100%;">
-                <button id="buy-divine-${upg.id}" class="buy-btn" 
-                    onclick="buyDivineUpgrade('${upg.id}')" 
-                    ${(isMaxed || !canAfford) ? 'disabled' : ''}
-                    style="border-color: ${btnColor}; 
-                           color: ${btnColor}; 
-                           width: 100%; margin-top: 12px; padding: 10px; 
-                           opacity: ${(isMaxed || !canAfford) ? 0.5 : 1}; 
-                           cursor: ${isMaxed ? 'default' : 'pointer'};">
-                    ${isMaxed ? 'MAXED' : `Buy: ${displayCost} 🌟`}
-                </button>
-            </div>
-        `;
-        container.appendChild(card);
+        if (lvlEl) {
+            lvlEl.textContent = `Level: ${upg.level} / ${upg.maxLevel || '∞'}`;
+        }
+
+        if (btnEl) {
+            if (isMaxed) {
+                btnEl.textContent = "MAXED";
+                btnEl.disabled = true;
+                btnEl.style.setProperty('color', '#666', 'important');
+                btnEl.style.setProperty('border-color', '#666', 'important');
+                btnEl.style.opacity = "0.5";
+            } else {
+                btnEl.textContent = `Buy: ${upg.cost.toLocaleString()} 🌟`;
+                btnEl.disabled = !canAfford;
+                btnEl.style.setProperty('color', '#ffd700', 'important');
+                btnEl.style.setProperty('border-color', '#ffd700', 'important');
+                btnEl.style.opacity = canAfford ? "1" : "0.5";
+            }
+        }
     });
 
-    // Sync the header essence count
+    // C. Sync Header
     const headerEssence = document.getElementById('heavenly-essence-header');
     if (headerEssence) headerEssence.textContent = Math.floor(heavenlyEssence).toLocaleString();
-
-    if (typeof updateDivineUI === "function") updateDivineUI();
 }
-
 
 function buyDivineUpgrade(id) {
     const upg = divineUpgrades.find(u => u.id === id);
     if (!upg) return;
 
-    // 1. CAP CHECK
+    // 1. Hard Cap Check
     if (upg.maxLevel !== null && upg.level >= upg.maxLevel) {
-        console.warn(`${upg.name} is already maxed!`);
+        console.warn(`${upg.name} is already maxed.`);
         return;
     }
 
-    // 2. COST CHECK
+    // 2. Resource Check
     if (heavenlyEssence >= upg.cost) {
-        // A. Deduct
         heavenlyEssence -= upg.cost;
-
-        // B. Level Up
         upg.level++;
 
-        // C. Scale Cost (only if not maxed)
+        // 3. Scale Cost (40 -> 80)
         if (upg.maxLevel === null || upg.level < upg.maxLevel) {
             upg.cost *= 2;
         }
 
-        // 3. REFRESH EVERYTHING
+        // 4. Global Refresh
         if (typeof calculateMPS === 'function') calculateMPS();
+        updateUI(); // Updates top bar
         
-        // Update main top-bar UI
-        updateUI();
-
-        // FORCE REDRAW DIVINE SHOP
+        // Refresh the Divine Shop specifically
         if (typeof renderDivineShop === 'function') {
             renderDivineShop();
         }
 
-        // 4. SAVE
         if (typeof saveGame === 'function') saveGame();
 
-        console.log(`%c[Divine] %c${upg.name} is now Lv ${upg.level}`, "color: #ffd700", "font-weight: bold");
+        console.log(`%c[Divine Purchase] %c${upg.name} upgraded to Level ${upg.level}`, 
+                    "color: #ffd700", "color: #fff; font-weight: bold");
     } else {
-        console.warn("Not enough Heavenly Essence!");
+        console.warn("Insufficient Heavenly Essence!");
     }
 }
 window.buyDivineUpgrade = buyDivineUpgrade;
