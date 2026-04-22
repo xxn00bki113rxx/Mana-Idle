@@ -544,19 +544,24 @@ function getArtifactBonus(id) {
 }
 	  
 function buyOne(id) {
-    // 1. Find the specific upgrade in your array
     const upg = upgrades.find(u => u.id === id);
     if (!upg) {
         console.error("Upgrade ID not found: " + id);
         return;
     }
 
-    // 2. Calculate the Scholar's Robe Discount
-    // We use our helper function to get the current bonus (max 0.50)
-    const discount = (typeof getArtifactBonus === 'function') ? getArtifactBonus('robe') : 0;
+    // 1. Calculate COMBINED Discount (Artifacts + Divine)
+    const artifactDiscount = (typeof getArtifactBonus === 'function') ? getArtifactBonus('robe') : 0;
+    const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
+    const divineDiscount = wisdom ? (wisdom.level * 0.05) : 0;
     
-    // Apply discount to the cost and floor it for a clean integer
-    const finalCost = Math.floor(upg.cost * (1 - discount));
+    // Total multiplier (e.g., 1 - (0.10 + 0.05) = 0.85)
+    const totalDiscountMultiplier = 1 - (artifactDiscount + divineDiscount);
+
+    // 2. Determine Final Cost
+    // We calculate from baseCost to ensure accuracy and prevent NaN issues
+    const currentBasePrice = upg.baseCost * Math.pow(1.15, upg.count);
+    const finalCost = Math.floor(currentBasePrice * totalDiscountMultiplier);
 
     // 3. Affordability Check
     if (mana >= finalCost) {
@@ -566,15 +571,13 @@ function buyOne(id) {
         // B. Increase Building Count
         upg.count = (upg.count || 0) + 1;
 
-        // C. Scale Cost for the next purchase
-        // Standard scaling is 1.15x. We use Math.ceil to avoid costs getting "stuck"
-        upg.cost = Math.ceil(upg.cost * 1.15);
+        // C. Update the internal cost for consistency (though we recalculate on the fly)
+        upg.cost = Math.ceil(upg.baseCost * Math.pow(1.15, upg.count));
 
         // 4. Update the World State
-        // Recalculate production rates immediately
         if (typeof calculateMPS === 'function') calculateMPS(); 
         
-        // Refresh the header and button labels
+        // Refresh the UI - this will update the labels via your updateUI loop
         updateUI();
         
         // 5. Auto-Save
@@ -583,7 +586,6 @@ function buyOne(id) {
         console.log(`%c[Purchase] %c${upg.name} %cbought for ${finalCost.toLocaleString()} mana. Total: ${upg.count}`, 
                     "color: #4ecca3", "color: #fff; font-weight: bold", "color: #ccc");
     } else {
-        // Visual/Audio feedback for the player
         const log = document.getElementById('battle-log');
         if (log) {
             log.innerText = `Insufficient Mana! Need ${finalCost.toLocaleString()}`;
@@ -592,6 +594,8 @@ function buyOne(id) {
         console.warn(`Cannot afford ${upg.name}. Need ${finalCost}, have ${Math.floor(mana)}.`);
     }
 }
+
+	  
 function buyMax(id) {
     const upg = upgrades.find(u => u.id === id);
     if (!upg) return;
@@ -630,29 +634,35 @@ function renderSanctum() {
 
     container.innerHTML = '';
 
+    // 1. Grab BOTH discounts
+    const artifactDiscount = (typeof getArtifactBonus === 'function') ? getArtifactBonus('robe') : 0;
+    const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
+    const divineDiscount = wisdom ? (wisdom.level * 0.05) : 0;
+    
+    // Combine them (e.g., 0.10 + 0.05 = 0.15 or 15% off)
+    const totalDiscountMultiplier = 1 - (artifactDiscount + divineDiscount);
+
     upgrades.forEach(upg => {
         const card = document.createElement('div');
         card.className = 'upgrade-card';
 
-        // 1. FIXED TIER LOGIC: Tier 2 starts at Eldritch Monolith (150k cost)
-        // Everything 150k and above is Tier 2 (Purple)
+        // Tier Logic
         const isTier2 = upg.baseCost >= 150000;
         const tierColor = isTier2 ? '#9b59b6' : '#4ecca3'; 
         const tierGlow = isTier2 ? 'rgba(155, 89, 182, 0.2)' : 'rgba(78, 204, 163, 0.1)';
 
-        const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
-        const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
-        const displayCost = Math.floor((upg.baseCost * Math.pow(1.15, upg.count)) * discount);
+        // 2. Calculate Correct Display Cost
+        const baseCostAtLevel = upg.baseCost * Math.pow(1.15, upg.count);
+        const displayCost = Math.floor(baseCostAtLevel * totalDiscountMultiplier);
         
         const canAffordOne = mana >= displayCost;
-        const btnClass = canAffordOne ? 'buy-btn' : 'buy-btn disabled';
 
-        // Calculate Buy Max Potential
+        // 3. Calculate Buy Max Potential
         let tempTotalCost = 0;
         let amountToBuy = 0;
         let tempCount = upg.count;
         while (true) {
-            let nextPrice = Math.floor((upg.baseCost * Math.pow(1.15, tempCount)) * discount);
+            let nextPrice = Math.floor((upg.baseCost * Math.pow(1.15, tempCount)) * totalDiscountMultiplier);
             if (mana >= tempTotalCost + nextPrice) {
                 tempTotalCost += nextPrice;
                 amountToBuy++;
@@ -666,13 +676,15 @@ function renderSanctum() {
                 <span class="upgrade-icon" style="font-size: 1.5em;">${upg.icon || '📜'}</span>
                 <div class="upgrade-texts">
                     <div class="upgrade-name" style="font-weight: bold; color: ${tierColor};">${upg.name || 'Unknown'}</div>
-                    <div class="upgrade-desc" style="font-size: 0.8em; color: #aaa;">${upg.description || upg.desc || ''}</div>
+                    <div class="upgrade-desc" style="font-size: 0.75em; color: #aaa;">
+                        Produces: <span style="color: #f1c40f;">+${upg.mps.toLocaleString()}</span> MPS
+                    </div>
                 </div>
             </div>
             <div class="upgrade-stats" style="margin-top: 10px; text-align: center;">
-                <div class="upgrade-level" style="color: #bdc3c7; margin-bottom: 5px;">Lv. ${upg.count || 0}</div>
+                <div class="upgrade-level" style="color: #bdc3c7; margin-bottom: 5px;">Lv. <span id="count-${upg.id}">${upg.count || 0}</span></div>
                 
-                <button class="${btnClass}" 
+                <button class="${canAffordOne ? 'buy-btn' : 'buy-btn disabled'}" 
                     onclick="buyOne('${upg.id}')" 
                     ${!canAffordOne ? 'disabled' : ''}
                     style="width: 100%; padding: 10px; cursor: pointer; margin-bottom: 8px; border-radius: 8px; font-weight: bold; 
@@ -680,7 +692,7 @@ function renderSanctum() {
                     border: 2px solid ${tierColor};
                     color: white;
                     box-shadow: 0 0 10px ${tierGlow};">
-                    Buy: ${displayCost.toLocaleString()}
+                    Buy: <span id="cost-${upg.id}">${displayCost.toLocaleString()}</span>
                 </button>
 
                 <button class="buy-max-btn" 
@@ -1227,9 +1239,9 @@ function applyArtifactPowerBoost(art) {
             break;
 
         case 'robe':
-            // 10% discount per level, hard-capped at 50%
-            art.bonus = Math.min(lvl * 0.10, 0.50); 
-            break;
+    		// Ensure the bonus is saved as the decimal discount (e.g., 0.10, 0.20)
+    		art.bonus = Math.min(art.level * 0.10, 0.50); 
+    		break;
 
         case 'orb':
             // +25% Global MPS per level (No cap)
