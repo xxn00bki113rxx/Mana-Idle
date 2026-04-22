@@ -640,31 +640,48 @@ function buyMax(id) {
     const upg = upgrades.find(u => u.id === id);
     if (!upg) return;
 
+    // 1. Calculate the current Divine Discount
     const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
-    const discount = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
+    const discountMultiplier = wisdom ? (1 - (wisdom.level * 0.05)) : 1;
 
     let totalCost = 0;
     let amountToBuy = 0;
+    let tempCount = upg.count; // Use a temporary count to simulate the price of each successive building
 
+    // 2. Loop to calculate how many we can actually afford
     while (true) {
-        let nextPrice = Math.floor((upg.baseCost * Math.pow(1.15, upg.count + amountToBuy)) * discount);
+        // This formula must match updateShopAffordability exactly
+        let nextPrice = Math.floor((upg.baseCost * Math.pow(1.15, tempCount)) * discountMultiplier);
+        
         if (mana >= totalCost + nextPrice) {
             totalCost += nextPrice;
             amountToBuy++;
+            tempCount++; // Increment the tempCount so the NEXT building in this loop is more expensive
         } else {
-            break;
+            break; // Stop if we can't afford the next one
         }
+
+        // Safety break to prevent infinite loops
         if (amountToBuy >= 1000) break; 
     }
 
+    // 3. Execute the purchase
     if (amountToBuy > 0) {
         mana -= totalCost;
         upg.count += amountToBuy;
         
+        // 4. Update Game State
         if (typeof calculateMPS === 'function') calculateMPS();
-        renderSanctum();
+        
+        // Refresh the Sanctum and the main UI to show new counts and mana
+        if (typeof renderSanctum === 'function') renderSanctum();
         updateUI();
+
+        // Save progress
         if (typeof saveGame === 'function') saveGame();
+
+        console.log(`%c[Shop] %cBought Max: +${amountToBuy} ${upg.name} for ${totalCost.toLocaleString()} mana.`, 
+                    "color: #4ecca3", "color: #fff");
     }
 }
 
