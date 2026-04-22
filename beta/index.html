@@ -160,6 +160,12 @@ body {
 
 #strike-btn { border-color: #e94560; color: #e94560; padding: 12px; }
 
+
+#gather-mana-btn:active {
+    transform: scale(0.95);
+    background: #45b791;
+}
+
 /* 7. COMBAT SECTION (Battle Rift) */
 #combat-section {
     width: 95%;
@@ -292,16 +298,29 @@ button:disabled {
     </div>
 
     <div id="sanctum-tab" class="tab-content">
-    	<button onclick="clickMana(event)" id="gather-mana-btn" style="width: 200px; height: 60px; margin-top: 20px; margin-bottom: 20px; cursor: pointer;">Gather Mana</button>
-    	<div class="shop-container" id="sanctum-container"></div>
-		<div id="ascension-container" style="margin-top: 40px; padding: 20px; border: 2px dashed #ffd700; background: rgba(0,0,0,0.3); border-radius: 10px; text-align: center;">
-    		<h3 style="color: #ffd700; margin-top: 0;">Ritual of Transcendence</h3>
-    		<p style="font-size: 0.9em; color: #aaa;">Sacrifice your mortal progress to touch the Higher Plane.</p>
-    		<button onclick="ascend()" class="prestige-btn" style="padding: 12px 24px; background: #ffd700; color: #000; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; text-transform: uppercase;">
-        	Ascend to Divine Realm
-    		</button>
-		</div>
-	</div>
+    <div style="text-align: center; width: 100%;">
+        <button onclick="clickMana(event)" id="gather-mana-btn" 
+            style="width: 240px; height: 70px; margin: 20px 0; cursor: pointer; font-family: 'Cinzel', serif; font-weight: bold; font-size: 1.1em; background: #4ecca3; color: #1a1a2e; border: none; border-radius: 8px; box-shadow: 0 4px 15px rgba(78, 204, 163, 0.3); transition: transform 0.1s;">
+            GATHER MANA
+        </button>
+    </div>
+
+    <div class="shop-container" id="sanctum-container" 
+        style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; padding: 10px;">
+        </div>
+
+    <div id="ascension-container" 
+        style="margin-top: 40px; padding: 30px; border: 2px dashed #ffd700; background: rgba(255, 215, 0, 0.05); border-radius: 12px; text-align: center; display: none;">
+        <h3 style="color: #ffd700; margin-top: 0; text-transform: uppercase; letter-spacing: 2px;">Ritual of Transcendence</h3>
+        <p id="potential-essence-text" style="font-size: 1em; color: #fff; margin: 10px 0;">Current Potential: 0 🌟</p>
+        <p style="font-size: 0.85em; color: #aaa; margin-bottom: 20px;">Sacrifice your mortal progress to touch the Higher Plane.</p>
+        
+        <button onclick="ascend()" class="prestige-btn" 
+            style="padding: 15px 30px; background: #ffd700; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; text-transform: uppercase; transition: all 0.3s ease; box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);">
+            Ascend to Divine Realm
+        </button>
+    </div>
+</div>
 
     <div id="battle-tab" class="tab-content" style="display: none; padding: 10px; box-sizing: border-box;">
     <div id="combat-section" style="
@@ -1446,23 +1465,47 @@ window.buyDivineUpgrade = buyDivineUpgrade;
 
 // --- 5. VISUALS ---
 function clickMana(event) {
-    const wand = artifactPool.find(a => a.id === 'wand');
-    const strike = divineUpgrades.find(u => u.id === 'divine_strike');
-    const holyFlow = divineUpgrades.find(u => u.id === 'holy_flow');
+    // 1. Find relevant data
+    const wand = (typeof artifactPool !== 'undefined') ? artifactPool.find(a => a.id === 'wand') : null;
+    const strike = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(u => u.id === 'divine_strike') : null;
+    const holyFlow = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(u => d.id === 'holy_flow') : null;
 
-    // Base + Wand + Divine Strike (+5 per level)
+    // 2. Base Power + Wand + Divine Strike (+5 per level)
     let power = 1;
-    if (wand && wand.owned) power += (wand.level * wand.bonus);
-    if (strike) power += (strike.level * 5);
+    
+    // Use getArtifactBonus for the Wand to stay consistent with other systems
+    const wandBonus = (typeof getArtifactBonus === 'function') ? getArtifactBonus('wand') : 0;
+    power += (5 * wandBonus); // Scaling the base 5 damage logic
 
-    // Apply Global Production Multiplier to clicks too
+    if (strike) {
+        power += (strike.level * 5);
+    }
+
+    // 3. Apply Global Production Multiplier (Holy Flow)
     const flowMult = holyFlow ? (1 + (holyFlow.level * 0.20)) : 1;
     const finalPower = Math.floor(power * flowMult);
 
+    // 4. Update Currencies
     mana += finalPower;
     totalManaAllTime += finalPower;
 
-    if (event) createFloatingText(event.clientX, event.clientY, `+${finalPower}`);
+    // 5. Trigger Visual Feedback (Mouse Following)
+    if (typeof createFloatingText === 'function') {
+        // If we have a mouse event, use its coordinates
+        if (event && event.clientX && event.clientY) {
+            createFloatingText(event.clientX, event.clientY, `+${finalPower.toLocaleString()}`);
+        } 
+        // Fallback: If no event (like a keypress), spawn near the button area
+        else {
+            const btn = document.getElementById('gather-mana-btn');
+            if (btn) {
+                const rect = btn.getBoundingClientRect();
+                createFloatingText(rect.left + rect.width / 2, rect.top, `+${finalPower.toLocaleString()}`);
+            }
+        }
+    }
+
+    // 6. Refresh UI
     updateUI();
 }
 
