@@ -1410,9 +1410,13 @@ function renderDivineShop() {
         const card = document.createElement('div');
         card.className = 'upgrade-card divine-card'; 
 
+        // Check if maxed
         const isMaxed = upg.maxLevel !== null && upg.level >= upg.maxLevel;
-        const canAfford = heavenlyEssence >= upg.cost;
+        const canAfford = !isMaxed && (heavenlyEssence >= upg.cost);
+        
+        // Formatting for display
         const displayCost = (upg.cost || 0).toLocaleString();
+        const levelText = `Level: ${upg.level} / ${upg.maxLevel || '∞'}`;
 
         card.innerHTML = `
             <div style="font-size: 2.2em; margin-bottom: 8px;">${upg.icon}</div>
@@ -1421,15 +1425,18 @@ function renderDivineShop() {
                 ${upg.description}
             </div>
             <div id="divine-lvl-${upg.id}" style="font-size: 0.85em; color: #bdc3c7;">
-                Level: ${upg.level} / ${upg.maxLevel}
+                ${levelText}
             </div>
             <div class="card-actions" style="width: 100%;">
                 <button id="buy-divine-${upg.id}" class="buy-btn" 
                     onclick="buyDivineUpgrade('${upg.id}')" 
                     ${(isMaxed || !canAfford) ? 'disabled' : ''}
-                    style="border-color: #ffd700; color: #ffd700; width: 100%; margin-top: 12px; padding: 10px; 
-                    opacity: ${(isMaxed || !canAfford) ? 0.5 : 1}; cursor: ${isMaxed ? 'default' : 'pointer'};">
-                    ${isMaxed ? 'MAXED OUT' : `Buy: ${displayCost} 🌟`}
+                    style="border-color: ${isMaxed ? '#666' : '#ffd700'}; 
+                           color: ${isMaxed ? '#666' : '#ffd700'}; 
+                           width: 100%; margin-top: 12px; padding: 10px; 
+                           opacity: ${(isMaxed || !canAfford) ? 0.5 : 1}; 
+                           cursor: ${isMaxed ? 'default' : 'pointer'};">
+                    ${isMaxed ? 'MAXED' : `Buy: ${displayCost} 🌟`}
                 </button>
             </div>
         `;
@@ -1439,13 +1446,14 @@ function renderDivineShop() {
     if (typeof updateDivineUI === "function") updateDivineUI();
 }
 
+
 function buyDivineUpgrade(id) {
     const upg = divineUpgrades.find(u => u.id === id);
     if (!upg) return;
 
-    // 1. CAP CHECK
+    // 1. STRICT CAP CHECK
     if (upg.maxLevel !== null && upg.level >= upg.maxLevel) {
-        console.warn(`${upg.name} has reached its divine limit.`);
+        console.warn(`${upg.name} is already at its divine limit.`);
         return;
     }
 
@@ -1457,18 +1465,19 @@ function buyDivineUpgrade(id) {
         // B. Increase Level
         upg.level++;
 
-        // C. DOUBLE THE COST (Scaling)
-        // Level 0 (40) -> Level 1 (80)
-        upg.cost *= 2;
+        // C. SCALING (Only double if not maxed)
+        if (upg.maxLevel === null || upg.level < upg.maxLevel) {
+            upg.cost *= 2;
+        }
 
-        // 3. REFRESH STATE & UI
-        // Recalculate production rates (for Holy Flow)
+        // 3. REFRESH EVERYTHING
+        // Recalculate production
         if (typeof calculateMPS === 'function') calculateMPS();
         
-        // Update the main UI (Mana/Essence counts)
+        // Update main UI counters
         updateUI();
 
-        // RE-RENDER THE SHOP (Crucial Fix: Refresh the cards)
+        // Immediately re-draw the shop to show "MAXED" or "Lv 2/2"
         if (typeof renderDivineShop === 'function') {
             renderDivineShop();
         }
@@ -1476,7 +1485,7 @@ function buyDivineUpgrade(id) {
         // 4. AUTO-SAVE
         if (typeof saveGame === 'function') saveGame();
 
-        console.log(`%c[Ascension] %c${upg.name} upgraded to Level ${upg.level}. Next cost: ${upg.cost}`, 
+        console.log(`%c[Ascension] %c${upg.name} upgraded to Level ${upg.level}`, 
                     "color: #ffd700", "color: #fff; font-weight: bold");
     } else {
         console.warn(`Insufficient Heavenly Essence! Need ${upg.cost}.`);
