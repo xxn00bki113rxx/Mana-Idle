@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     
     <meta name="mobile-web-app-capable" content="yes">
     
@@ -257,6 +257,17 @@ button:disabled {
     cursor: not-allowed;
     border-color: #555 !important;
     color: #555 !important;
+}
+
+button, .upgrade-card, #gather-mana-btn {
+    /* This is the magic line for modern mobile browsers */
+    touch-action: manipulation;
+    
+    /* This prevents the 'ghostly' grey box from appearing when tapping */
+    -webkit-tap-highlight-color: transparent;
+    
+    /* This prevents the phone from trying to 'select' the text on the button */
+    user-select: none;
 }
 
 .hidden { display: none !important; }
@@ -2148,6 +2159,26 @@ window.addEventListener('keydown', (e) => {
         }
     }
 });
+
+// 1. Block pinch-zooming (two fingers)
+document.documentElement.addEventListener('touchstart', function (event) {
+    if (event.touches.length > 1) {
+        event.preventDefault();
+    }
+}, { passive: false });
+
+// 2. Block double-tap to zoom on the background, but let buttons work
+let lastTouchEnd = 0;
+document.documentElement.addEventListener('touchend', function (event) {
+    const now = (new Date()).getTime();
+    if (now - lastTouchEnd <= 300) {
+        // Only prevent default if the user ISN'T clicking a button
+        if (event.target.tagName !== 'BUTTON') {
+            event.preventDefault();
+        }
+    }
+    lastTouchEnd = now;
+}, false);
 
 // --- INITIALIZE ---
 window.onload = function() {
