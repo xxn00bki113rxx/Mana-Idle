@@ -713,24 +713,60 @@ window.buyMax = buyMax;
 window.renderSanctum = renderSanctum;
 
 function updateShopAffordability(discount = 0) {
+    const totalDiscountMultiplier = 1 - discount;
+
     upgrades.forEach(upg => {
         const costEl = document.getElementById(`cost-${upg.id}`);
         const countEl = document.getElementById(`count-${upg.id}`);
+        // Find the specific Buy Max button for this upgrade
+        const maxBtn = document.querySelector(`button[onclick="buyMax('${upg.id}')"]`);
         
+        // A. Calculate the single purchase cost (using math, not saved variables)
+        const currentBasePrice = upg.baseCost * Math.pow(1.15, upg.count);
+        const finalCost = Math.floor(currentBasePrice * totalDiscountMultiplier);
+
+        // B. Update Cost and Main Button State
         if (costEl) {
-            // Apply the Artifact Discount here!
-            const finalCost = Math.floor(upg.cost * (1 - discount));
             costEl.textContent = finalCost.toLocaleString();
             
-            // Check affordability
+            // Find the parent button or specific button ID
             const btn = costEl.closest('button') || document.getElementById(`btn-${upg.id}`);
             if (btn) {
                 btn.disabled = (mana < finalCost);
                 btn.style.opacity = (mana < finalCost) ? "0.5" : "1";
+                // Update background color based on affordability
+                const isTier2 = upg.baseCost >= 150000;
+                const tierColor = isTier2 ? '#9b59b6' : '#4ecca3';
+                btn.style.background = (mana >= finalCost) ? tierColor : '#333';
             }
         }
+
+        // C. Update Buy Max Button Logic
+        if (maxBtn) {
+            let tempTotalCost = 0;
+            let amountToBuy = 0;
+            let tempCount = upg.count;
+
+            // Project how many can be bought with current mana
+            while (true) {
+                let nextPrice = Math.floor((upg.baseCost * Math.pow(1.15, tempCount)) * totalDiscountMultiplier);
+                if (mana >= tempTotalCost + nextPrice) {
+                    tempTotalCost += nextPrice;
+                    amountToBuy++;
+                    tempCount++;
+                } else { break; }
+                if (amountToBuy >= 1000) break; // Hard cap for performance
+            }
+
+            maxBtn.textContent = `Buy Max (+${amountToBuy})`;
+            maxBtn.disabled = (amountToBuy === 0);
+            maxBtn.style.opacity = (amountToBuy > 0) ? "1" : "0.5";
+        }
         
-        if (countEl) countEl.textContent = upg.count;
+        // D. Update Count Display
+        if (countEl) {
+            countEl.textContent = upg.count;
+        }
     });
 }
 	  
@@ -1446,34 +1482,41 @@ function createDamagePopup(amount, isPassive) {
 
 
 function gameLoop() {
-    // --- A. TEMPORAL CALCULATIONS ---
+    // 1. TEMPORAL CALCULATIONS (High Precision)
+    const now = Date.now();
+    if (!window.lastTick) window.lastTick = now;
+    
+    // Calculate the actual time passed since the last tick
+    const actualDeltaMS = now - window.lastTick;
+    window.lastTick = now;
+
+    // Get the Artifact Speed for the next delay
     const hourglass = artifactPool.find(a => a.id === 'hourglass');
     let speedMult = (hourglass && hourglass.owned) ? (1 - (hourglass.level * 0.05)) : 1;
     let tickDelay = Math.max(20, baseTickSpeed * speedMult);
 
-    // Calculate production based on time passed (Delta Time)
-    let deltaTime = tickDelay / 1000; 
+    // 2. PRODUCTION (Delta-Time Based)
+    // We use actualDeltaMS to ensure mana production is frame-perfect
+    let deltaTime = actualDeltaMS / 1000; 
     let mpsThisTick = globalMPS * deltaTime;
     
     mana += mpsThisTick;
-
-    // Trackers for Ascension Rewards
     totalManaThisRun += mpsThisTick;
     totalManaAllTime += mpsThisTick;
 
-    // --- B. PASSIVE COMBAT ---
+    // 3. PASSIVE COMBAT
     if (monsterHP > 0) {
+        // Passive damage (10% of MPS)
         let pDmg = mpsThisTick * 0.1; 
         monsterHP -= pDmg;
         passiveDamageBuffer += pDmg;
         
-        
         checkMonsterDeath(); 
     }
 
-    // --- C. DAMAGE POPUPS ---
-    passiveTimer++;
-    if (passiveTimer >= (1000 / tickDelay)) {
+    // 4. DAMAGE POPUPS (Once per second)
+    passiveTimer += actualDeltaMS;
+    if (passiveTimer >= 1000) {
         if (passiveDamageBuffer >= 1) {
             if (typeof createDamagePopup === "function") {
                 createDamagePopup(Math.floor(passiveDamageBuffer), true);
@@ -1483,31 +1526,32 @@ function gameLoop() {
         passiveTimer = 0;
     }
 
-    // --- D. STABLE AUTOSAVE ---
-    saveTimer += tickDelay;
+    // 5. STABLE AUTOSAVE (Every 30 seconds)
+    saveTimer += actualDeltaMS;
     if (saveTimer >= 30000) { 
         if (typeof saveGame === "function") saveGame();
         saveTimer = 0;
     }
 
-    // --- E. HEARTBEAT & LIVE UPDATES ---
+    // 6. HEARTBEAT & LIVE UPDATES
+    // updateUI() now handles updateShopAffordability(discount) internally
     updateUI();
     
-    // NEW: Live check for shop buttons
-    if (typeof updateShopAffordability === "function") {
-        updateShopAffordability();
-    }
-    
-    // Schedule next tick
+    // 7. SCHEDULE NEXT TICK
     setTimeout(gameLoop, tickDelay);
 }
+	  
 function updateUI() {
     // 1. Core Currencies
     const manaEl = document.getElementById('mana-count');
-    if (manaEl) manaEl.textContent = Math.floor(mana).toLocaleString();
+    if (manaEl) {
+        manaEl.textContent = Math.floor(mana).toLocaleString();
+    }
 
     const essenceEl = document.getElementById('essence-count');
-    if (essenceEl) essenceEl.textContent = Math.floor(essence).toLocaleString();
+    if (essenceEl) {
+        essenceEl.textContent = Math.floor(essence).toLocaleString();
+    }
 
     const heavenlyEl = document.getElementById('heavenly-count');
     if (heavenlyEl) {
@@ -1516,18 +1560,13 @@ function updateUI() {
 
     // 2. Production (Flow) & Records
     const mpsEl = document.getElementById('mps-display');
-    if (mpsEl) mpsEl.textContent = (globalMPS || 0).toLocaleString();
+    if (mpsEl) {
+        mpsEl.textContent = (globalMPS || 0).toLocaleString();
+    }
 
     const recordEl = document.getElementById('mana-record');
-    if (recordEl) recordEl.textContent = Math.floor(totalManaAllTime || 0).toLocaleString();
-
-    // --- ADDED: Battle Power Display ---
-    // Update a text element to show the player their current click power
-    const clickDmgEl = document.getElementById('click-damage-display');
-    if (clickDmgEl) {
-        const wandBonus = (typeof getArtifactBonus === 'function') ? getArtifactBonus('wand') : 0;
-        const currentDmg = 5 * (1 + wandBonus);
-        clickDmgEl.textContent = Math.floor(currentDmg).toLocaleString();
+    if (recordEl) {
+        recordEl.textContent = Math.floor(totalManaAllTime || 0).toLocaleString();
     }
 
     // 3. Ascension Visibility Logic
@@ -1535,6 +1574,7 @@ function updateUI() {
     if (ascendBox) {
         if (totalManaAllTime >= 1000000 || totalHeavenlyEarned > 0) {
             ascendBox.style.display = 'block';
+            
             const potentialText = document.getElementById('potential-essence-text');
             if (potentialText) {
                 let totalTarget = Math.floor(Math.sqrt((totalManaAllTime || 0) / 1000000));
@@ -1557,14 +1597,20 @@ function updateUI() {
         navPrestige.style.display = (totalHeavenlyEarned > 0) ? 'inline-block' : 'none';
     }
 
-    // 5. LIVE REFRESHERS 
-    if (typeof updateCombatUI === "function") updateCombatUI();
-    
-    // --- CRITICAL UPDATE FOR SHOP ---
-    // Pass the discount to your shop refresher so prices update correctly
+    // 5. Calculate TOTAL Discount (Fixes Flickering)
+    const artifactDiscount = (typeof getArtifactBonus === 'function') ? getArtifactBonus('robe') : 0;
+    const wisdom = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(d => d.id === 'ethereal_wisdom') : null;
+    const divineDiscount = wisdom ? (wisdom.level * 0.05) : 0;
+    const totalDiscount = artifactDiscount + divineDiscount;
+
+    // 6. LIVE REFRESHERS 
+    if (typeof updateCombatUI === "function") {
+        updateCombatUI();
+    }
+
+    // Pass the calculated discount into the shop refresher
     if (typeof updateShopAffordability === "function") {
-        const currentDiscount = (typeof getArtifactBonus === 'function') ? getArtifactBonus('robe') : 0;
-        updateShopAffordability(currentDiscount); 
+        updateShopAffordability(totalDiscount);
     }
 }
 	  
