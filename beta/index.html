@@ -488,7 +488,7 @@ const divineUpgrades = [
     { id: 'divine_strike', name: 'Divine Strike', icon: '⚔️', type: 'click', description: 'Permanent +5 Mana per click per level.', level: 0, maxLevel: 50, cost: 5 },
     { id: 'spirit_projection', name: 'Spirit Projection', icon: '👻', type: 'utility', description: 'Increases soul efficiency while away. (+10% Offline Efficiency per level)', level: 0, maxLevel: 5, cost: 5 },
     { id: 'soul_siphon', name: 'Soul Siphon', icon: '💎', type: 'combat', description: 'Gain +25% more Battle Essence from monsters per level.', level: 0, maxLevel: 20, cost: 8 },
-    { id: 'ethereal_wisdom', name: 'Ethereal Wisdom', icon: '📜', type: 'cost', description: 'Permanently reduces building costs by 5% per level.', level: 0, maxLevel: 10, cost: 20 },
+    { id: 'ethereal_wisdom', name: 'Ethereal Wisdom', icon: '📜', type: 'cost', description: 'Permanently reduces building costs by 5% per level. (Max 10%)', level: 0, maxLevel: 2, cost: 40 },
     { id: 'astral_speed', name: 'Astral Speed', icon: '⏳', type: 'time', description: 'Increases the speed of the game clock by 2% per level.', level: 0, maxLevel: 25, cost: 15 }
 ];
 
@@ -1435,38 +1435,48 @@ function renderDivineShop() {
 
     if (typeof updateDivineUI === "function") updateDivineUI();
 }
+
 function buyDivineUpgrade(id) {
     const upg = divineUpgrades.find(u => u.id === id);
-    
-    // 1. Basic Validation
     if (!upg) return;
-    if (heavenlyEssence < upg.cost) {
-        console.log("Not enough Heavenly Essence!");
+
+    // 1. CAP CHECK
+    if (upg.maxLevel !== null && upg.level >= upg.maxLevel) {
+        console.warn(`${upg.name} has reached its divine limit.`);
         return;
     }
-    if (upg.level >= upg.maxLevel) {
-        console.log("Already at maximum level.");
-        return;
+
+    // 2. COST CHECK
+    if (heavenlyEssence >= upg.cost) {
+        // A. Deduct Currency
+        heavenlyEssence -= upg.cost;
+
+        // B. Increase Level
+        upg.level++;
+
+        // C. DOUBLE THE COST 
+        upg.cost *= 2;
+
+        // 3. REFRESH STATE
+        // Recalculate production because Holy Flow might have changed
+        if (typeof calculateMPS === 'function') calculateMPS();
+        
+        // Update UI (especially prices in the shop)
+        updateUI();
+
+        // Re-render the prestige menu to show new levels/costs
+        if (typeof renderPrestigeMenu === 'function') {
+            renderPrestigeMenu();
+        }
+
+        // 4. AUTO-SAVE
+        if (typeof saveGame === 'function') saveGame();
+
+        console.log(`%c[Ascension] %c${upg.name} upgraded to Level ${upg.level}. Next cost: ${upg.cost}`, 
+                    "color: #ffd700", "color: #fff; font-weight: bold");
+    } else {
+        console.warn(`Insufficient Heavenly Essence! Need ${upg.cost}.`);
     }
-
-    // 2. Process Purchase
-    heavenlyEssence -= upg.cost;
-    upg.level++;
-
-    // 3. Dynamic Cost Scaling (Optional: If you want costs to go up)
-    upg.cost = Math.floor(upg.cost * 1.5); 
-
-    // 4. Logic Updates
-    calculateMPS();
-    
-    // 5. UI Updates (The "No-Flicker" Way)
-    // Instead of rendering the whole shop, we just update the text/labels
-    if (typeof updateDivineUI === "function") {
-        updateDivineUI();
-    }
-    
-    updateUI(); // Updates the top header mana/essence displays
-    saveGame();
 }
 
 window.buyDivineUpgrade = buyDivineUpgrade;
