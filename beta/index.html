@@ -251,6 +251,14 @@ button:disabled {
     transform: none !important;
 }
 
+.buy-btn:disabled {
+    filter: grayscale(1);
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-color: #555 !important;
+    color: #555 !important;
+}
+
 .hidden { display: none !important; }
 
 #sanctum-container.shop-container {
@@ -1410,13 +1418,16 @@ function renderDivineShop() {
         const card = document.createElement('div');
         card.className = 'upgrade-card divine-card'; 
 
-        // Check if maxed
+        // 1. Determine State
         const isMaxed = upg.maxLevel !== null && upg.level >= upg.maxLevel;
         const canAfford = !isMaxed && (heavenlyEssence >= upg.cost);
         
-        // Formatting for display
+        // 2. Prepare Display Values
         const displayCost = (upg.cost || 0).toLocaleString();
         const levelText = `Level: ${upg.level} / ${upg.maxLevel || '∞'}`;
+        
+        // 3. Force Colors (Using !important to beat the CSS file)
+        const btnColor = isMaxed ? '#666 !important' : '#ffd700 !important';
 
         card.innerHTML = `
             <div style="font-size: 2.2em; margin-bottom: 8px;">${upg.icon}</div>
@@ -1431,8 +1442,8 @@ function renderDivineShop() {
                 <button id="buy-divine-${upg.id}" class="buy-btn" 
                     onclick="buyDivineUpgrade('${upg.id}')" 
                     ${(isMaxed || !canAfford) ? 'disabled' : ''}
-                    style="border-color: ${isMaxed ? '#666' : '#ffd700'}; 
-                           color: ${isMaxed ? '#666' : '#ffd700'}; 
+                    style="border-color: ${btnColor}; 
+                           color: ${btnColor}; 
                            width: 100%; margin-top: 12px; padding: 10px; 
                            opacity: ${(isMaxed || !canAfford) ? 0.5 : 1}; 
                            cursor: ${isMaxed ? 'default' : 'pointer'};">
@@ -1443,6 +1454,10 @@ function renderDivineShop() {
         container.appendChild(card);
     });
 
+    // Sync the header essence count
+    const headerEssence = document.getElementById('heavenly-essence-header');
+    if (headerEssence) headerEssence.textContent = Math.floor(heavenlyEssence).toLocaleString();
+
     if (typeof updateDivineUI === "function") updateDivineUI();
 }
 
@@ -1451,44 +1466,42 @@ function buyDivineUpgrade(id) {
     const upg = divineUpgrades.find(u => u.id === id);
     if (!upg) return;
 
-    // 1. STRICT CAP CHECK
+    // 1. CAP CHECK
     if (upg.maxLevel !== null && upg.level >= upg.maxLevel) {
-        console.warn(`${upg.name} is already at its divine limit.`);
+        console.warn(`${upg.name} is already maxed!`);
         return;
     }
 
     // 2. COST CHECK
     if (heavenlyEssence >= upg.cost) {
-        // A. Deduct Currency
+        // A. Deduct
         heavenlyEssence -= upg.cost;
 
-        // B. Increase Level
+        // B. Level Up
         upg.level++;
 
-        // C. SCALING (Only double if not maxed)
+        // C. Scale Cost (only if not maxed)
         if (upg.maxLevel === null || upg.level < upg.maxLevel) {
             upg.cost *= 2;
         }
 
         // 3. REFRESH EVERYTHING
-        // Recalculate production
         if (typeof calculateMPS === 'function') calculateMPS();
         
-        // Update main UI counters
+        // Update main top-bar UI
         updateUI();
 
-        // Immediately re-draw the shop to show "MAXED" or "Lv 2/2"
+        // FORCE REDRAW DIVINE SHOP
         if (typeof renderDivineShop === 'function') {
             renderDivineShop();
         }
 
-        // 4. AUTO-SAVE
+        // 4. SAVE
         if (typeof saveGame === 'function') saveGame();
 
-        console.log(`%c[Ascension] %c${upg.name} upgraded to Level ${upg.level}`, 
-                    "color: #ffd700", "color: #fff; font-weight: bold");
+        console.log(`%c[Divine] %c${upg.name} is now Lv ${upg.level}`, "color: #ffd700", "font-weight: bold");
     } else {
-        console.warn(`Insufficient Heavenly Essence! Need ${upg.cost}.`);
+        console.warn("Not enough Heavenly Essence!");
     }
 }
 window.buyDivineUpgrade = buyDivineUpgrade;
