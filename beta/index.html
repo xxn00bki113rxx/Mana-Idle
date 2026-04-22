@@ -226,13 +226,15 @@ body {
 }
 
 .floating-text {
-    position: fixed;
+    position: absolute; 
     font-weight: bold;
     font-size: 1.6rem;
     color: #4ecca3;
     pointer-events: none;
     z-index: 10000;
+    transform: translateX(-50%); 
     animation: floatAndFade 0.8s ease-out forwards;
+    white-space: nowrap; 
 }
 
 @keyframes floatAndFade {
@@ -835,16 +837,22 @@ function createFloatingText(event, text, color = "#4ecca3") {
     floatText.innerText = text;
     floatText.style.color = color;
 
-    // Position the text at the mouse click coordinates
-    // We use clientX/Y for the position and subtract a bit to center it
-    floatText.style.left = `${event.clientX}px`;
-    floatText.style.top = `${event.clientY}px`;
+    // Position Logic
+    if (event && event.clientX !== undefined) {
+        // Use mouse coordinates
+        floatText.style.left = `${event.clientX}px`;
+        floatText.style.top = `${event.clientY}px`;
+    } else {
+        // Fallback: Center of screen if event is missing
+        floatText.style.left = "50vw";
+        floatText.style.top = "50vh";
+    }
 
     document.body.appendChild(floatText);
 
-    // Remove the element after the animation (0.8s) finishes
+    // Remove element after animation
     setTimeout(() => {
-        floatText.remove();
+        if (floatText.parentNode) floatText.remove();
     }, 800);
 }
 
@@ -1465,47 +1473,36 @@ window.buyDivineUpgrade = buyDivineUpgrade;
 
 // --- 5. VISUALS ---
 function clickMana(event) {
-    // 1. Find relevant data
+    // 1. Data Retrieval
     const wand = (typeof artifactPool !== 'undefined') ? artifactPool.find(a => a.id === 'wand') : null;
     const strike = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(u => u.id === 'divine_strike') : null;
-    const holyFlow = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(u => d.id === 'holy_flow') : null;
+    const holyFlow = (typeof divineUpgrades !== 'undefined') ? divineUpgrades.find(u => u.id === 'holy_flow') : null;
 
-    // 2. Base Power + Wand + Divine Strike (+5 per level)
+    // 2. Damage Math
     let power = 1;
-    
-    // Use getArtifactBonus for the Wand to stay consistent with other systems
     const wandBonus = (typeof getArtifactBonus === 'function') ? getArtifactBonus('wand') : 0;
-    power += (5 * wandBonus); // Scaling the base 5 damage logic
-
+    
+    // Applying Wand: Base 1 + (Level * Bonus)
+    if (wand && wand.owned) {
+        power += (wand.level * wand.bonus);
+    }
+    
     if (strike) {
         power += (strike.level * 5);
     }
 
-    // 3. Apply Global Production Multiplier (Holy Flow)
     const flowMult = holyFlow ? (1 + (holyFlow.level * 0.20)) : 1;
     const finalPower = Math.floor(power * flowMult);
 
-    // 4. Update Currencies
+    // 3. Update State
     mana += finalPower;
     totalManaAllTime += finalPower;
 
-    // 5. Trigger Visual Feedback (Mouse Following)
+    // 4. Trigger Visuals (Passing the EVENT object correctly)
     if (typeof createFloatingText === 'function') {
-        // If we have a mouse event, use its coordinates
-        if (event && event.clientX && event.clientY) {
-            createFloatingText(event.clientX, event.clientY, `+${finalPower.toLocaleString()}`);
-        } 
-        // Fallback: If no event (like a keypress), spawn near the button area
-        else {
-            const btn = document.getElementById('gather-mana-btn');
-            if (btn) {
-                const rect = btn.getBoundingClientRect();
-                createFloatingText(rect.left + rect.width / 2, rect.top, `+${finalPower.toLocaleString()}`);
-            }
-        }
+        createFloatingText(event, `+${finalPower.toLocaleString()}`);
     }
 
-    // 6. Refresh UI
     updateUI();
 }
 
