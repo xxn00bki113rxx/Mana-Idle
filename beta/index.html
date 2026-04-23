@@ -1831,7 +1831,8 @@ function updateDivineUI() {
 
 // --- 7. SAVE SYSTEM ---
 function saveGame() {
-    const saveData = {
+    if (window.isResetting) return;
+	const saveData = {
         // Core Currencies
         mana: mana,
         essence: essence,
@@ -2161,26 +2162,31 @@ window.unlockAllArtifacts = function() {
 };
 
 window.deleteSave = function() { 
-    if (confirm("Wipe ALL progress? This will reset Mana, Essence, Artifacts, and Upgrades.")) { 
+    if (confirm("Wipe ALL progress? This will stop the game and start you from the beginning.")) { 
         
-        // 1. CLEAR STORAGE IMMEDIATELY
-        localStorage.removeItem("wizardIdle_v1"); // The primary key
-        localStorage.clear(); // Safety purge for any other keys
-        
-        // 2. BLANK THE DATA OBJECTS
-        // This ensures if a 'save' fires in the next 10ms, it saves empty data
-        if (typeof mana !== 'undefined') window.mana = 0;
-        if (typeof essence !== 'undefined') window.essence = 0;
-        if (typeof totalManaAllTime !== 'undefined') window.totalManaAllTime = 0;
-        
-        // Clear Arrays based on your screenshot structure
-        if (typeof upgrades !== 'undefined') upgrades.forEach(u => u.count = 0);
-        if (typeof divineUpgrades !== 'undefined') divineUpgrades.forEach(d => d.level = 0);
-        if (typeof artifacts !== 'undefined') artifacts.forEach(a => { a.owned = false; a.level = 0; });
+        // 1. SET A 'MUTE' FLAG
+        // We create a temporary flag to tell any remaining logic to STOP saving.
+        window.isResetting = true;
 
-        // 3. FORCE THE REFRESH
-        // Using location.replace is more aggressive than reload for clearing cache
-        window.location.replace(window.location.pathname);
+        // 2. KILL ALL RUNNING LOOPS
+        // This stops the heartbeat of the game (and any auto-save timers).
+        for (let i = 1; i < 9999; i++) {
+            window.clearInterval(i);
+            window.clearTimeout(i);
+        }
+
+        // 3. OVERWRITE THE SAVE FUNCTION
+        // If a stray line of code tries to save, this makes it do nothing.
+        window.saveGame = function() { return false; };
+
+        // 4. NUKE THE STORAGE
+        localStorage.clear();
+        localStorage.removeItem("wizardIdle_v1");
+
+        // 5. CLEAN RELOAD
+        // We use replace() on the URL to ensure the browser doesn't try 
+        // to reload from a cached "stateful" version of the page.
+        window.location.replace(window.location.origin + window.location.pathname);
     } 
 };
 	  
