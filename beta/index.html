@@ -402,7 +402,9 @@ button, .upgrade-card, #gather-mana-btn {
             <button onclick="importSave()" style="background: #fca311; color: #1b1b2f; width: 100%; margin-top: 10px; font-weight: bold; cursor: pointer;">Import Save Code</button>
         </div>
         <div style="margin-top: 20px; text-align: center;">
-            <button onclick="deleteSave()" style="background: #e94560; color: white; padding: 5px 15px; font-size: 0.8em; opacity: 0.6; cursor: pointer;">Hard Reset Game</button>
+            <button type="button" onclick="deleteSave()" style="background: #e94560; color: white; padding: 5px 15px; font-size: 0.8em; opacity: 0.6; cursor: pointer; border-radius: 4px; border: none;">
+    Hard Reset Game
+</button>
         </div>
     </div>
 
@@ -2160,8 +2162,23 @@ window.unlockAllArtifacts = function() {
 
 window.deleteSave = function() { 
     if (confirm("Wipe ALL progress and refresh? This cannot be undone.")) { 
+        // 1. Clear the specific key
         localStorage.removeItem("wizardIdle_v1"); 
-        location.reload(); 
+
+        // 2. Clear ALL local storage just in case multiple keys exist
+        localStorage.clear(); 
+
+        // 3. Nuance: Manual Variable Reset
+        // This prevents the auto-save from 'rescuing' the data
+        if (typeof mana !== 'undefined') mana = 0;
+        if (typeof heavenlyEssence !== 'undefined') heavenlyEssence = 0;
+        if (typeof upgrades !== 'undefined') {
+            upgrades.forEach(u => u.count = 0);
+        }
+
+        // 4. Force Reload (ignore cache)
+        window.location.href = window.location.href.split('#')[0];
+        location.reload(true); 
     } 
 };
 
