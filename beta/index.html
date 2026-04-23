@@ -2162,26 +2162,37 @@ window.unlockAllArtifacts = function() {
 
 window.deleteSave = function() { 
     if (confirm("Wipe ALL progress and refresh? This cannot be undone.")) { 
-        // 1. Clear the specific key
+        // 1. CLEAR THE STORAGE
         localStorage.removeItem("wizardIdle_v1"); 
-
-        // 2. Clear ALL local storage just in case multiple keys exist
         localStorage.clear(); 
 
-        // 3. Nuance: Manual Variable Reset
-        // This prevents the auto-save from 'rescuing' the data
-        if (typeof mana !== 'undefined') mana = 0;
-        if (typeof heavenlyEssence !== 'undefined') heavenlyEssence = 0;
+        // 2. RESET CORE VARIABLES (The "Brain")
+        // We set these to 0 so the UI and any last-second auto-saves see 0
+        window.mana = 0;
+        window.totalManaEarned = 0;
+        window.heavenlyEssence = 0;
+        window.totalEssenceEarned = 0;
+
+        // 3. RESET ARRAYS
         if (typeof upgrades !== 'undefined') {
             upgrades.forEach(u => u.count = 0);
         }
+        if (typeof divineUpgrades !== 'undefined') {
+            divineUpgrades.forEach(d => d.level = 0);
+        }
 
-        // 4. Force Reload (ignore cache)
-        window.location.href = window.location.href.split('#')[0];
-        location.reload(true); 
+        // 4. UPDATE THE UI IMMEDIATELY
+        // This clears the "Residual" numbers in the header before the reload
+        if (typeof updateUI === 'function') updateUI();
+        if (typeof renderSanctum === 'function') renderSanctum();
+        if (typeof renderDivineShop === 'function') renderDivineShop();
+
+        // 5. FORCE THE RELOAD
+        // Using window.location.href ensures the browser clears the state
+        window.location.href = window.location.origin + window.location.pathname;
     } 
 };
-
+	  
 // --- TOGGLE LISTENER ---
 window.addEventListener('keydown', (e) => {
     if (e.key === '`' || e.key === '~') {
