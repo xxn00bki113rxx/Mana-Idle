@@ -2161,35 +2161,26 @@ window.unlockAllArtifacts = function() {
 };
 
 window.deleteSave = function() { 
-    if (confirm("Wipe ALL progress and refresh? This cannot be undone.")) { 
-        // 1. CLEAR THE STORAGE
-        localStorage.removeItem("wizardIdle_v1"); 
-        localStorage.clear(); 
+    if (confirm("Wipe ALL progress? This will reset Mana, Essence, Artifacts, and Upgrades.")) { 
+        
+        // 1. CLEAR STORAGE IMMEDIATELY
+        localStorage.removeItem("wizardIdle_v1"); // The primary key
+        localStorage.clear(); // Safety purge for any other keys
+        
+        // 2. BLANK THE DATA OBJECTS
+        // This ensures if a 'save' fires in the next 10ms, it saves empty data
+        if (typeof mana !== 'undefined') window.mana = 0;
+        if (typeof essence !== 'undefined') window.essence = 0;
+        if (typeof totalManaAllTime !== 'undefined') window.totalManaAllTime = 0;
+        
+        // Clear Arrays based on your screenshot structure
+        if (typeof upgrades !== 'undefined') upgrades.forEach(u => u.count = 0);
+        if (typeof divineUpgrades !== 'undefined') divineUpgrades.forEach(d => d.level = 0);
+        if (typeof artifacts !== 'undefined') artifacts.forEach(a => { a.owned = false; a.level = 0; });
 
-        // 2. RESET CORE VARIABLES (The "Brain")
-        // We set these to 0 so the UI and any last-second auto-saves see 0
-        window.mana = 0;
-        window.totalManaEarned = 0;
-        window.heavenlyEssence = 0;
-        window.totalEssenceEarned = 0;
-
-        // 3. RESET ARRAYS
-        if (typeof upgrades !== 'undefined') {
-            upgrades.forEach(u => u.count = 0);
-        }
-        if (typeof divineUpgrades !== 'undefined') {
-            divineUpgrades.forEach(d => d.level = 0);
-        }
-
-        // 4. UPDATE THE UI IMMEDIATELY
-        // This clears the "Residual" numbers in the header before the reload
-        if (typeof updateUI === 'function') updateUI();
-        if (typeof renderSanctum === 'function') renderSanctum();
-        if (typeof renderDivineShop === 'function') renderDivineShop();
-
-        // 5. FORCE THE RELOAD
-        // Using window.location.href ensures the browser clears the state
-        window.location.href = window.location.origin + window.location.pathname;
+        // 3. FORCE THE REFRESH
+        // Using location.replace is more aggressive than reload for clearing cache
+        window.location.replace(window.location.pathname);
     } 
 };
 	  
